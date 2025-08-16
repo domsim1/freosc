@@ -55,7 +55,16 @@ class FreOSC {
             limRelease: 0.01,
             // Reverb
             roomSize: 0.5,
-            reverbWet: 0.2
+            reverbWet: 0.2,
+            // LFO
+            lfoWaveform: 'sine',
+            lfoRate: 2.0,
+            lfoTarget: 'none',
+            lfoAmount: 0,
+            // Delay
+            delayTime: 250,
+            delayFeedback: 0.3,
+            delayWet: 0.2
         };
         
         this.presets = {
@@ -67,7 +76,9 @@ class FreOSC {
                 volume: 0.4, attack: 0.05, decay: 0.2, sustain: 0.7, release: 0.3,
                 filterType: 'lowpass', cutoff: 3500, resonance: 8, filterGain: 0, formantVowel: 'a', fmAmount: 0, fmSource: 'none', fmTarget: 'osc1', fmRatio: 1,
                 compThreshold: -12, compRatio: 4, compAttack: 0.003, compRelease: 0.25,
-                limThreshold: -3, limRelease: 0.01, roomSize: 0.3, reverbWet: 0.15
+                limThreshold: -3, limRelease: 0.01, roomSize: 0.3, reverbWet: 0.15,
+                lfoWaveform: 'sine', lfoRate: 2.0, lfoTarget: 'none', lfoAmount: 0,
+                delayTime: 250, delayFeedback: 0.3, delayWet: 0.2
             },
             'warm-pad': {
                 osc1Waveform: 'triangle', osc1Octave: 0, osc1Level: 0.7, osc1Detune: 0, osc1Pan: -0.3,
@@ -77,7 +88,9 @@ class FreOSC {
                 volume: 0.3, attack: 0.8, decay: 0.5, sustain: 0.8, release: 1.2,
                 filterType: 'lowpass', cutoff: 1500, resonance: 2, filterGain: 0, formantVowel: 'a', fmAmount: 0, fmSource: 'none', fmTarget: 'osc1', fmRatio: 1,
                 compThreshold: -18, compRatio: 3, compAttack: 0.01, compRelease: 0.3,
-                limThreshold: -6, limRelease: 0.02, roomSize: 0.7, reverbWet: 0.35
+                limThreshold: -6, limRelease: 0.02, roomSize: 0.7, reverbWet: 0.35,
+                lfoWaveform: 'sine', lfoRate: 2.0, lfoTarget: 'none', lfoAmount: 0,
+                delayTime: 400, delayFeedback: 0.4, delayWet: 0.3
             },
             'vintage-bass': {
                 osc1Waveform: 'sawtooth', osc1Octave: -1, osc1Level: 1.0, osc1Detune: 0, osc1Pan: 0,
@@ -87,7 +100,9 @@ class FreOSC {
                 volume: 0.5, attack: 0.01, decay: 0.4, sustain: 0.3, release: 0.2,
                 filterType: 'lowpass', cutoff: 800, resonance: 12, filterGain: 0, formantVowel: 'a', fmAmount: 0, fmSource: 'none', fmTarget: 'osc1', fmRatio: 1,
                 compThreshold: -8, compRatio: 6, compAttack: 0.001, compRelease: 0.1,
-                limThreshold: -2, limRelease: 0.005, roomSize: 0.1, reverbWet: 0.05
+                limThreshold: -2, limRelease: 0.005, roomSize: 0.1, reverbWet: 0.05,
+                lfoWaveform: 'sine', lfoRate: 2.0, lfoTarget: 'none', lfoAmount: 0,
+                delayTime: 125, delayFeedback: 0.2, delayWet: 0.1
             },
             'bell-pad': {
                 osc1Waveform: 'sine', osc1Octave: 0, osc1Level: 0.8, osc1Detune: 0, osc1Pan: 0,
@@ -97,7 +112,9 @@ class FreOSC {
                 volume: 0.35, attack: 0.3, decay: 0.8, sustain: 0.6, release: 2.0,
                 filterType: 'lowpass', cutoff: 4000, resonance: 3, filterGain: 0, formantVowel: 'a', fmAmount: 0, fmSource: 'none', fmTarget: 'osc1', fmRatio: 1,
                 compThreshold: -15, compRatio: 3, compAttack: 0.005, compRelease: 0.4,
-                limThreshold: -4, limRelease: 0.015, roomSize: 0.8, reverbWet: 0.4
+                limThreshold: -4, limRelease: 0.015, roomSize: 0.8, reverbWet: 0.4,
+                lfoWaveform: 'sine', lfoRate: 2.0, lfoTarget: 'none', lfoAmount: 0,
+                delayTime: 500, delayFeedback: 0.5, delayWet: 0.25
             },
             'fm-electric': {
                 osc1Waveform: 'sine', osc1Octave: 0, osc1Level: 0.9, osc1Detune: 0, osc1Pan: 0,
@@ -107,7 +124,9 @@ class FreOSC {
                 volume: 0.4, attack: 0.02, decay: 0.6, sustain: 0.4, release: 0.8,
                 filterType: 'bandpass', cutoff: 3000, resonance: 4, filterGain: 0, formantVowel: 'a', fmAmount: 200, fmSource: 'osc2', fmTarget: 'osc1', fmRatio: 2.0,
                 compThreshold: -10, compRatio: 5, compAttack: 0.002, compRelease: 0.15,
-                limThreshold: -3, limRelease: 0.008, roomSize: 0.4, reverbWet: 0.25
+                limThreshold: -3, limRelease: 0.008, roomSize: 0.4, reverbWet: 0.25,
+                lfoWaveform: 'sine', lfoRate: 2.0, lfoTarget: 'none', lfoAmount: 0,
+                delayTime: 180, delayFeedback: 0.6, delayWet: 0.35
             },
             'analog-strings': {
                 osc1Waveform: 'sawtooth', osc1Octave: 0, osc1Level: 0.7, osc1Detune: -5, osc1Pan: -0.2,
@@ -117,7 +136,9 @@ class FreOSC {
                 volume: 0.3, attack: 0.6, decay: 0.4, sustain: 0.9, release: 1.5,
                 filterType: 'highshelf', cutoff: 2200, resonance: 6, filterGain: 3, fmAmount: 0, fmSource: 'none', fmTarget: 'osc1', fmRatio: 1,
                 compThreshold: -16, compRatio: 4, compAttack: 0.01, compRelease: 0.35,
-                limThreshold: -5, limRelease: 0.02, roomSize: 0.6, reverbWet: 0.3
+                limThreshold: -5, limRelease: 0.02, roomSize: 0.6, reverbWet: 0.3,
+                lfoWaveform: 'sine', lfoRate: 2.0, lfoTarget: 'none', lfoAmount: 0,
+                delayTime: 375, delayFeedback: 0.45, delayWet: 0.28
             },
             'retro-pluck': {
                 osc1Waveform: 'square', osc1Octave: 0, osc1Level: 0.8, osc1Detune: 0, osc1Pan: 0,
@@ -127,7 +148,9 @@ class FreOSC {
                 volume: 0.45, attack: 0.01, decay: 0.3, sustain: 0.1, release: 0.4,
                 filterType: 'peaking', cutoff: 4500, resonance: 15, filterGain: 8, fmAmount: 0, fmSource: 'none', fmTarget: 'osc1', fmRatio: 1,
                 compThreshold: -8, compRatio: 8, compAttack: 0.001, compRelease: 0.08,
-                limThreshold: -2, limRelease: 0.003, roomSize: 0.2, reverbWet: 0.1
+                limThreshold: -2, limRelease: 0.003, roomSize: 0.2, reverbWet: 0.1,
+                lfoWaveform: 'sine', lfoRate: 2.0, lfoTarget: 'none', lfoAmount: 0,
+                delayTime: 150, delayFeedback: 0.25, delayWet: 0.15
             },
             'dreamy-choir': {
                 osc1Waveform: 'triangle', osc1Octave: 0, osc1Level: 0.6, osc1Detune: -3, osc1Pan: -0.4,
@@ -137,7 +160,9 @@ class FreOSC {
                 volume: 0.25, attack: 1.2, decay: 0.6, sustain: 0.8, release: 2.5,
                 filterType: 'lowpass', cutoff: 1800, resonance: 1, filterGain: 0, formantVowel: 'a', fmAmount: 0, fmSource: 'none', fmTarget: 'osc1', fmRatio: 1,
                 compThreshold: -20, compRatio: 2, compAttack: 0.02, compRelease: 0.5,
-                limThreshold: -8, limRelease: 0.03, roomSize: 0.9, reverbWet: 0.5
+                limThreshold: -8, limRelease: 0.03, roomSize: 0.9, reverbWet: 0.5,
+                lfoWaveform: 'sine', lfoRate: 2.0, lfoTarget: 'none', lfoAmount: 0,
+                delayTime: 600, delayFeedback: 0.55, delayWet: 0.4
             },
             'punchy-saw': {
                 osc1Waveform: 'sawtooth', osc1Octave: 0, osc1Level: 1.0, osc1Detune: 0, osc1Pan: 0,
@@ -147,7 +172,9 @@ class FreOSC {
                 volume: 0.4, attack: 0.001, decay: 0.15, sustain: 0.6, release: 0.25,
                 filterType: 'highpass', cutoff: 5000, resonance: 10, filterGain: 0, formantVowel: 'a', fmAmount: 0, fmSource: 'none', fmTarget: 'osc1', fmRatio: 1,
                 compThreshold: -6, compRatio: 10, compAttack: 0.0005, compRelease: 0.05,
-                limThreshold: -1, limRelease: 0.002, roomSize: 0.1, reverbWet: 0.08
+                limThreshold: -1, limRelease: 0.002, roomSize: 0.1, reverbWet: 0.08,
+                lfoWaveform: 'sine', lfoRate: 2.0, lfoTarget: 'none', lfoAmount: 0,
+                delayTime: 100, delayFeedback: 0.15, delayWet: 0.08
             },
             'ambient-texture': {
                 osc1Waveform: 'triangle', osc1Octave: 0, osc1Level: 0.5, osc1Detune: -8, osc1Pan: -0.6,
@@ -157,7 +184,9 @@ class FreOSC {
                 volume: 0.2, attack: 2.0, decay: 1.5, sustain: 0.9, release: 3.0,
                 filterType: 'notch', cutoff: 1200, resonance: 3, filterGain: 0, formantVowel: 'a', fmAmount: 50, fmSource: 'osc3', fmTarget: 'all', fmRatio: 0.5,
                 compThreshold: -22, compRatio: 2, compAttack: 0.05, compRelease: 0.8,
-                limThreshold: -10, limRelease: 0.05, roomSize: 1.0, reverbWet: 0.6
+                limThreshold: -10, limRelease: 0.05, roomSize: 1.0, reverbWet: 0.6,
+                lfoWaveform: 'sine', lfoRate: 2.0, lfoTarget: 'none', lfoAmount: 0,
+                delayTime: 800, delayFeedback: 0.7, delayWet: 0.5
             },
             'vinyl-lo-fi': {
                 osc1Waveform: 'triangle', osc1Octave: 0, osc1Level: 0.7, osc1Detune: 0, osc1Pan: 0,
@@ -167,7 +196,9 @@ class FreOSC {
                 volume: 0.4, attack: 0.3, decay: 0.4, sustain: 0.7, release: 0.8,
                 filterType: 'lowshelf', cutoff: 1800, resonance: 4, filterGain: -3, fmAmount: 0, fmSource: 'none', fmTarget: 'osc1', fmRatio: 1,
                 compThreshold: -15, compRatio: 6, compAttack: 0.01, compRelease: 0.2,
-                limThreshold: -4, limRelease: 0.01, roomSize: 0.4, reverbWet: 0.2
+                limThreshold: -4, limRelease: 0.01, roomSize: 0.4, reverbWet: 0.2,
+                lfoWaveform: 'sine', lfoRate: 2.0, lfoTarget: 'none', lfoAmount: 0,
+                delayTime: 300, delayFeedback: 0.35, delayWet: 0.25
             },
             'digital-glitch': {
                 osc1Waveform: 'square', osc1Octave: 0, osc1Level: 0.6, osc1Detune: 0, osc1Pan: -0.3,
@@ -177,7 +208,9 @@ class FreOSC {
                 volume: 0.45, attack: 0.001, decay: 0.2, sustain: 0.4, release: 0.3,
                 filterType: 'bandpass', cutoff: 3500, resonance: 12, filterGain: 0, formantVowel: 'a', fmAmount: 0, fmSource: 'none', fmTarget: 'osc1', fmRatio: 1,
                 compThreshold: -8, compRatio: 8, compAttack: 0.0005, compRelease: 0.05,
-                limThreshold: -2, limRelease: 0.002, roomSize: 0.1, reverbWet: 0.05
+                limThreshold: -2, limRelease: 0.002, roomSize: 0.1, reverbWet: 0.05,
+                lfoWaveform: 'sine', lfoRate: 2.0, lfoTarget: 'none', lfoAmount: 0,
+                delayTime: 80, delayFeedback: 0.6, delayWet: 0.2
             },
             'ocean-pad': {
                 osc1Waveform: 'sine', osc1Octave: 0, osc1Level: 0.5, osc1Detune: 0, osc1Pan: -0.4,
@@ -187,7 +220,9 @@ class FreOSC {
                 volume: 0.25, attack: 1.5, decay: 1.0, sustain: 0.8, release: 2.5,
                 filterType: 'lowpass', cutoff: 1500, resonance: 2, filterGain: 0, formantVowel: 'a', fmAmount: 0, fmSource: 'none', fmTarget: 'osc1', fmRatio: 1,
                 compThreshold: -20, compRatio: 3, compAttack: 0.02, compRelease: 0.4,
-                limThreshold: -8, limRelease: 0.03, roomSize: 0.8, reverbWet: 0.4
+                limThreshold: -8, limRelease: 0.03, roomSize: 0.8, reverbWet: 0.4,
+                lfoWaveform: 'sine', lfoRate: 2.0, lfoTarget: 'none', lfoAmount: 0,
+                delayTime: 750, delayFeedback: 0.6, delayWet: 0.45
             },
             'wind-ambient': {
                 osc1Waveform: 'triangle', osc1Octave: 0, osc1Level: 0.3, osc1Detune: -5, osc1Pan: -0.6,
@@ -197,7 +232,9 @@ class FreOSC {
                 volume: 0.2, attack: 2.5, decay: 2.0, sustain: 0.9, release: 4.0,
                 filterType: 'allpass', cutoff: 800, resonance: 1, filterGain: 0, formantVowel: 'a', fmAmount: 30, fmSource: 'osc3', fmTarget: 'all', fmRatio: 0.3,
                 compThreshold: -25, compRatio: 2, compAttack: 0.05, compRelease: 1.0,
-                limThreshold: -12, limRelease: 0.05, roomSize: 1.0, reverbWet: 0.7
+                limThreshold: -12, limRelease: 0.05, roomSize: 1.0, reverbWet: 0.7,
+                lfoWaveform: 'sine', lfoRate: 2.0, lfoTarget: 'none', lfoAmount: 0,
+                delayTime: 900, delayFeedback: 0.8, delayWet: 0.6
             },
             'dalai-lama-chant': {
                 osc1Waveform: 'sawtooth', osc1Octave: 0, osc1Level: 0.8, osc1Detune: 0, osc1Pan: 0,
@@ -208,7 +245,33 @@ class FreOSC {
                 filterType: 'formant', cutoff: 2000, resonance: 1, filterGain: 0, formantVowel: 'o',
                 fmAmount: 0, fmSource: 'none', fmTarget: 'osc1', fmRatio: 1,
                 compThreshold: -18, compRatio: 4, compAttack: 0.01, compRelease: 0.3,
-                limThreshold: -6, limRelease: 0.02, roomSize: 0.8, reverbWet: 0.4
+                limThreshold: -6, limRelease: 0.02, roomSize: 0.8, reverbWet: 0.4,
+                lfoWaveform: 'triangle', lfoRate: 0.5, lfoTarget: 'pitch', lfoAmount: 0.3,
+                delayTime: 400, delayFeedback: 0.4, delayWet: 0.3
+            },
+            'wobble-bass': {
+                osc1Waveform: 'sawtooth', osc1Octave: -1, osc1Level: 1.0, osc1Detune: 0, osc1Pan: 0,
+                osc2Waveform: 'square', osc2Octave: -1, osc2Level: 0.7, osc2Detune: -5, osc2Pan: 0,
+                osc3Waveform: 'sine', osc3Octave: -2, osc3Level: 0.4, osc3Detune: 0, osc3Pan: 0,
+                noiseType: 'brown', noiseLevel: 0.03, noisePan: 0,
+                volume: 0.4, attack: 0.01, decay: 0.3, sustain: 0.7, release: 0.4,
+                filterType: 'lowpass', cutoff: 1500, resonance: 18, filterGain: 0, formantVowel: 'a', fmAmount: 0, fmSource: 'none', fmTarget: 'osc1', fmRatio: 1,
+                compThreshold: -10, compRatio: 8, compAttack: 0.001, compRelease: 0.1,
+                limThreshold: -2, limRelease: 0.005, roomSize: 0.2, reverbWet: 0.1,
+                lfoWaveform: 'sine', lfoRate: 6.0, lfoTarget: 'filter', lfoAmount: 0.8,
+                delayTime: 120, delayFeedback: 0.5, delayWet: 0.15
+            },
+            'tremolo-strings': {
+                osc1Waveform: 'sawtooth', osc1Octave: 0, osc1Level: 0.7, osc1Detune: -3, osc1Pan: -0.2,
+                osc2Waveform: 'sawtooth', osc2Octave: 0, osc2Level: 0.7, osc2Detune: 3, osc2Pan: 0.2,
+                osc3Waveform: 'triangle', osc3Octave: 1, osc3Level: 0.4, osc3Detune: 0, osc3Pan: 0,
+                noiseType: 'white', noiseLevel: 0, noisePan: 0,
+                volume: 0.35, attack: 0.5, decay: 0.3, sustain: 0.8, release: 1.2,
+                filterType: 'lowpass', cutoff: 2800, resonance: 4, filterGain: 0, formantVowel: 'a', fmAmount: 0, fmSource: 'none', fmTarget: 'osc1', fmRatio: 1,
+                compThreshold: -15, compRatio: 4, compAttack: 0.005, compRelease: 0.25,
+                limThreshold: -5, limRelease: 0.015, roomSize: 0.6, reverbWet: 0.3,
+                lfoWaveform: 'square', lfoRate: 4.5, lfoTarget: 'volume', lfoAmount: 0.6,
+                delayTime: 200, delayFeedback: 0.35, delayWet: 0.2
             }
         };
         
@@ -281,6 +344,12 @@ class FreOSC {
             // Set up reverb
             await this.setupReverb();
             
+            // Set up delay
+            this.setupDelay();
+            
+            // Set up LFO
+            this.setupLFO();
+            
             // Create filter selector node
             this.filterSelector = this.audioContext.createGain();
             
@@ -292,8 +361,9 @@ class FreOSC {
             // Set up filter routing
             this.updateFilterRouting();
             
-            // Connect to reverb and destination
-            this.reverbOutput.connect(this.audioContext.destination);
+            // Connect reverb to delay, then delay to destination
+            this.reverbOutput.connect(this.delayInput);
+            this.delayOutput.connect(this.audioContext.destination);
             this.masterGain.gain.setValueAtTime(this.settings.volume, this.audioContext.currentTime);
             
             this.setupControls();
@@ -364,6 +434,17 @@ class FreOSC {
         
         const roomSizeSlider = document.getElementById('room-size');
         const reverbWetSlider = document.getElementById('reverb-wet');
+        
+        // LFO controls
+        const lfoWaveformSelect = document.getElementById('lfo-waveform');
+        const lfoRateSlider = document.getElementById('lfo-rate');
+        const lfoTargetSelect = document.getElementById('lfo-target');
+        const lfoAmountSlider = document.getElementById('lfo-amount');
+        
+        // Delay controls
+        const delayTimeSlider = document.getElementById('delay-time');
+        const delayFeedbackSlider = document.getElementById('delay-feedback');
+        const delayWetSlider = document.getElementById('delay-wet');
         
         // Preset selector
         const presetSelector = document.getElementById('preset-selector');
@@ -581,6 +662,48 @@ class FreOSC {
             document.getElementById('reverb-wet-display').textContent = this.settings.reverbWet.toFixed(2);
         });
         
+        // LFO event listeners
+        lfoWaveformSelect.addEventListener('change', (e) => {
+            this.settings.lfoWaveform = e.target.value;
+            this.updateLFO();
+        });
+        
+        lfoRateSlider.addEventListener('input', (e) => {
+            this.settings.lfoRate = parseFloat(e.target.value);
+            this.updateLFO();
+            document.getElementById('lfo-rate-display').textContent = this.settings.lfoRate.toFixed(1) + ' Hz';
+        });
+        
+        lfoTargetSelect.addEventListener('change', (e) => {
+            this.settings.lfoTarget = e.target.value;
+            this.updateLFO();
+        });
+        
+        lfoAmountSlider.addEventListener('input', (e) => {
+            this.settings.lfoAmount = parseFloat(e.target.value);
+            this.updateLFO();
+            document.getElementById('lfo-amount-display').textContent = this.settings.lfoAmount.toFixed(2);
+        });
+        
+        // Delay event listeners
+        delayTimeSlider.addEventListener('input', (e) => {
+            this.settings.delayTime = parseFloat(e.target.value);
+            this.updateDelaySettings();
+            document.getElementById('delay-time-display').textContent = this.settings.delayTime.toFixed(0) + 'ms';
+        });
+        
+        delayFeedbackSlider.addEventListener('input', (e) => {
+            this.settings.delayFeedback = parseFloat(e.target.value);
+            this.updateDelaySettings();
+            document.getElementById('delay-feedback-display').textContent = this.settings.delayFeedback.toFixed(2);
+        });
+        
+        delayWetSlider.addEventListener('input', (e) => {
+            this.settings.delayWet = parseFloat(e.target.value);
+            this.updateDelaySettings();
+            document.getElementById('delay-wet-display').textContent = this.settings.delayWet.toFixed(2);
+        });
+        
         // Preset selector event listener
         presetSelector.addEventListener('change', (e) => {
             const presetName = e.target.value;
@@ -703,6 +826,142 @@ class FreOSC {
         this.reverbDry.gain.setValueAtTime(dry, this.audioContext.currentTime);
     }
     
+    setupDelay() {
+        // Create delay line using DelayNode
+        this.delayNode = this.audioContext.createDelay(1.0); // Max 1 second delay
+        
+        // Create feedback gain
+        this.delayFeedback = this.audioContext.createGain();
+        
+        // Create wet/dry mixer
+        this.delayInput = this.audioContext.createGain();
+        this.delayWet = this.audioContext.createGain();
+        this.delayDry = this.audioContext.createGain();
+        this.delayOutput = this.audioContext.createGain();
+        
+        // Connect delay path: input -> delay -> wet gain -> output
+        this.delayInput.connect(this.delayNode);
+        this.delayNode.connect(this.delayWet);
+        this.delayWet.connect(this.delayOutput);
+        
+        // Connect feedback: delay -> feedback gain -> delay input
+        this.delayNode.connect(this.delayFeedback);
+        this.delayFeedback.connect(this.delayNode);
+        
+        // Connect dry path: input -> dry gain -> output
+        this.delayInput.connect(this.delayDry);
+        this.delayDry.connect(this.delayOutput);
+        
+        // Set initial parameters
+        this.updateDelaySettings();
+    }
+    
+    updateDelaySettings() {
+        // Convert milliseconds to seconds
+        const delayTimeSeconds = this.settings.delayTime / 1000;
+        
+        // Set delay time
+        this.delayNode.delayTime.setValueAtTime(delayTimeSeconds, this.audioContext.currentTime);
+        
+        // Set feedback amount (must be < 1.0 to avoid runaway feedback)
+        this.delayFeedback.gain.setValueAtTime(Math.min(0.95, this.settings.delayFeedback), this.audioContext.currentTime);
+        
+        // Set wet/dry mix
+        const wet = this.settings.delayWet;
+        const dry = 1 - wet;
+        
+        this.delayWet.gain.setValueAtTime(wet, this.audioContext.currentTime);
+        this.delayDry.gain.setValueAtTime(dry, this.audioContext.currentTime);
+    }
+    
+    setupLFO() {
+        // Create LFO oscillator and gain
+        this.lfoOscillator = this.audioContext.createOscillator();
+        this.lfoGain = this.audioContext.createGain();
+        
+        // Create random LFO buffer for sample & hold
+        this.createRandomLFO();
+        
+        // Set initial LFO parameters
+        this.updateLFO();
+        
+        // Start LFO
+        this.lfoOscillator.start();
+    }
+    
+    createRandomLFO() {
+        // Create a buffer with random values for random LFO
+        const bufferSize = this.audioContext.sampleRate * 4; // 4 seconds of random data
+        this.randomLFOBuffer = this.audioContext.createBuffer(1, bufferSize, this.audioContext.sampleRate);
+        const data = this.randomLFOBuffer.getChannelData(0);
+        
+        let currentValue = 0;
+        let samplesPerStep = Math.floor(this.audioContext.sampleRate / 20); // 20Hz update rate
+        
+        for (let i = 0; i < bufferSize; i++) {
+            if (i % samplesPerStep === 0) {
+                currentValue = Math.random() * 2 - 1; // Random value between -1 and 1
+            }
+            data[i] = currentValue;
+        }
+    }
+    
+    updateLFO() {
+        if (!this.lfoOscillator) return;
+        
+        // Disconnect existing connections
+        try {
+            this.lfoOscillator.disconnect();
+            this.lfoGain.disconnect();
+            if (this.randomLFOSource) {
+                this.randomLFOSource.disconnect();
+                this.randomLFOSource.stop();
+            }
+        } catch (e) {
+            // Ignore disconnection errors
+        }
+        
+        // Set LFO rate
+        this.lfoOscillator.frequency.setValueAtTime(this.settings.lfoRate, this.audioContext.currentTime);
+        
+        // Set LFO amount
+        this.lfoGain.gain.setValueAtTime(this.settings.lfoAmount, this.audioContext.currentTime);
+        
+        // Handle different waveforms and targets
+        if (this.settings.lfoAmount > 0 && this.settings.lfoTarget !== 'none') {
+            if (this.settings.lfoWaveform === 'random') {
+                // Use random buffer source
+                this.randomLFOSource = this.audioContext.createBufferSource();
+                this.randomLFOSource.buffer = this.randomLFOBuffer;
+                this.randomLFOSource.loop = true;
+                this.randomLFOSource.connect(this.lfoGain);
+                this.randomLFOSource.start();
+            } else {
+                // Use regular oscillator
+                this.lfoOscillator.type = this.settings.lfoWaveform;
+                this.lfoOscillator.connect(this.lfoGain);
+            }
+            
+            // Connect to target parameter
+            this.connectLFOToTarget();
+        }
+    }
+    
+    connectLFOToTarget() {
+        // Store target for per-note modulation
+        this.lfoTarget = this.settings.lfoTarget;
+        
+        // For global parameters like filter, connect directly
+        if (this.settings.lfoTarget === 'filter' && this.settings.filterType !== 'formant') {
+            // Scale LFO output for filter frequency modulation
+            const filterModGain = this.audioContext.createGain();
+            filterModGain.gain.setValueAtTime(this.settings.cutoff * 0.5, this.audioContext.currentTime);
+            
+            this.lfoGain.connect(filterModGain);
+            filterModGain.connect(this.filter.frequency);
+        }
+    }
+    
     formatPanDisplay(panValue) {
         if (Math.abs(panValue) < 0.05) return 'Center';
         if (panValue < 0) return `Left ${Math.abs(panValue * 100).toFixed(0)}%`;
@@ -734,6 +993,7 @@ class FreOSC {
         this.limiter.release.setValueAtTime(this.settings.limRelease, this.audioContext.currentTime);
         this.updateReverbImpulse();
         this.updateReverbMix();
+        this.updateDelaySettings();
     }
     
     updateAllControls() {
@@ -823,6 +1083,22 @@ class FreOSC {
         document.getElementById('room-size-display').textContent = this.settings.roomSize.toFixed(2);
         document.getElementById('reverb-wet').value = this.settings.reverbWet;
         document.getElementById('reverb-wet-display').textContent = this.settings.reverbWet.toFixed(2);
+        
+        // LFO controls
+        document.getElementById('lfo-waveform').value = this.settings.lfoWaveform;
+        document.getElementById('lfo-rate').value = this.settings.lfoRate;
+        document.getElementById('lfo-rate-display').textContent = this.settings.lfoRate.toFixed(1) + ' Hz';
+        document.getElementById('lfo-target').value = this.settings.lfoTarget;
+        document.getElementById('lfo-amount').value = this.settings.lfoAmount;
+        document.getElementById('lfo-amount-display').textContent = this.settings.lfoAmount.toFixed(2);
+        
+        // Delay controls
+        document.getElementById('delay-time').value = this.settings.delayTime;
+        document.getElementById('delay-time-display').textContent = this.settings.delayTime.toFixed(0) + 'ms';
+        document.getElementById('delay-feedback').value = this.settings.delayFeedback;
+        document.getElementById('delay-feedback-display').textContent = this.settings.delayFeedback.toFixed(2);
+        document.getElementById('delay-wet').value = this.settings.delayWet;
+        document.getElementById('delay-wet-display').textContent = this.settings.delayWet.toFixed(2);
     }
     
     startInputSystem() {
@@ -1155,11 +1431,56 @@ class FreOSC {
                         fmGain.connect(oscillator.frequency);
                     }
                     
+                    // Apply LFO pitch modulation if active
+                    if (this.settings.lfoAmount > 0 && this.settings.lfoTarget === 'pitch') {
+                        const pitchModGain = this.audioContext.createGain();
+                        pitchModGain.gain.setValueAtTime(finalFreq * 0.1 * this.settings.lfoAmount, this.audioContext.currentTime);
+                        
+                        if (this.settings.lfoWaveform === 'random') {
+                            if (this.randomLFOSource) {
+                                this.randomLFOSource.connect(pitchModGain);
+                            }
+                        } else {
+                            this.lfoOscillator.connect(pitchModGain);
+                        }
+                        pitchModGain.connect(oscillator.frequency);
+                    }
+                    
                     // Set oscillator level
                     gainNode.gain.setValueAtTime(config.level, this.audioContext.currentTime);
                     
+                    // Apply LFO volume modulation if active
+                    if (this.settings.lfoAmount > 0 && this.settings.lfoTarget === 'volume') {
+                        const volumeModGain = this.audioContext.createGain();
+                        volumeModGain.gain.setValueAtTime(config.level * 0.5 * this.settings.lfoAmount, this.audioContext.currentTime);
+                        
+                        if (this.settings.lfoWaveform === 'random') {
+                            if (this.randomLFOSource) {
+                                this.randomLFOSource.connect(volumeModGain);
+                            }
+                        } else {
+                            this.lfoOscillator.connect(volumeModGain);
+                        }
+                        volumeModGain.connect(gainNode.gain);
+                    }
+                    
                     // Set panning (-1 = full left, 0 = center, 1 = full right)
                     panNode.pan.setValueAtTime(config.pan, this.audioContext.currentTime);
+                    
+                    // Apply LFO pan modulation if active
+                    if (this.settings.lfoAmount > 0 && this.settings.lfoTarget === 'pan') {
+                        const panModGain = this.audioContext.createGain();
+                        panModGain.gain.setValueAtTime(this.settings.lfoAmount, this.audioContext.currentTime);
+                        
+                        if (this.settings.lfoWaveform === 'random') {
+                            if (this.randomLFOSource) {
+                                this.randomLFOSource.connect(panModGain);
+                            }
+                        } else {
+                            this.lfoOscillator.connect(panModGain);
+                        }
+                        panModGain.connect(panNode.pan);
+                    }
                     
                     // Connect: oscillator -> gain -> pan -> noteGain
                     oscillator.connect(gainNode);
