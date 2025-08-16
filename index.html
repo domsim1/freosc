@@ -1,0 +1,395 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FreOSC - Software Synthesizer</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="synth-container">
+        <header>
+            <h1>FreOSC</h1>
+            <p>Software Synthesizer</p>
+        </header>
+
+        <div class="controls-panel">
+            <div class="preset-section">
+                <h3>Presets</h3>
+                <div class="control-group">
+                    <label>Select Preset:</label>
+                    <select id="preset-selector">
+                        <option value="custom">Custom</option>
+                        <option value="classic-lead">Classic Lead</option>
+                        <option value="warm-pad">Warm Pad</option>
+                        <option value="vintage-bass">Vintage Bass</option>
+                        <option value="bell-pad">Bell Pad</option>
+                        <option value="fm-electric">FM Electric</option>
+                        <option value="analog-strings">Analog Strings</option>
+                        <option value="retro-pluck">Retro Pluck</option>
+                        <option value="dreamy-choir">Dreamy Choir</option>
+                        <option value="punchy-saw">Punchy Saw</option>
+                        <option value="ambient-texture">Ambient Texture</option>
+                        <option value="vinyl-lo-fi">Vinyl Lo-Fi</option>
+                        <option value="digital-glitch">Digital Glitch</option>
+                        <option value="ocean-pad">Ocean Pad</option>
+                        <option value="wind-ambient">Wind Ambient</option>
+                        <option value="dalai-lama-chant">Dalai Lama Chant</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="oscillator-section">
+                <h3>Oscillator 1</h3>
+                <div class="control-group">
+                    <label>Waveform:</label>
+                    <select id="osc1-waveform">
+                        <option value="sine">Sine</option>
+                        <option value="square">Square</option>
+                        <option value="sawtooth">Sawtooth</option>
+                        <option value="triangle">Triangle</option>
+                    </select>
+                </div>
+                <div class="control-group">
+                    <label>Octave:</label>
+                    <select id="osc1-octave">
+                        <option value="-2">-2</option>
+                        <option value="-1">-1</option>
+                        <option value="0" selected>0</option>
+                        <option value="1">+1</option>
+                        <option value="2">+2</option>
+                    </select>
+                </div>
+                <div class="control-group">
+                    <label>Level:</label>
+                    <input type="range" id="osc1-level" min="0" max="1" step="0.01" value="0.8">
+                    <span id="osc1-level-display">0.8</span>
+                </div>
+                <div class="control-group">
+                    <label>Detune:</label>
+                    <input type="range" id="osc1-detune" min="-50" max="50" step="1" value="0">
+                    <span id="osc1-detune-display">0¢</span>
+                </div>
+                <div class="control-group">
+                    <label>Pan:</label>
+                    <input type="range" id="osc1-pan" min="-1" max="1" step="0.01" value="0">
+                    <span id="osc1-pan-display">Center</span>
+                </div>
+            </div>
+
+            <div class="oscillator-section">
+                <h3>Oscillator 2</h3>
+                <div class="control-group">
+                    <label>Waveform:</label>
+                    <select id="osc2-waveform">
+                        <option value="sine">Sine</option>
+                        <option value="square">Square</option>
+                        <option value="sawtooth" selected>Sawtooth</option>
+                        <option value="triangle">Triangle</option>
+                    </select>
+                </div>
+                <div class="control-group">
+                    <label>Octave:</label>
+                    <select id="osc2-octave">
+                        <option value="-2">-2</option>
+                        <option value="-1">-1</option>
+                        <option value="0" selected>0</option>
+                        <option value="1">+1</option>
+                        <option value="2">+2</option>
+                    </select>
+                </div>
+                <div class="control-group">
+                    <label>Level:</label>
+                    <input type="range" id="osc2-level" min="0" max="1" step="0.01" value="0.4">
+                    <span id="osc2-level-display">0.4</span>
+                </div>
+                <div class="control-group">
+                    <label>Detune:</label>
+                    <input type="range" id="osc2-detune" min="-50" max="50" step="1" value="-7">
+                    <span id="osc2-detune-display">-7¢</span>
+                </div>
+                <div class="control-group">
+                    <label>Pan:</label>
+                    <input type="range" id="osc2-pan" min="-1" max="1" step="0.01" value="-0.3">
+                    <span id="osc2-pan-display">Left</span>
+                </div>
+            </div>
+
+            <div class="oscillator-section">
+                <h3>Oscillator 3</h3>
+                <div class="control-group">
+                    <label>Waveform:</label>
+                    <select id="osc3-waveform">
+                        <option value="sine">Sine</option>
+                        <option value="square" selected>Square</option>
+                        <option value="sawtooth">Sawtooth</option>
+                        <option value="triangle">Triangle</option>
+                    </select>
+                </div>
+                <div class="control-group">
+                    <label>Octave:</label>
+                    <select id="osc3-octave">
+                        <option value="-2">-2</option>
+                        <option value="-1" selected>-1</option>
+                        <option value="0">0</option>
+                        <option value="1">+1</option>
+                        <option value="2">+2</option>
+                    </select>
+                </div>
+                <div class="control-group">
+                    <label>Level:</label>
+                    <input type="range" id="osc3-level" min="0" max="1" step="0.01" value="0">
+                    <span id="osc3-level-display">0</span>
+                </div>
+                <div class="control-group">
+                    <label>Detune:</label>
+                    <input type="range" id="osc3-detune" min="-50" max="50" step="1" value="12">
+                    <span id="osc3-detune-display">12¢</span>
+                </div>
+                <div class="control-group">
+                    <label>Pan:</label>
+                    <input type="range" id="osc3-pan" min="-1" max="1" step="0.01" value="0.3">
+                    <span id="osc3-pan-display">Right</span>
+                </div>
+            </div>
+
+            <div class="oscillator-section">
+                <h3>Noise</h3>
+                <div class="control-group">
+                    <label>Type:</label>
+                    <select id="noise-type">
+                        <option value="white">White Noise</option>
+                        <option value="pink">Pink Noise</option>
+                        <option value="brown">Brown Noise</option>
+                        <option value="blue">Blue Noise</option>
+                        <option value="violet">Violet Noise</option>
+                        <option value="grey">Grey Noise</option>
+                        <option value="crackle">Vinyl Crackle</option>
+                        <option value="digital">Digital Noise</option>
+                        <option value="wind">Wind Noise</option>
+                        <option value="ocean">Ocean Waves</option>
+                    </select>
+                </div>
+                <div class="control-group">
+                    <label>Level:</label>
+                    <input type="range" id="noise-level" min="0" max="1" step="0.01" value="0">
+                    <span id="noise-level-display">0.00</span>
+                </div>
+                <div class="control-group">
+                    <label>Pan:</label>
+                    <input type="range" id="noise-pan" min="-1" max="1" step="0.01" value="0">
+                    <span id="noise-pan-display">Center</span>
+                </div>
+            </div>
+
+            <div class="dynamics-section">
+                <h3>Compressor</h3>
+                <div class="control-group">
+                    <label>Threshold:</label>
+                    <input type="range" id="comp-threshold" min="-60" max="0" step="1" value="-12">
+                    <span id="comp-threshold-display">-12dB</span>
+                </div>
+                <div class="control-group">
+                    <label>Ratio:</label>
+                    <input type="range" id="comp-ratio" min="1" max="20" step="0.1" value="4">
+                    <span id="comp-ratio-display">4:1</span>
+                </div>
+                <div class="control-group">
+                    <label>Attack:</label>
+                    <input type="range" id="comp-attack" min="0" max="0.1" step="0.001" value="0.003">
+                    <span id="comp-attack-display">3ms</span>
+                </div>
+                <div class="control-group">
+                    <label>Release:</label>
+                    <input type="range" id="comp-release" min="0.01" max="1" step="0.01" value="0.25">
+                    <span id="comp-release-display">250ms</span>
+                </div>
+            </div>
+
+            <div class="dynamics-section">
+                <h3>Limiter</h3>
+                <div class="control-group">
+                    <label>Threshold:</label>
+                    <input type="range" id="lim-threshold" min="-12" max="0" step="0.1" value="-3">
+                    <span id="lim-threshold-display">-3.0dB</span>
+                </div>
+                <div class="control-group">
+                    <label>Release:</label>
+                    <input type="range" id="lim-release" min="0.001" max="0.1" step="0.001" value="0.01">
+                    <span id="lim-release-display">10ms</span>
+                </div>
+            </div>
+
+            <div class="mixer-section">
+                <h3>Master</h3>
+                <div class="control-group">
+                    <label>Volume:</label>
+                    <input type="range" id="volume" min="0" max="1" step="0.01" value="0.3">
+                    <span id="volume-display">0.3</span>
+                </div>
+            </div>
+
+            <div class="envelope-section">
+                <h3>Envelope</h3>
+                <div class="control-group">
+                    <label>Attack:</label>
+                    <input type="range" id="attack" min="0" max="2" step="0.01" value="0.1">
+                    <span id="attack-display">0.1s</span>
+                </div>
+                <div class="control-group">
+                    <label>Decay:</label>
+                    <input type="range" id="decay" min="0" max="2" step="0.01" value="0.3">
+                    <span id="decay-display">0.3s</span>
+                </div>
+                <div class="control-group">
+                    <label>Sustain:</label>
+                    <input type="range" id="sustain" min="0" max="1" step="0.01" value="0.6">
+                    <span id="sustain-display">0.6</span>
+                </div>
+                <div class="control-group">
+                    <label>Release:</label>
+                    <input type="range" id="release" min="0" max="3" step="0.01" value="0.5">
+                    <span id="release-display">0.5s</span>
+                </div>
+            </div>
+
+            <div class="filter-section">
+                <h3>Filter</h3>
+                <div class="control-group">
+                    <label>Type:</label>
+                    <select id="filter-type">
+                        <option value="lowpass">Low Pass</option>
+                        <option value="highpass">High Pass</option>
+                        <option value="bandpass">Band Pass</option>
+                        <option value="lowshelf">Low Shelf</option>
+                        <option value="highshelf">High Shelf</option>
+                        <option value="peaking">Peaking</option>
+                        <option value="notch">Notch</option>
+                        <option value="allpass">All Pass</option>
+                        <option value="formant">Formant</option>
+                    </select>
+                </div>
+                <div class="control-group">
+                    <label>Cutoff:</label>
+                    <input type="range" id="cutoff" min="100" max="8000" step="10" value="2000">
+                    <span id="cutoff-display">2000Hz</span>
+                </div>
+                <div class="control-group">
+                    <label>Resonance:</label>
+                    <input type="range" id="resonance" min="0.1" max="30" step="0.1" value="1">
+                    <span id="resonance-display">1</span>
+                </div>
+                <div class="control-group">
+                    <label>Gain:</label>
+                    <input type="range" id="filter-gain" min="-20" max="20" step="0.1" value="0">
+                    <span id="filter-gain-display">0dB</span>
+                </div>
+                <div class="control-group" id="vowel-control" style="display: none;">
+                    <label>Vowel:</label>
+                    <select id="formant-vowel">
+                        <option value="a">A (ah)</option>
+                        <option value="e">E (eh)</option>
+                        <option value="i">I (ee)</option>
+                        <option value="o">O (oh)</option>
+                        <option value="u">U (oo)</option>
+                        <option value="ae">AE (ay)</option>
+                        <option value="aw">AW (aw)</option>
+                        <option value="er">ER (ur)</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="fm-section">
+                <h3>FM Synthesis</h3>
+                <div class="control-group">
+                    <label>FM Amount:</label>
+                    <input type="range" id="fm-amount" min="0" max="1000" step="1" value="0">
+                    <span id="fm-amount-display">0</span>
+                </div>
+                <div class="control-group">
+                    <label>FM Source:</label>
+                    <select id="fm-source">
+                        <option value="none">None</option>
+                        <option value="osc1">Oscillator 1</option>
+                        <option value="osc2">Oscillator 2</option>
+                        <option value="osc3">Oscillator 3</option>
+                    </select>
+                </div>
+                <div class="control-group">
+                    <label>FM Target:</label>
+                    <select id="fm-target">
+                        <option value="osc1" selected>Oscillator 1</option>
+                        <option value="osc2">Oscillator 2</option>
+                        <option value="osc3">Oscillator 3</option>
+                        <option value="all">All Oscillators</option>
+                    </select>
+                </div>
+                <div class="control-group">
+                    <label>FM Ratio:</label>
+                    <input type="range" id="fm-ratio" min="0.1" max="8" step="0.1" value="1">
+                    <span id="fm-ratio-display">1.0</span>
+                </div>
+            </div>
+
+            <div class="reverb-section">
+                <h3>Reverb</h3>
+                <div class="control-group">
+                    <label>Room Size:</label>
+                    <input type="range" id="room-size" min="0" max="1" step="0.01" value="0.5">
+                    <span id="room-size-display">0.5</span>
+                </div>
+                <div class="control-group">
+                    <label>Wet Level:</label>
+                    <input type="range" id="reverb-wet" min="0" max="1" step="0.01" value="0.2">
+                    <span id="reverb-wet-display">0.2</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="keyboard">
+            <!-- Lower octave -->
+            <div class="key white" data-note="C3" data-freq="130.81" data-key="z">C3</div>
+            <div class="key black" data-note="C#3" data-freq="138.59" data-key="s">C#</div>
+            <div class="key white" data-note="D3" data-freq="146.83" data-key="x">D3</div>
+            <div class="key black" data-note="D#3" data-freq="155.56" data-key="d">D#</div>
+            <div class="key white" data-note="E3" data-freq="164.81" data-key="c">E3</div>
+            <div class="key white" data-note="F3" data-freq="174.61" data-key="v">F3</div>
+            <div class="key black" data-note="F#3" data-freq="185.00" data-key="g">F#</div>
+            <div class="key white" data-note="G3" data-freq="196.00" data-key="b">G3</div>
+            <div class="key black" data-note="G#3" data-freq="207.65" data-key="h">G#</div>
+            <div class="key white" data-note="A3" data-freq="220.00" data-key="n">A3</div>
+            <div class="key black" data-note="A#3" data-freq="233.08" data-key="j">A#</div>
+            <div class="key white" data-note="B3" data-freq="246.94" data-key="m">B3</div>
+            
+            <!-- Main octave -->
+            <div class="key white" data-note="C4" data-freq="261.63" data-key="q">C4</div>
+            <div class="key black" data-note="C#4" data-freq="277.18" data-key="2">C#</div>
+            <div class="key white" data-note="D4" data-freq="293.66" data-key="w">D4</div>
+            <div class="key black" data-note="D#4" data-freq="311.13" data-key="3">D#</div>
+            <div class="key white" data-note="E4" data-freq="329.63" data-key="e">E4</div>
+            <div class="key white" data-note="F4" data-freq="349.23" data-key="r">F4</div>
+            <div class="key black" data-note="F#4" data-freq="369.99" data-key="5">F#</div>
+            <div class="key white" data-note="G4" data-freq="392.00" data-key="t">G4</div>
+            <div class="key black" data-note="G#4" data-freq="415.30" data-key="6">G#</div>
+            <div class="key white" data-note="A4" data-freq="440.00" data-key="y">A4</div>
+            <div class="key black" data-note="A#4" data-freq="466.16" data-key="7">A#</div>
+            <div class="key white" data-note="B4" data-freq="493.88" data-key="u">B4</div>
+            
+            <!-- Upper octave -->
+            <div class="key white" data-note="C5" data-freq="523.25" data-key="i">C5</div>
+            <div class="key black" data-note="C#5" data-freq="554.37" data-key="9">C#</div>
+            <div class="key white" data-note="D5" data-freq="587.33" data-key="o">D5</div>
+            <div class="key black" data-note="D#5" data-freq="622.25" data-key="0">D#</div>
+            <div class="key white" data-note="E5" data-freq="659.25" data-key="p">E5</div>
+        </div>
+
+        <div class="instructions">
+<p><strong>Mouse:</strong> Click the keys above<br>
+            <strong>Keyboard:</strong> Lower octave (ZXCVBNM), Main octave (QWERTY), Upper octave (IOP)<br>
+            <strong>Black keys:</strong> Use number keys (2,3,5,6,7,9,0) and SDGHJ</p>
+        </div>
+    </div>
+
+    <script src="synth.js"></script>
+</body>
+</html>
