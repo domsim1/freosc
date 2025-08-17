@@ -6,7 +6,7 @@
 //==============================================================================
 /**
     FreOSC Oscillator Class
-    
+
     Wraps JUCE's DSP oscillator with additional functionality:
     - Multiple waveforms (Sine, Square, Sawtooth, Triangle)
     - Octave shifting
@@ -22,20 +22,20 @@ public:
     enum class Waveform
     {
         Sine = 0,
-        Square = 1,  
+        Square = 1,
         Sawtooth = 2,
         Triangle = 3
     };
-    
+
     //==============================================================================
     FreOscOscillator();
     ~FreOscOscillator();
-    
+
     //==============================================================================
     // Setup and configuration
     void prepare(const juce::dsp::ProcessSpec& spec);
     void reset();
-    
+
     //==============================================================================
     // Parameter control
     void setWaveform(Waveform waveform);
@@ -44,12 +44,12 @@ public:
     void setOctave(int octave); // -2 to +2
     void setDetune(float cents); // -50 to +50 cents
     void setFrequencyModulation(float modAmount); // Real-time frequency modulation
-    
+
     //==============================================================================
     // Processing
     float processSample(float fmInput = 0.0f);
     void processBlock(juce::AudioBuffer<float>& buffer, int startSample, int numSamples, float fmInput = 0.0f);
-    
+
     //==============================================================================
     // State queries
     bool isActive() const { return level > 0.0f; }
@@ -61,7 +61,7 @@ private:
     //==============================================================================
     // Internal oscillator
     juce::dsp::Oscillator<float> oscillator;
-    
+
     // Parameter state
     Waveform currentWaveform = Waveform::Sine;
     float baseFrequency = 440.0f;
@@ -70,24 +70,24 @@ private:
     int octaveOffset = 0;
     float detuneAmount = 0.0f;
     float frequencyModulation = 0.0f;
-    
+
     // Audio processing
     double sampleRate = 44100.0;
-    
+
     // Phase accumulator for FM synthesis
     float phase = 0.0f;
     float phaseIncrement = 0.0f;
-    
+
     //==============================================================================
     // Helper methods
     void updateFinalFrequency();
     void updateOscillatorWaveform();
     float generateWaveformSample(float phaseValue) const;
-    
+
     // Frequency calculation helpers
     static float centsToRatio(float cents);
     static float octaveToMultiplier(int octave);
-    
+
     //==============================================================================
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(FreOscOscillator)
 };

@@ -52,7 +52,7 @@ The built VST3 will be located in: `build/FreOSC-VST_artefacts/Release/VST3/FreO
 - **FreOscOscillator**: Individual oscillator with waveform, octave, level, detune, pan
 - **FreOscFilter**: Multi-mode filter with lowpass/highpass/bandpass/notch/formant types
 - **FreOscLFO**: Low-frequency oscillator with pitch/filter/volume/pan modulation
-- **FreOscReverb**: Algorithmic reverb using parallel delay lines
+- **FreOscReverb**: Algorithmic reverb using 4-delay-line architecture
 - **FreOscDelay**: Digital delay with feedback and wet/dry mixing
 - **FreOscNoise**: Multiple noise types (white, pink, brown, etc.)
 - **FreOscCompressor/Limiter**: Dynamics processing
@@ -93,7 +93,8 @@ Summed Voices → Compressor → Limiter → Filter → Reverb → Delay → Mas
 - **Individual Panning**: Stereo positioning per oscillator
 - **FM Synthesis**: Cross-modulation between oscillators
 
-#### Modulation
+#### Modulation & Polyphony
+- **16-Voice Polyphony**: Full polyphonic synthesis with proper voice stealing
 - **LFO**: 5 waveforms (sine, triangle, sawtooth, square, random)
 - **LFO Targets**: Pitch, Filter Cutoff, Volume, Pan
 - **Envelope**: ADSR with 0.01ms to 5s timing ranges
@@ -275,4 +276,5 @@ FreOSC-VST/
 │       ├── FreOscPresets.h/cpp     # Preset management
 ├── CMakeLists.txt                  # Build configuration
 └── build/                          # Build output directory
+    └── FreOSC-VST_artefacts/Release/VST3/FreOSC.vst3  # Final VST3 plugin
 ```

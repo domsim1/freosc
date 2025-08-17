@@ -5,7 +5,7 @@
 const FreOscFilter::FormantData FreOscFilter::formantTable[8] = {
     // Vowel A: "ah" sound - classic open vowel
     { 650.0f, 1080.0f, 2650.0f, 80.0f, 100.0f, 120.0f, 1.0f, 0.8f, 0.6f },
-    // Vowel E: "eh" sound  
+    // Vowel E: "eh" sound
     { 400.0f, 2000.0f, 2800.0f, 70.0f, 110.0f, 130.0f, 1.0f, 0.9f, 0.7f },
     // Vowel I: "ee" sound
     { 300.0f, 2300.0f, 3200.0f, 60.0f, 120.0f, 140.0f, 1.0f, 0.9f, 0.8f },
@@ -34,10 +34,10 @@ FreOscFilter::~FreOscFilter()
 void FreOscFilter::prepare(const juce::dsp::ProcessSpec& spec)
 {
     sampleRate = spec.sampleRate;
-    
+
     // Prepare main filter
     mainFilter.prepare(spec);
-    
+
     // Initialize with current settings
     updateFilterCoefficients();
 }
@@ -120,43 +120,43 @@ juce::dsp::IIR::Coefficients<float>::Ptr FreOscFilter::createFilterCoefficients(
     float freq = normalizedToFrequency(currentCutoffNormalized);
     float q = normalizedToQ(currentResonanceNormalized);
     float gainDb = normalizedToGainDb(currentGainNormalized);
-    
+
     // Ensure frequency is within valid range
     freq = juce::jlimit(20.0f, static_cast<float>(sampleRate * 0.45), freq);
     q = juce::jmax(0.1f, q);
-    
+
     switch (currentFilterType)
     {
         case Lowpass:
             return juce::dsp::IIR::Coefficients<float>::makeLowPass(sampleRate, freq, q);
-            
+
         case Highpass:
             return juce::dsp::IIR::Coefficients<float>::makeHighPass(sampleRate, freq, q);
-            
+
         case Bandpass:
             return juce::dsp::IIR::Coefficients<float>::makeBandPass(sampleRate, freq, q);
-            
+
         case Notch:
             return juce::dsp::IIR::Coefficients<float>::makeNotch(sampleRate, freq, q);
-            
+
         case Peaking:
             return juce::dsp::IIR::Coefficients<float>::makePeakFilter(
                 sampleRate, freq, q, juce::Decibels::decibelsToGain(gainDb)
             );
-            
+
         case Lowshelf:
             return juce::dsp::IIR::Coefficients<float>::makeLowShelf(
                 sampleRate, freq, q, juce::Decibels::decibelsToGain(gainDb)
             );
-            
+
         case Highshelf:
             return juce::dsp::IIR::Coefficients<float>::makeHighShelf(
                 sampleRate, freq, q, juce::Decibels::decibelsToGain(gainDb)
             );
-            
+
         case Allpass:
             return juce::dsp::IIR::Coefficients<float>::makeAllPass(sampleRate, freq, q);
-            
+
         case Formant:
             {
                 // Simple formant filter using first formant frequency with moderate boost
@@ -164,16 +164,16 @@ juce::dsp::IIR::Coefficients<float>::Ptr FreOscFilter::createFilterCoefficients(
                 float formantFreq = juce::jlimit(100.0f, static_cast<float>(sampleRate * 0.4), formantData.f1);
                 float formantQ = formantFreq / formantData.bw1; // Q = freq/bandwidth
                 formantQ = juce::jlimit(2.0f, 12.0f, formantQ);
-                
+
                 // Moderate vocal boost - 6-15dB based on gain setting
                 float formantGainDb = 6.0f + (gainDb * 0.5f) + (formantData.gain1 * 9.0f);
                 formantGainDb = juce::jlimit(6.0f, 18.0f, formantGainDb);
-                
+
                 return juce::dsp::IIR::Coefficients<float>::makePeakFilter(
                     sampleRate, formantFreq, formantQ, juce::Decibels::decibelsToGain(formantGainDb)
                 );
             }
-            
+
         default:
             return juce::dsp::IIR::Coefficients<float>::makeLowPass(sampleRate, freq, q);
     }

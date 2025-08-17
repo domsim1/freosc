@@ -5,7 +5,7 @@ FreOscLFO::FreOscLFO()
 {
     // Initialize oscillator with sine wave
     oscillator.initialise([](float x) { return std::sin(x); });
-    
+
     // Initialize random generator
     random.setSeedRandomly();
 }
@@ -18,18 +18,18 @@ FreOscLFO::~FreOscLFO()
 void FreOscLFO::prepare(double newSampleRate)
 {
     sampleRate = newSampleRate;
-    
+
     // Prepare JUCE oscillator
     juce::dsp::ProcessSpec spec;
     spec.sampleRate = sampleRate;
     spec.maximumBlockSize = 512;
     spec.numChannels = 1;
     oscillator.prepare(spec);
-    
+
     // Update phase increment and random step size
     updatePhaseIncrement();
     samplesPerRandomStep = static_cast<int>(sampleRate / (rate * 20.0f)); // 20 steps per cycle
-    
+
     reset();
 }
 
@@ -47,7 +47,7 @@ void FreOscLFO::setWaveform(Waveform waveform)
     if (currentWaveform != waveform)
     {
         currentWaveform = waveform;
-        
+
         // Update JUCE oscillator waveform for standard types
         switch (waveform)
         {
@@ -55,13 +55,13 @@ void FreOscLFO::setWaveform(Waveform waveform)
                 oscillator.initialise([](float x) { return std::sin(x); });
                 break;
             case Waveform::Triangle:
-                oscillator.initialise([](float x) { 
-                    return juce::jmap(std::abs(x), 0.0f, juce::MathConstants<float>::pi, -1.0f, 1.0f); 
+                oscillator.initialise([](float x) {
+                    return juce::jmap(std::abs(x), 0.0f, juce::MathConstants<float>::pi, -1.0f, 1.0f);
                 });
                 break;
             case Waveform::Sawtooth:
-                oscillator.initialise([](float x) { 
-                    return juce::jmap(x, -juce::MathConstants<float>::pi, juce::MathConstants<float>::pi, -1.0f, 1.0f); 
+                oscillator.initialise([](float x) {
+                    return juce::jmap(x, -juce::MathConstants<float>::pi, juce::MathConstants<float>::pi, -1.0f, 1.0f);
                 });
                 break;
             case Waveform::Square:
@@ -78,7 +78,7 @@ void FreOscLFO::setRate(float rateHz)
 {
     rate = juce::jlimit(0.01f, 20.0f, rateHz);
     updatePhaseIncrement();
-    
+
     // Update random step size for sample and hold
     if (sampleRate > 0.0)
     {
@@ -106,13 +106,13 @@ float FreOscLFO::getNextSample(Waveform waveform, float rateHz, Target target)
         setWaveform(waveform);
     if (target != currentTarget)
         setTarget(target);
-    
+
     // Check if LFO should be active (amount > 0 and target is not None)
     if (amount <= 0.0f || currentTarget == Target::None)
         return 0.0f;
-    
+
     float sample = 0.0f;
-    
+
     switch (currentWaveform)
     {
         case Waveform::Sine:
@@ -131,7 +131,7 @@ float FreOscLFO::getNextSample(Waveform waveform, float rateHz, Target target)
             sample = generateRandom();
             break;
     }
-    
+
     return sample;
 }
 
@@ -154,7 +154,7 @@ float FreOscLFO::generateTriangle()
         sample = juce::jmap(phase, 0.0f, juce::MathConstants<float>::pi, -1.0f, 1.0f);
     else
         sample = juce::jmap(phase, juce::MathConstants<float>::pi, juce::MathConstants<float>::twoPi, 1.0f, -1.0f);
-    
+
     phase += phaseIncrement;
     if (phase >= juce::MathConstants<float>::twoPi)
         phase -= juce::MathConstants<float>::twoPi;
@@ -187,7 +187,7 @@ float FreOscLFO::generateRandom()
         randomValue = random.nextFloat() * 2.0f - 1.0f;
         samplesSinceLastRandom = 0;
     }
-    
+
     samplesSinceLastRandom++;
     return randomValue;
 }
