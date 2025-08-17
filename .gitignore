@@ -1,0 +1,80 @@
+# Build outputs
+FreOSC-VST/build/
+FreOSC-VST/Builds/
+FreOSC-VST/**/x64/
+FreOSC-VST/**/Debug/
+FreOSC-VST/**/Release/
+FreOSC-VST/**/*.vcxproj.user
+FreOSC-VST/**/*.sln.docstates
+
+# Visual Studio files
+*.suo
+*.user
+*.sdf
+*.opensdf
+*.db
+*.opendb
+*.ipch
+.vs/
+
+# JUCE generated files
+FreOSC-VST/JuceLibraryCode/
+FreOSC-VST/**/_ReSharper.*/
+
+# Compiled binaries
+*.exe
+*.dll
+*.pdb
+*.lib
+*.obj
+*.exp
+*.ilk
+*.idb
+*.res
+*.pch
+
+# VST3 plugins (can be large, rebuild as needed)
+*.vst3
+
+# macOS
+.DS_Store
+*.xcuserstate
+*.xcworkspace/xcuserdata/
+DerivedData/
+
+# Linux
+*.o
+*.so
+*.a
+
+# Temporary files
+*.tmp
+*.temp
+*~
+*.swp
+*.swo
+
+# IDE files
+.vscode/
+*.sublime-*
+.idea/
+
+# Archives and packages
+*.zip
+*.tar.gz
+*.rar
+*.7z
+juce.zip
+
+# Logs
+*.log
+
+# CMake
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+Makefile
+*.cmake
+
+# Preset files (keep the factory ones, ignore user presets)
+FreOSC-VST/Presets/User/
