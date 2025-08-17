@@ -81,11 +81,19 @@ FreOscEditor::FreOscEditor (FreOscProcessor& p)
     setupComponent(loadPresetButton);
     loadPresetButton.setButtonText("Load Preset");
     loadPresetButton.addListener(this);
+    
+    // Setup master volume components for header
+    setupSlider(masterVolumeSlider, masterVolumeLabel, masterVolumeValue, "Vol:", "master_volume");
 
     // Add header components to content component instead of main editor
     contentComponent.addAndMakeVisible(titleLabel);
     contentComponent.addAndMakeVisible(presetSelector);
     contentComponent.addAndMakeVisible(loadPresetButton);
+    
+    // Add master volume components to header
+    contentComponent.addAndMakeVisible(masterVolumeLabel);
+    contentComponent.addAndMakeVisible(masterVolumeSlider);
+    contentComponent.addAndMakeVisible(masterVolumeValue);
 
     // DO NOT setup components in main constructor - let tabs handle this
     // This avoids the component parent conflict issue
@@ -156,12 +164,18 @@ void FreOscEditor::resized()
     // Layout components in content component
     auto contentBounds = contentComponent.getLocalBounds();
 
-    // Header section (compact)
+    // Header section (compact) - now includes master volume
     auto headerBounds = contentBounds.removeFromTop(50);
     titleLabel.setBounds(headerBounds.removeFromLeft(300).reduced(5));
     auto presetBounds = headerBounds.reduced(5);
     presetSelector.setBounds(presetBounds.removeFromLeft(200));
     loadPresetButton.setBounds(presetBounds.removeFromLeft(100).withTrimmedLeft(10));
+    
+    // Master volume in top right corner
+    auto masterArea = presetBounds.withTrimmedLeft(20).reduced(2);
+    masterVolumeLabel.setBounds(masterArea.removeFromTop(12));
+    masterVolumeSlider.setBounds(masterArea.removeFromTop(masterArea.getHeight() - 12));
+    masterVolumeValue.setBounds(masterArea);
 
     // Main area for tabs
     auto mainArea = contentBounds.reduced(10);
@@ -808,19 +822,17 @@ void FreOscEditor::createTabbedInterface()
     auto& tabBar = tabbedComponent.getTabbedButtonBar();
     tabBar.setLookAndFeel(customLookAndFeel.get());
 
-    // Create tab content
+    // Create tab content (removed master tab)
     oscillatorsTab = createOscillatorsTab();
     filterEnvelopeTab = createFilterEnvelopeTab();
     modulationTab = createModulationTab();
     effectsTab = createEffectsTab();
-    masterTab = createMasterTab();
 
-    // Add tabs with metallic grey theme
+    // Add tabs with metallic grey theme (removed MASTER tab)
     tabbedComponent.addTab("OSC", panelColour, oscillatorsTab.get(), false);
     tabbedComponent.addTab("FILTER", panelColour, filterEnvelopeTab.get(), false);
     tabbedComponent.addTab("MOD", panelColour, modulationTab.get(), false);
     tabbedComponent.addTab("EFFECTS", panelColour, effectsTab.get(), false);
-    tabbedComponent.addTab("MASTER", panelColour, masterTab.get(), false);
 
     // Make visible and add to content component (not main editor)
     contentComponent.addAndMakeVisible(tabbedComponent);
@@ -2363,110 +2375,6 @@ std::unique_ptr<juce::Component> FreOscEditor::createEffectsTab()
     return std::make_unique<EffectsTabComponent>(*this);
 }
 
-std::unique_ptr<juce::Component> FreOscEditor::createMasterTab()
-{
-    class MasterTabComponent : public juce::Component
-    {
-    public:
-        MasterTabComponent(FreOscEditor& editor) : owner(editor)
-        {
-            // DIRECT LAYOUT: Setup master components without GroupComponent
-            setupDirectMaster();
-        }
-
-        void setupDirectMaster()
-        {
-            // DIRECT SETUP: Add master components directly to tab (no GroupComponent)
-
-            // Setup components with proper styling
-            owner.applyComponentStyling(owner.masterVolumeSlider);
-            owner.applyComponentStyling(owner.masterVolumeLabel);
-            owner.applyComponentStyling(owner.masterVolumeValue);
-
-            // Set value label styling for master volume (orange accent color)
-            owner.masterVolumeValue.setFont(juce::Font(juce::FontOptions().withHeight(11.0f)));
-            owner.masterVolumeValue.setJustificationType(juce::Justification::centred);
-            owner.masterVolumeValue.setColour(juce::Label::textColourId, owner.accentColour.brighter(0.1f));
-            owner.masterVolumeValue.setColour(juce::Label::backgroundColourId, juce::Colours::transparentBlack);
-
-            // Set label
-            owner.masterVolumeLabel.setText("Volume:", juce::dontSendNotification);
-
-            // Add ALL components directly to the tab (not to a group) - INCLUDING VALUE LABELS
-            addAndMakeVisible(owner.masterVolumeLabel);
-            addAndMakeVisible(owner.masterVolumeSlider);
-            addAndMakeVisible(owner.masterVolumeValue);  // Value label for master volume
-        }
-
-        void layoutDirectMaster(juce::Rectangle<int> area)
-        {
-            // Store area for border drawing
-            masterBorderArea = area;
-
-            // Leave space at top for title
-            area.removeFromTop(20);
-
-            // Center the master volume control
-            auto controlArea = area.withSizeKeepingCentre(150, area.getHeight());
-
-            // Minimum knob size
-            const int minKnobSize = 80; // Larger knob for master volume
-            const int minLabelHeight = 15;
-
-            // Master Volume
-            owner.masterVolumeLabel.setBounds(controlArea.removeFromTop(minLabelHeight));
-            auto knobArea = controlArea.removeFromTop(controlArea.getHeight() - minLabelHeight);
-            auto knobBounds = knobArea.withSizeKeepingCentre(
-                juce::jmax(minKnobSize, knobArea.getWidth()),
-                juce::jmax(minKnobSize, knobArea.getHeight())
-            );
-            owner.masterVolumeSlider.setBounds(knobBounds);
-            owner.masterVolumeValue.setBounds(controlArea);
-        }
-
-        void paint(juce::Graphics& g) override
-        {
-            // Draw border around master section
-            g.setColour(owner.knobColour);
-
-            // Draw master border with title and background
-            if (!masterBorderArea.isEmpty())
-            {
-                // Fill background with dark blue
-                g.setColour(owner.panelColour.darker(0.2f));
-                g.fillRoundedRectangle(masterBorderArea.toFloat(), 4.0f);
-                
-                // Draw border
-                g.setColour(owner.knobColour);
-                g.drawRoundedRectangle(masterBorderArea.toFloat(), 4.0f, 1.0f);
-                
-                // Draw title text
-                g.setColour(owner.textColour);
-                g.setFont(12.0f);
-                g.drawText("Master", masterBorderArea.getX() + 10, masterBorderArea.getY() - 2, 100, 16, juce::Justification::left);
-            }
-        }
-
-        void resized() override
-        {
-            auto bounds = getLocalBounds().reduced(10);
-
-            // Master section in center
-            auto masterArea = bounds.withSizeKeepingCentre(300, 200);
-
-            // Layout components using direct positioning
-            layoutDirectMaster(masterArea);
-        }
-
-    private:
-        FreOscEditor& owner;
-
-        // Border area for drawing section border
-        juce::Rectangle<int> masterBorderArea;
-    };
-
-    return std::make_unique<MasterTabComponent>(*this);
-}
 
 //==============================================================================
 // Tab-specific setup methods

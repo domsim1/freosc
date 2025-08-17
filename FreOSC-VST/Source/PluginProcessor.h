@@ -96,6 +96,9 @@ private:
 
     // Global LFO for filter modulation
     FreOscLFO globalLFO;
+    
+    // Master volume smoothing to prevent pops
+    juce::LinearSmoothedValue<float> masterVolumeSmooth;
 
     //==============================================================================
     // Parameter update methods

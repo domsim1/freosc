@@ -149,6 +149,11 @@ void FreOscProcessor::prepareToPlay (double sampleRate, int samplesPerBlock)
 
     // Prepare global LFO for filter modulation
     globalLFO.prepare(sampleRate);
+    
+    // Initialize master volume smoothing
+    masterVolumeSmooth.reset(sampleRate, 0.05); // 50ms ramp time
+    float initialMasterVol = parameters.getRawParameterValue(ParameterIDs::masterVolume)->load();
+    masterVolumeSmooth.setCurrentAndTargetValue(initialMasterVol);
 
     // Update all voice parameters
     updateVoiceParameters();
@@ -213,9 +218,25 @@ void FreOscProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::Midi
     juce::dsp::ProcessContextReplacing<float> context(audioBlock);
     effectsChain.process(context);
 
-    // Apply master volume
-    float masterVol = parameters.getRawParameterValue(ParameterIDs::masterVolume)->load();
-    buffer.applyGain(masterVol);
+    // Apply smoothed master volume to prevent pops
+    float targetMasterVol = parameters.getRawParameterValue(ParameterIDs::masterVolume)->load();
+    masterVolumeSmooth.setTargetValue(targetMasterVol);
+    
+    // Apply gain sample by sample for smooth transitions
+    for (int channel = 0; channel < buffer.getNumChannels(); ++channel)
+    {
+        float* channelData = buffer.getWritePointer(channel);
+        
+        for (int sample = 0; sample < buffer.getNumSamples(); ++sample)
+        {
+            float smoothedGain = masterVolumeSmooth.getCurrentValue();
+            channelData[sample] *= smoothedGain;
+            
+            // Advance smoothing only once per sample (not per channel)
+            if (channel == 0)
+                masterVolumeSmooth.getNextValue();
+        }
+    }
 }
 
 //==============================================================================

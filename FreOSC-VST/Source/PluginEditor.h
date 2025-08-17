@@ -79,7 +79,6 @@ private:
     std::unique_ptr<juce::Component> filterEnvelopeTab;
     std::unique_ptr<juce::Component> modulationTab;
     std::unique_ptr<juce::Component> effectsTab;
-    std::unique_ptr<juce::Component> masterTab;
 
     // Oscillator sections (3 identical sets)
     
@@ -214,7 +213,6 @@ private:
     std::unique_ptr<juce::Component> createFilterEnvelopeTab();
     std::unique_ptr<juce::Component> createModulationTab();
     std::unique_ptr<juce::Component> createEffectsTab();
-    std::unique_ptr<juce::Component> createMasterTab();
 
     //==============================================================================
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (FreOscEditor)

@@ -60,13 +60,25 @@ void FreOscVoice::startNote(int midiNoteNumber, float velocity, juce::Synthesise
 
     // Set up oscillators with current note frequency
     setupOscillators();
+    
+    // Reset oscillator phases to prevent pops from random starting phases
+    oscillator1.reset();
+    oscillator2.reset();
+    oscillator3.reset();
 
     // Initialize FM oscillator with sine wave (standard for FM synthesis)
     fmOscillator.setWaveform(FreOscOscillator::Waveform::Sine);
     fmOscillator.setLevel(1.0f);
+    fmOscillator.reset(); // Reset FM oscillator phase too
 
     // Start envelope
     envelope.noteOn();
+    
+    // Initialize amplitude ramping for anti-pop (20ms fade-in)
+    amplitudeRamp.reset(currentSampleRate, 0.02); // 20ms ramp
+    amplitudeRamp.setCurrentAndTargetValue(0.0f);
+    amplitudeRamp.setTargetValue(1.0f);
+    isRampingDown = false;
 }
 
 void FreOscVoice::stopNote(float velocity, bool allowTailOff)
@@ -82,9 +94,10 @@ void FreOscVoice::stopNote(float velocity, bool allowTailOff)
     }
     else
     {
-        // Force immediate stop
-        clearCurrentNote();
-        envelope.reset();
+        // Start amplitude ramp down for anti-pop (10ms fade-out)
+        amplitudeRamp.reset(currentSampleRate, 0.01); // 10ms fade-out
+        amplitudeRamp.setTargetValue(0.0f);
+        isRampingDown = true;
     }
 }
 
@@ -155,6 +168,17 @@ void FreOscVoice::renderNextBlock(juce::AudioBuffer<float>& outputBuffer, int st
         // Get envelope level
         float envelopeLevel = envelope.getNextSample();
 
+        // Get amplitude ramp value for anti-pop
+        float amplitudeRampValue = amplitudeRamp.getNextValue();
+        
+        // If we're ramping down and reached zero, clear the note
+        if (isRampingDown && amplitudeRampValue <= 0.001f)
+        {
+            clearCurrentNote();
+            envelope.reset(); // Ensure envelope is fully reset
+            break;
+        }
+        
         // If envelope is finished, clear the note
         if (!envelope.isActive())
         {
@@ -264,7 +288,7 @@ void FreOscVoice::renderNextBlock(juce::AudioBuffer<float>& outputBuffer, int st
             effectiveLfoAmount += ccModWheel * 0.5f; // Mod wheel can add up to 50% more LFO
         }
 
-        mixedSample *= envelopeLevel * currentVelocity * ccVolumeModulation;
+        mixedSample *= envelopeLevel * currentVelocity * ccVolumeModulation * amplitudeRampValue;
 
         // Apply per-voice filtering (after envelope, before panning)
         // Check for LFO filter modulation
@@ -300,6 +324,9 @@ void FreOscVoice::renderNextBlock(juce::AudioBuffer<float>& outputBuffer, int st
         // Final safety check after all processing
         if (!std::isfinite(mixedSample))
             mixedSample = 0.0f;
+
+        // Apply DC blocking filter to remove any DC offset
+        mixedSample = dcBlocker.processSample(mixedSample);
 
         // Soft clipping to prevent harsh distortion
         mixedSample = juce::jlimit(-1.0f, 1.0f, mixedSample);
@@ -364,6 +391,20 @@ void FreOscVoice::setCurrentPlaybackSampleRate(double sampleRate)
     voiceFilter.prepare(spec);
 
     envelope.setSampleRate(sampleRate);
+    
+    // Initialize amplitude ramp for anti-pop
+    amplitudeRamp.reset(sampleRate, 0.02); // 20ms default ramp time
+    amplitudeRamp.setCurrentAndTargetValue(1.0f);
+    
+    // Initialize DC blocking high-pass filter (cutoff around 5Hz)
+    juce::dsp::ProcessSpec dcSpec;
+    dcSpec.sampleRate = sampleRate;
+    dcSpec.maximumBlockSize = 1;
+    dcSpec.numChannels = 1;
+    dcBlocker.prepare(dcSpec);
+    auto coefficients = juce::dsp::IIR::Coefficients<float>::makeHighPass(sampleRate, 5.0f);
+    dcBlocker.coefficients = coefficients;
+    dcBlocker.reset();
 }
 
 //==============================================================================

@@ -91,6 +91,13 @@ private:
     int currentMidiNote = 60;
     float currentVelocity = 1.0f;
     bool noteIsOn = false;
+    
+    // Anti-pop ramping
+    juce::LinearSmoothedValue<float> amplitudeRamp;
+    bool isRampingDown = false;
+    
+    // DC blocking filter to prevent DC offset pops
+    juce::dsp::IIR::Filter<float> dcBlocker;
 
     // MIDI modulation state
     float currentPitchBend = 0.0f;        // -1.0 to +1.0 (normalized)
