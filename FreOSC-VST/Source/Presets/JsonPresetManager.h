@@ -83,12 +83,14 @@ private:
     float normalizeNoiseType(const juce::String& noiseType);
     float normalizeFilterType(const juce::String& filterType);
     float normalizeFilterRouting(const juce::String& routing);
+    float normalizeEffectsRouting(const juce::String& routing);
     float normalizeFilterCutoff(float frequency);
     float normalizeFilterResonance(float q);
     float normalizeFilterGain(float gainDb);
     float normalizeLfoWaveform(const juce::String& waveform);
     float normalizeLfoRate(float hz);
     float normalizeLfoTarget(const juce::String& target);
+    float normalizeModEnvTarget(const juce::String& target);
     float normalizeTime(float seconds);
 
     // Reverse conversion for saving
@@ -99,12 +101,14 @@ private:
     juce::String denormalizeNoiseType(float normalized);
     juce::String denormalizeFilterType(float normalized);
     juce::String denormalizeFilterRouting(float normalized);
+    juce::String denormalizeEffectsRouting(float normalized);
     float denormalizeFilterCutoff(float normalized);
     float denormalizeFilterResonance(float normalized);
     float denormalizeFilterGain(float normalized);
     juce::String denormalizeLfoWaveform(float normalized);
     float denormalizeLfoRate(float normalized);
     juce::String denormalizeLfoTarget(float normalized);
+    juce::String denormalizeModEnvTarget(float normalized);
     float denormalizeTime(float normalized);
 
     //==============================================================================

@@ -108,6 +108,7 @@ private:
     // Helper methods
     void initializeSynthesiser();
     void setupEffectsChain();
+    void processEffectsWithRouting(juce::dsp::ProcessContextReplacing<float>& context, int routingMode);
     
     // Master volume conversion: 0.0 = silence, 0.75 = 0dB (unity), 1.0 = +24dB
     float normalizedToMasterGain(float normalized) const;
@@ -190,4 +191,20 @@ namespace ParameterIDs
     inline const juce::String lfoRate          = "lfo_rate";
     inline const juce::String lfoTarget        = "lfo_target";
     inline const juce::String lfoAmount        = "lfo_amount";
+
+    // Modulation Envelope 1
+    inline const juce::String modEnv1Attack   = "mod_env1_attack";
+    inline const juce::String modEnv1Decay    = "mod_env1_decay";
+    inline const juce::String modEnv1Sustain  = "mod_env1_sustain";
+    inline const juce::String modEnv1Release  = "mod_env1_release";
+    inline const juce::String modEnv1Amount   = "mod_env1_amount";
+    inline const juce::String modEnv1Target   = "mod_env1_target";
+
+    // Modulation Envelope 2
+    inline const juce::String modEnv2Attack   = "mod_env2_attack";
+    inline const juce::String modEnv2Decay    = "mod_env2_decay";
+    inline const juce::String modEnv2Sustain  = "mod_env2_sustain";
+    inline const juce::String modEnv2Release  = "mod_env2_release";
+    inline const juce::String modEnv2Amount   = "mod_env2_amount";
+    inline const juce::String modEnv2Target   = "mod_env2_target";
 }

@@ -75,6 +75,10 @@ public:
     
     void updateFilterRouting(int routing);
 
+    void updateModEnv1Parameters(float attack, float decay, float sustain, float release, float amount, int target);
+
+    void updateModEnv2Parameters(float attack, float decay, float sustain, float release, float amount, int target);
+
 private:
     //==============================================================================
     // Audio components
@@ -85,6 +89,10 @@ private:
     // Envelope
     juce::ADSR envelope;
     juce::ADSR::Parameters envelopeParameters;
+
+    // Modulation envelopes
+    juce::ADSR modEnvelope1, modEnvelope2;
+    juce::ADSR::Parameters modEnv1Parameters, modEnv2Parameters;
 
     // Panning (stereo positioning)
     juce::dsp::Panner<float> panner1, panner2, panner3, noisePanner;
@@ -149,6 +157,14 @@ private:
         
         // Filter routing
         std::atomic<int> filterRouting{0}; // 0=off
+
+        // Modulation Envelope 1 parameters
+        std::atomic<float> modEnv1Amount{0.0f};
+        std::atomic<int> modEnv1Target{0}; // 0=none
+
+        // Modulation Envelope 2 parameters
+        std::atomic<float> modEnv2Amount{0.0f};
+        std::atomic<int> modEnv2Target{0}; // 0=none
     } params;
 
     //==============================================================================

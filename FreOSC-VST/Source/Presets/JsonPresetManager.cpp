@@ -230,8 +230,36 @@ juce::var JsonPresetManager::createPresetJson(const juce::String& name, const ju
     lfo->setProperty("amount", parameters.getRawParameterValue("lfo_amount")->load());
     json->setProperty("lfo", lfo.get());
 
+    // Modulation Envelopes
+    auto modulation = juce::DynamicObject::Ptr(new juce::DynamicObject());
+    
+    // Modulation Envelope 1
+    auto modEnv1 = juce::DynamicObject::Ptr(new juce::DynamicObject());
+    modEnv1->setProperty("attack", denormalizeTime(parameters.getRawParameterValue("mod_env1_attack")->load()));
+    modEnv1->setProperty("decay", denormalizeTime(parameters.getRawParameterValue("mod_env1_decay")->load()));
+    modEnv1->setProperty("sustain", parameters.getRawParameterValue("mod_env1_sustain")->load());
+    modEnv1->setProperty("release", denormalizeTime(parameters.getRawParameterValue("mod_env1_release")->load()));
+    modEnv1->setProperty("amount", parameters.getRawParameterValue("mod_env1_amount")->load());
+    modEnv1->setProperty("target", denormalizeModEnvTarget(parameters.getRawParameterValue("mod_env1_target")->load()));
+    modulation->setProperty("envelope1", modEnv1.get());
+    
+    // Modulation Envelope 2
+    auto modEnv2 = juce::DynamicObject::Ptr(new juce::DynamicObject());
+    modEnv2->setProperty("attack", denormalizeTime(parameters.getRawParameterValue("mod_env2_attack")->load()));
+    modEnv2->setProperty("decay", denormalizeTime(parameters.getRawParameterValue("mod_env2_decay")->load()));
+    modEnv2->setProperty("sustain", parameters.getRawParameterValue("mod_env2_sustain")->load());
+    modEnv2->setProperty("release", denormalizeTime(parameters.getRawParameterValue("mod_env2_release")->load()));
+    modEnv2->setProperty("amount", parameters.getRawParameterValue("mod_env2_amount")->load());
+    modEnv2->setProperty("target", denormalizeModEnvTarget(parameters.getRawParameterValue("mod_env2_target")->load()));
+    modulation->setProperty("envelope2", modEnv2.get());
+    
+    json->setProperty("modulation", modulation.get());
+
     // Effects
     auto effects = juce::DynamicObject::Ptr(new juce::DynamicObject());
+    
+    // Effects routing
+    effects->setProperty("routing", denormalizeEffectsRouting(parameters.getRawParameterValue("effects_routing")->load()));
     
     // Plate Reverb
     auto plateReverb = juce::DynamicObject::Ptr(new juce::DynamicObject());
@@ -463,12 +491,89 @@ bool JsonPresetManager::applyPresetJson(const juce::var& presetData, juce::Audio
         }
     }
 
+    // Apply modulation envelopes
+    if (json->hasProperty("modulation"))
+    {
+        auto modulation = json->getProperty("modulation").getDynamicObject();
+        if (modulation != nullptr)
+        {
+            // Apply Modulation Envelope 1
+            if (modulation->hasProperty("envelope1"))
+            {
+                auto modEnv1 = modulation->getProperty("envelope1").getDynamicObject();
+                if (modEnv1 != nullptr)
+                {
+                    if (modEnv1->hasProperty("attack"))
+                        parameters.getParameter("mod_env1_attack")->setValueNotifyingHost(
+                            normalizeTime(static_cast<float>(modEnv1->getProperty("attack"))));
+
+                    if (modEnv1->hasProperty("decay"))
+                        parameters.getParameter("mod_env1_decay")->setValueNotifyingHost(
+                            normalizeTime(static_cast<float>(modEnv1->getProperty("decay"))));
+
+                    if (modEnv1->hasProperty("sustain"))
+                        parameters.getParameter("mod_env1_sustain")->setValueNotifyingHost(
+                            static_cast<float>(modEnv1->getProperty("sustain")));
+
+                    if (modEnv1->hasProperty("release"))
+                        parameters.getParameter("mod_env1_release")->setValueNotifyingHost(
+                            normalizeTime(static_cast<float>(modEnv1->getProperty("release"))));
+
+                    if (modEnv1->hasProperty("amount"))
+                        parameters.getParameter("mod_env1_amount")->setValueNotifyingHost(
+                            static_cast<float>(modEnv1->getProperty("amount")));
+
+                    if (modEnv1->hasProperty("target"))
+                        parameters.getParameter("mod_env1_target")->setValueNotifyingHost(
+                            normalizeModEnvTarget(modEnv1->getProperty("target")));
+                }
+            }
+
+            // Apply Modulation Envelope 2
+            if (modulation->hasProperty("envelope2"))
+            {
+                auto modEnv2 = modulation->getProperty("envelope2").getDynamicObject();
+                if (modEnv2 != nullptr)
+                {
+                    if (modEnv2->hasProperty("attack"))
+                        parameters.getParameter("mod_env2_attack")->setValueNotifyingHost(
+                            normalizeTime(static_cast<float>(modEnv2->getProperty("attack"))));
+
+                    if (modEnv2->hasProperty("decay"))
+                        parameters.getParameter("mod_env2_decay")->setValueNotifyingHost(
+                            normalizeTime(static_cast<float>(modEnv2->getProperty("decay"))));
+
+                    if (modEnv2->hasProperty("sustain"))
+                        parameters.getParameter("mod_env2_sustain")->setValueNotifyingHost(
+                            static_cast<float>(modEnv2->getProperty("sustain")));
+
+                    if (modEnv2->hasProperty("release"))
+                        parameters.getParameter("mod_env2_release")->setValueNotifyingHost(
+                            normalizeTime(static_cast<float>(modEnv2->getProperty("release"))));
+
+                    if (modEnv2->hasProperty("amount"))
+                        parameters.getParameter("mod_env2_amount")->setValueNotifyingHost(
+                            static_cast<float>(modEnv2->getProperty("amount")));
+
+                    if (modEnv2->hasProperty("target"))
+                        parameters.getParameter("mod_env2_target")->setValueNotifyingHost(
+                            normalizeModEnvTarget(modEnv2->getProperty("target")));
+                }
+            }
+        }
+    }
+
     // Apply effects
     if (json->hasProperty("effects"))
     {
         auto effects = json->getProperty("effects").getDynamicObject();
         if (effects != nullptr)
         {
+            // Apply effects routing
+            if (effects->hasProperty("routing"))
+                parameters.getParameter("effects_routing")->setValueNotifyingHost(
+                    normalizeEffectsRouting(effects->getProperty("routing")));
+            
             // Apply plate reverb
             if (effects->hasProperty("plateReverb"))
             {
@@ -629,6 +734,14 @@ float JsonPresetManager::normalizeFilterRouting(const juce::String& routing)
     return 0.0f; // Default to off
 }
 
+float JsonPresetManager::normalizeEffectsRouting(const juce::String& routing)
+{
+    if (routing == "series_reverb_delay") return 0.0f;
+    if (routing == "series_delay_reverb") return 1.0f;
+    if (routing == "parallel") return 2.0f;
+    return 0.0f; // Default to series reverb→delay
+}
+
 float JsonPresetManager::normalizeFilterCutoff(float frequency)
 {
     // Logarithmic scaling: 20Hz to 20kHz -> 0-1
@@ -674,6 +787,16 @@ float JsonPresetManager::normalizeLfoTarget(const juce::String& target)
     if (target == "filter2") return 0.6f;
     if (target == "volume") return 0.8f;
     if (target == "pan") return 1.0f;
+    return 0.0f; // Default to none
+}
+
+float JsonPresetManager::normalizeModEnvTarget(const juce::String& target)
+{
+    if (target == "none") return 0.0f;
+    if (target == "fm_amount") return 1.0f;
+    if (target == "fm_ratio") return 2.0f;
+    if (target == "filter_cutoff") return 3.0f;
+    if (target == "filter2_cutoff") return 4.0f;
     return 0.0f; // Default to none
 }
 
@@ -806,5 +929,31 @@ juce::String JsonPresetManager::denormalizeFilterRouting(float normalized)
         case 1: return "parallel";
         case 2: return "series";
         default: return "off";
+    }
+}
+
+juce::String JsonPresetManager::denormalizeEffectsRouting(float normalized)
+{
+    int index = static_cast<int>(normalized);
+    switch (index)
+    {
+        case 0: return "series_reverb_delay";
+        case 1: return "series_delay_reverb";
+        case 2: return "parallel";
+        default: return "series_reverb_delay";
+    }
+}
+
+juce::String JsonPresetManager::denormalizeModEnvTarget(float normalized)
+{
+    int index = static_cast<int>(normalized);
+    switch (index)
+    {
+        case 0: return "none";
+        case 1: return "fm_amount";
+        case 2: return "fm_ratio";
+        case 3: return "filter_cutoff";
+        case 4: return "filter2_cutoff";
+        default: return "none";
     }
 }

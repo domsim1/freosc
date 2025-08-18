@@ -293,6 +293,11 @@ private:
 
     // Dynamics section removed - now uses fixed internal settings
 
+    // Effects routing section
+    juce::GroupComponent effectsRoutingGroup;
+    juce::ComboBox effectsRoutingCombo;
+    juce::Label effectsRoutingLabel;
+
     // Plate Reverb section
     juce::GroupComponent reverbGroup;
     juce::Slider platePreDelaySlider, plateSizeSlider, plateDampingSlider;
@@ -319,6 +324,19 @@ private:
     juce::Label lfoWaveformLabel, lfoTargetLabel, lfoRateLabel, lfoAmountLabel;
     juce::Label lfoRateValue, lfoAmountValue;
 
+    // Modulation Envelope sections
+    juce::GroupComponent modEnv1Group, modEnv2Group;
+    juce::Slider modEnv1AttackSlider, modEnv1DecaySlider, modEnv1SustainSlider, modEnv1ReleaseSlider;
+    juce::Slider modEnv2AttackSlider, modEnv2DecaySlider, modEnv2SustainSlider, modEnv2ReleaseSlider;
+    juce::Slider modEnv1AmountSlider, modEnv2AmountSlider;
+    juce::ComboBox modEnv1TargetCombo, modEnv2TargetCombo;
+    juce::Label modEnv1AttackLabel, modEnv1DecayLabel, modEnv1SustainLabel, modEnv1ReleaseLabel;
+    juce::Label modEnv2AttackLabel, modEnv2DecayLabel, modEnv2SustainLabel, modEnv2ReleaseLabel;
+    juce::Label modEnv1AmountLabel, modEnv2AmountLabel, modEnv1TargetLabel, modEnv2TargetLabel;
+    juce::Label modEnv1AttackValue, modEnv1DecayValue, modEnv1SustainValue, modEnv1ReleaseValue;
+    juce::Label modEnv2AttackValue, modEnv2DecayValue, modEnv2SustainValue, modEnv2ReleaseValue;
+    juce::Label modEnv1AmountValue, modEnv2AmountValue;
+
     //==============================================================================
     // Helper methods
     void setupComponent(juce::Component& component);
@@ -339,6 +357,7 @@ private:
     juce::String formatFrequencyValue(float normalizedValue);
     juce::String formatResonanceValue(float normalizedValue);
     juce::String formatFilterGainValue(float normalizedValue);
+    juce::String formatFMRatioValue(float ratioValue);
     juce::String formatMasterVolumeValue(float normalizedValue);
 
     // Parameter update callbacks

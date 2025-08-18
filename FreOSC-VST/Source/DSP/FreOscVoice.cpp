@@ -11,6 +11,19 @@ FreOscVoice::FreOscVoice()
     envelopeParameters.release = 0.5f;
     envelope.setParameters(envelopeParameters);
 
+    // Initialize modulation envelopes with default parameters
+    modEnv1Parameters.attack = 0.01f;
+    modEnv1Parameters.decay = 0.2f;
+    modEnv1Parameters.sustain = 0.8f;
+    modEnv1Parameters.release = 0.3f;
+    modEnvelope1.setParameters(modEnv1Parameters);
+
+    modEnv2Parameters.attack = 0.01f;
+    modEnv2Parameters.decay = 0.2f;
+    modEnv2Parameters.sustain = 0.8f;
+    modEnv2Parameters.release = 0.3f;
+    modEnvelope2.setParameters(modEnv2Parameters);
+
     // Initialize oscillators with safe defaults to match voice parameters
     oscillator1.setLevel(params.osc1Level.load());
     oscillator1.setWaveform(FreOscOscillator::Waveform::Sine);
@@ -74,6 +87,10 @@ void FreOscVoice::startNote(int midiNoteNumber, float velocity, juce::Synthesise
     // Start envelope
     envelope.noteOn();
     
+    // Start modulation envelopes
+    modEnvelope1.noteOn();
+    modEnvelope2.noteOn();
+    
     // Initialize amplitude ramping for anti-pop (20ms fade-in)
     amplitudeRamp.reset(currentSampleRate, 0.02); // 20ms ramp
     amplitudeRamp.setCurrentAndTargetValue(0.0f);
@@ -91,6 +108,10 @@ void FreOscVoice::stopNote(float velocity, bool allowTailOff)
     {
         // Let the envelope handle the release
         envelope.noteOff();
+        
+        // Release modulation envelopes too
+        modEnvelope1.noteOff();
+        modEnvelope2.noteOff();
     }
     else
     {
@@ -167,6 +188,10 @@ void FreOscVoice::renderNextBlock(juce::AudioBuffer<float>& outputBuffer, int st
     {
         // Get envelope level
         float envelopeLevel = envelope.getNextSample();
+        
+        // Get modulation envelope levels
+        float modEnv1Level = modEnvelope1.getNextSample();
+        float modEnv2Level = modEnvelope2.getNextSample();
 
         // Get amplitude ramp value for anti-pop
         float amplitudeRampValue = amplitudeRamp.getNextValue();
@@ -184,6 +209,17 @@ void FreOscVoice::renderNextBlock(juce::AudioBuffer<float>& outputBuffer, int st
         {
             clearCurrentNote();
             break;
+        }
+
+        // Apply modulation envelope modulation
+        float modEnv1Mod = 0.0f, modEnv2Mod = 0.0f;
+        if (params.modEnv1Amount > 0.0f && params.modEnv1Target > 0)
+        {
+            modEnv1Mod = modEnv1Level * params.modEnv1Amount;
+        }
+        if (params.modEnv2Amount > 0.0f && params.modEnv2Target > 0)
+        {
+            modEnv2Mod = modEnv2Level * params.modEnv2Amount;
         }
 
         // Generate oscillator samples
@@ -207,10 +243,40 @@ void FreOscVoice::renderNextBlock(juce::AudioBuffer<float>& outputBuffer, int st
             lfoValue *= params.lfoAmount;
         }
 
+        // Apply modulation envelope modulation to parameters
+        float modulatedFMAmount = params.fmAmount;
+        float modulatedFMRatio = params.fmRatio;
+        float modulatedFilterCutoff = params.filterCutoff;
+        float modulatedFilter2Cutoff = params.filter2Cutoff;
+        
+        // Apply ModEnv1 modulation based on target
+        if (params.modEnv1Amount > 0.0f && params.modEnv1Target > 0)
+        {
+            switch (params.modEnv1Target.load())
+            {
+                case 1: modulatedFMAmount = juce::jlimit(0.0f, 1.0f, modulatedFMAmount + (modEnv1Mod * 0.5f)); break; // FM Amount
+                case 2: modulatedFMRatio = juce::jlimit(0.1f, 8.0f, modulatedFMRatio + (modEnv1Mod * 4.0f)); break; // FM Ratio
+                case 3: modulatedFilterCutoff = juce::jlimit(0.0f, 1.0f, modulatedFilterCutoff + modEnv1Mod); break; // Filter Cutoff
+                case 4: modulatedFilter2Cutoff = juce::jlimit(0.0f, 1.0f, modulatedFilter2Cutoff + modEnv1Mod); break; // Filter2 Cutoff
+            }
+        }
+        
+        // Apply ModEnv2 modulation based on target
+        if (params.modEnv2Amount > 0.0f && params.modEnv2Target > 0)
+        {
+            switch (params.modEnv2Target.load())
+            {
+                case 1: modulatedFMAmount = juce::jlimit(0.0f, 1.0f, modulatedFMAmount + (modEnv2Mod * 0.5f)); break; // FM Amount
+                case 2: modulatedFMRatio = juce::jlimit(0.1f, 8.0f, modulatedFMRatio + (modEnv2Mod * 4.0f)); break; // FM Ratio
+                case 3: modulatedFilterCutoff = juce::jlimit(0.0f, 1.0f, modulatedFilterCutoff + modEnv2Mod); break; // Filter Cutoff
+                case 4: modulatedFilter2Cutoff = juce::jlimit(0.0f, 1.0f, modulatedFilter2Cutoff + modEnv2Mod); break; // Filter2 Cutoff
+            }
+        }
+
         // Get FM modulation signal if active - always uses Oscillator 3 as source
         // Note: FM works independently of Osc3's audio level
         float fmSignal = 0.0f;
-        if (params.fmAmount > 0.0f) // Only need FM amount > 0, not Osc3 audio level
+        if (modulatedFMAmount > 0.0f) // Use modulated FM amount
         {
             fmSignal = getFMModulationSignal();
         }
@@ -224,7 +290,6 @@ void FreOscVoice::renderNextBlock(juce::AudioBuffer<float>& outputBuffer, int st
         }
 
         // Generate samples from active oscillators with proper FM routing
-        // Double-check both voice params and oscillator level for safety
         if (params.osc1Level > 0.0f && oscillator1.getCurrentLevel() > 0.0f)
         {
             // Apply LFO pitch modulation only if active
@@ -233,8 +298,12 @@ void FreOscVoice::renderNextBlock(juce::AudioBuffer<float>& outputBuffer, int st
             else
                 oscillator1.setFrequencyModulation(0.0f);
 
-            // Apply FM modulation if this oscillator is a target (fmSignal is already scaled)
-            float fmAmount = shouldReceiveFM(1) ? fmSignal : 0.0f;
+            // Apply FM modulation if this oscillator is a target (use modulated FM amount for scaling)
+            float fmAmount = 0.0f;
+            if (shouldReceiveFM(1) && params.fmAmount.load() > 0.0f)
+            {
+                fmAmount = fmSignal * modulatedFMAmount / params.fmAmount.load();
+            }
             osc1Sample = oscillator1.processSample(fmAmount);
         }
 
@@ -244,7 +313,11 @@ void FreOscVoice::renderNextBlock(juce::AudioBuffer<float>& outputBuffer, int st
                 oscillator2.setFrequencyModulation(pitchModulation);
             else
                 oscillator2.setFrequencyModulation(0.0f);
-            float fmAmount = shouldReceiveFM(2) ? fmSignal : 0.0f;
+            float fmAmount = 0.0f;
+            if (shouldReceiveFM(2) && params.fmAmount.load() > 0.0f)
+            {
+                fmAmount = fmSignal * modulatedFMAmount / params.fmAmount.load();
+            }
             osc2Sample = oscillator2.processSample(fmAmount);
         }
 
@@ -254,7 +327,11 @@ void FreOscVoice::renderNextBlock(juce::AudioBuffer<float>& outputBuffer, int st
                 oscillator3.setFrequencyModulation(pitchModulation);
             else
                 oscillator3.setFrequencyModulation(0.0f);
-            float fmAmount = shouldReceiveFM(3) ? fmSignal : 0.0f;
+            float fmAmount = 0.0f;
+            if (shouldReceiveFM(3) && params.fmAmount.load() > 0.0f)
+            {
+                fmAmount = fmSignal * modulatedFMAmount / params.fmAmount.load();
+            }
             osc3Sample = oscillator3.processSample(fmAmount);
         }
 
@@ -272,8 +349,7 @@ void FreOscVoice::renderNextBlock(juce::AudioBuffer<float>& outputBuffer, int st
             volumeModulation = juce::jmax(0.0f, volumeModulation); // Prevent negative volume
         }
 
-        // Mix all sources - oscillators already apply their individual levels internally
-        // No additional scaling needed since each oscillator handles its own level
+        // Mix all sources
         float mixedSample = (osc1Sample + osc2Sample + osc3Sample + noiseSample) * volumeModulation;
 
         // Safety check: prevent NaN/infinity values that could cause crackling
@@ -300,9 +376,9 @@ void FreOscVoice::renderNextBlock(juce::AudioBuffer<float>& outputBuffer, int st
             filterModulation = lfoValue * 0.3f; // ±30% modulation range
         }
 
-        // Apply filter modulation to cutoff
-        float modulatedCutoff = params.filterCutoff + filterModulation;
-        modulatedCutoff = juce::jlimit(0.0f, 1.0f, modulatedCutoff);
+        // Apply filter modulation to cutoff (starting from mod envelope modulated value)
+        float finalModulatedCutoff = modulatedFilterCutoff + filterModulation;
+        finalModulatedCutoff = juce::jlimit(0.0f, 1.0f, finalModulatedCutoff);
 
         // Check for LFO filter 2 modulation
         float filter2Modulation = 0.0f;
@@ -311,20 +387,20 @@ void FreOscVoice::renderNextBlock(juce::AudioBuffer<float>& outputBuffer, int st
             filter2Modulation = lfoValue * 0.3f; // ±30% modulation range
         }
 
-        // Apply filter2 modulation to cutoff
-        float modulatedCutoff2 = params.filter2Cutoff + filter2Modulation;
-        modulatedCutoff2 = juce::jlimit(0.0f, 1.0f, modulatedCutoff2);
+        // Apply filter2 modulation to cutoff (starting from mod envelope modulated value)
+        float finalModulatedCutoff2 = modulatedFilter2Cutoff + filter2Modulation;
+        finalModulatedCutoff2 = juce::jlimit(0.0f, 1.0f, finalModulatedCutoff2);
 
-        // Update filter if modulation changed
-        if (std::abs(filterModulation) > 0.001f)
+        // Update filter if modulation changed or mod envelope is active
+        if (std::abs(filterModulation) > 0.001f || finalModulatedCutoff != params.filterCutoff.load())
         {
-            voiceFilter.setCutoffFrequency(modulatedCutoff);
+            voiceFilter.setCutoffFrequency(finalModulatedCutoff);
         }
         
-        // Update filter2 if modulation changed
-        if (std::abs(filter2Modulation) > 0.001f)
+        // Update filter2 if modulation changed or mod envelope is active
+        if (std::abs(filter2Modulation) > 0.001f || finalModulatedCutoff2 != params.filter2Cutoff.load())
         {
-            voiceFilter2.setCutoffFrequency(modulatedCutoff2);
+            voiceFilter2.setCutoffFrequency(finalModulatedCutoff2);
         }
 
         // Process sample through dual filter system
@@ -461,6 +537,10 @@ void FreOscVoice::setCurrentPlaybackSampleRate(double sampleRate)
 
     envelope.setSampleRate(sampleRate);
     
+    // Set sample rate for modulation envelopes
+    modEnvelope1.setSampleRate(sampleRate);
+    modEnvelope2.setSampleRate(sampleRate);
+    
     // Initialize amplitude ramp for anti-pop
     amplitudeRamp.reset(sampleRate, 0.02); // 20ms default ramp time
     amplitudeRamp.setCurrentAndTargetValue(1.0f);
@@ -580,6 +660,34 @@ void FreOscVoice::updateFilterRouting(int routing)
     params.filterRouting = routing;
 }
 
+void FreOscVoice::updateModEnv1Parameters(float attack, float decay, float sustain, float release, float amount, int target)
+{
+    // Update envelope parameters
+    modEnv1Parameters.attack = attack;
+    modEnv1Parameters.decay = decay;
+    modEnv1Parameters.sustain = sustain;
+    modEnv1Parameters.release = release;
+    modEnvelope1.setParameters(modEnv1Parameters);
+
+    // Update modulation parameters
+    params.modEnv1Amount = amount;
+    params.modEnv1Target = target;
+}
+
+void FreOscVoice::updateModEnv2Parameters(float attack, float decay, float sustain, float release, float amount, int target)
+{
+    // Update envelope parameters
+    modEnv2Parameters.attack = attack;
+    modEnv2Parameters.decay = decay;
+    modEnv2Parameters.sustain = sustain;
+    modEnv2Parameters.release = release;
+    modEnvelope2.setParameters(modEnv2Parameters);
+
+    // Update modulation parameters
+    params.modEnv2Amount = amount;
+    params.modEnv2Target = target;
+}
+
 //==============================================================================
 // Helper methods
 void FreOscVoice::setupOscillators()
@@ -619,7 +727,7 @@ float FreOscVoice::getFMModulationSignal()
     // Generate the FM modulation signal with proper scaling for phase modulation
     // In phase modulation, the modulation depth is directly the phase deviation in radians
     float modulator = fmOscillator.processSample();
-    float phaseDeviation = params.fmAmount * 0.1f; // Scale FM amount to reasonable phase modulation range
+    float phaseDeviation = params.fmAmount * 100.0f; // Scale 0-1 range to reasonable phase modulation range (0-100)
     return modulator * phaseDeviation;
 }
 

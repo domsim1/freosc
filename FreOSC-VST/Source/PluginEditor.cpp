@@ -277,9 +277,9 @@ public:
         {
             groupColour = juce::Colour(0xff9bb3c7); // Light blue color for noise generator, filter groups, and reverb
         }
-        else if (text == "Envelope" || text == "Routing")
+        else if (text == "Envelope" || text == "Routing" || text == "Mod Env 1" || text == "Mod Env 2")
         {
-            groupColour = juce::Colour(0xffc5c2a3); // Tan/beige color for envelope and routing
+            groupColour = juce::Colour(0xffc5c2a3); // Tan/beige color for envelope, routing, and modulation envelopes
         }
         else if (text.contains("Oscillator"))
         {
@@ -2154,6 +2154,11 @@ void FreOscEditor::setupComboBoxOptions()
     filterRoutingCombo.addItem("Parallel", 2);
     filterRoutingCombo.addItem("Series", 3);
 
+    // Effects routing options
+    effectsRoutingCombo.addItem("Series Reverb to Delay", 1);
+    effectsRoutingCombo.addItem("Series Delay to Reverb", 2);
+    effectsRoutingCombo.addItem("Parallel", 3);
+
     // Filter 1 type options
     filterTypeCombo.addItem("Low Pass", 1);
     filterTypeCombo.addItem("High Pass", 2);
@@ -2181,6 +2186,19 @@ void FreOscEditor::setupComboBoxOptions()
     lfoTargetCombo.addItem("Filter2 Cutoff", 4);
     lfoTargetCombo.addItem("Volume", 5);
     lfoTargetCombo.addItem("Pan", 6);
+
+    // Modulation Envelope target options
+    modEnv1TargetCombo.addItem("None", 1);
+    modEnv1TargetCombo.addItem("FM Amount", 2);
+    modEnv1TargetCombo.addItem("FM Ratio", 3);
+    modEnv1TargetCombo.addItem("Filter Cutoff", 4);
+    modEnv1TargetCombo.addItem("Filter2 Cutoff", 5);
+
+    modEnv2TargetCombo.addItem("None", 1);
+    modEnv2TargetCombo.addItem("FM Amount", 2);
+    modEnv2TargetCombo.addItem("FM Ratio", 3);
+    modEnv2TargetCombo.addItem("Filter Cutoff", 4);
+    modEnv2TargetCombo.addItem("Filter2 Cutoff", 5);
 
     // Preset options - get from JSON preset manager
     presetSelector.addItem("Custom", 1); // Always have "Custom" as first option
@@ -2244,6 +2262,20 @@ void FreOscEditor::createParameterAttachments()
     sliderAttachments.push_back(std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(valueTreeState, "lfo_rate", lfoRateSlider));
     sliderAttachments.push_back(std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(valueTreeState, "lfo_amount", lfoAmountSlider));
 
+    // Modulation Envelope 1 attachments
+    sliderAttachments.push_back(std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(valueTreeState, "mod_env1_attack", modEnv1AttackSlider));
+    sliderAttachments.push_back(std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(valueTreeState, "mod_env1_decay", modEnv1DecaySlider));
+    sliderAttachments.push_back(std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(valueTreeState, "mod_env1_sustain", modEnv1SustainSlider));
+    sliderAttachments.push_back(std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(valueTreeState, "mod_env1_release", modEnv1ReleaseSlider));
+    sliderAttachments.push_back(std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(valueTreeState, "mod_env1_amount", modEnv1AmountSlider));
+
+    // Modulation Envelope 2 attachments
+    sliderAttachments.push_back(std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(valueTreeState, "mod_env2_attack", modEnv2AttackSlider));
+    sliderAttachments.push_back(std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(valueTreeState, "mod_env2_decay", modEnv2DecaySlider));
+    sliderAttachments.push_back(std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(valueTreeState, "mod_env2_sustain", modEnv2SustainSlider));
+    sliderAttachments.push_back(std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(valueTreeState, "mod_env2_release", modEnv2ReleaseSlider));
+    sliderAttachments.push_back(std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(valueTreeState, "mod_env2_amount", modEnv2AmountSlider));
+
     // Dynamics parameters removed - now uses fixed internal settings
 
     sliderAttachments.push_back(std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(valueTreeState, "plate_predelay", platePreDelaySlider));
@@ -2278,11 +2310,17 @@ void FreOscEditor::createParameterAttachments()
     comboAttachments.push_back(std::make_unique<juce::AudioProcessorValueTreeState::ComboBoxAttachment>(valueTreeState, "filter_type", filterTypeCombo));
     comboAttachments.push_back(std::make_unique<juce::AudioProcessorValueTreeState::ComboBoxAttachment>(valueTreeState, "filter2_type", filter2TypeCombo));
 
+    comboAttachments.push_back(std::make_unique<juce::AudioProcessorValueTreeState::ComboBoxAttachment>(valueTreeState, "effects_routing", effectsRoutingCombo));
+
     // FM source is always Osc3 - no parameter attachment needed
     comboAttachments.push_back(std::make_unique<juce::AudioProcessorValueTreeState::ComboBoxAttachment>(valueTreeState, "fm_target", fmTargetCombo));
 
     lfoWaveformAttachments.push_back(std::make_unique<LFOWaveformSelectorAttachment>(valueTreeState, "lfo_waveform", lfoWaveformSelector));
     comboAttachments.push_back(std::make_unique<juce::AudioProcessorValueTreeState::ComboBoxAttachment>(valueTreeState, "lfo_target", lfoTargetCombo));
+
+    // Modulation Envelope target attachments
+    comboAttachments.push_back(std::make_unique<juce::AudioProcessorValueTreeState::ComboBoxAttachment>(valueTreeState, "mod_env1_target", modEnv1TargetCombo));
+    comboAttachments.push_back(std::make_unique<juce::AudioProcessorValueTreeState::ComboBoxAttachment>(valueTreeState, "mod_env2_target", modEnv2TargetCombo));
 }
 
 void FreOscEditor::updateValueLabels()
@@ -2323,8 +2361,8 @@ void FreOscEditor::updateValueLabels()
     resonance2Value.setText(formatResonanceValue(static_cast<float>(resonance2Slider.getValue())), juce::dontSendNotification);
     filterGain2Value.setText(formatFilterGainValue(static_cast<float>(filterGain2Slider.getValue())), juce::dontSendNotification);
 
-    fmAmountValue.setText(juce::String(static_cast<int>(fmAmountSlider.getValue())), juce::dontSendNotification);
-    fmRatioValue.setText(juce::String(fmRatioSlider.getValue(), 1), juce::dontSendNotification);
+    fmAmountValue.setText(juce::String(static_cast<int>(fmAmountSlider.getValue() * 100)) + "%", juce::dontSendNotification);
+    fmRatioValue.setText(formatFMRatioValue(static_cast<float>(fmRatioSlider.getValue())), juce::dontSendNotification);
 
     // Dynamics removed from user control - values updated automatically with fixed settings
 
@@ -2344,6 +2382,20 @@ void FreOscEditor::updateValueLabels()
 
     lfoRateValue.setText(juce::String(lfoRateSlider.getValue(), 2) + " Hz", juce::dontSendNotification);
     lfoAmountValue.setText(juce::String(static_cast<int>(lfoAmountSlider.getValue() * 100)) + "%", juce::dontSendNotification);
+
+    // Modulation Envelope 1 value labels
+    modEnv1AttackValue.setText(formatTimeValue(static_cast<float>(modEnv1AttackSlider.getValue())), juce::dontSendNotification);
+    modEnv1DecayValue.setText(formatTimeValue(static_cast<float>(modEnv1DecaySlider.getValue())), juce::dontSendNotification);
+    modEnv1SustainValue.setText(juce::String(static_cast<int>(modEnv1SustainSlider.getValue() * 100)) + "%", juce::dontSendNotification);
+    modEnv1ReleaseValue.setText(formatTimeValue(static_cast<float>(modEnv1ReleaseSlider.getValue())), juce::dontSendNotification);
+    modEnv1AmountValue.setText(juce::String(static_cast<int>(modEnv1AmountSlider.getValue() * 100)) + "%", juce::dontSendNotification);
+
+    // Modulation Envelope 2 value labels
+    modEnv2AttackValue.setText(formatTimeValue(static_cast<float>(modEnv2AttackSlider.getValue())), juce::dontSendNotification);
+    modEnv2DecayValue.setText(formatTimeValue(static_cast<float>(modEnv2DecaySlider.getValue())), juce::dontSendNotification);
+    modEnv2SustainValue.setText(juce::String(static_cast<int>(modEnv2SustainSlider.getValue() * 100)) + "%", juce::dontSendNotification);
+    modEnv2ReleaseValue.setText(formatTimeValue(static_cast<float>(modEnv2ReleaseSlider.getValue())), juce::dontSendNotification);
+    modEnv2AmountValue.setText(juce::String(static_cast<int>(modEnv2AmountSlider.getValue() * 100)) + "%", juce::dontSendNotification);
 }
 
 juce::String FreOscEditor::formatPanValue(float value)
@@ -2386,6 +2438,50 @@ juce::String FreOscEditor::formatFilterGainValue(float normalizedValue)
     // This matches FreOscFilter::normalizedToGainDb()
     float gainDb = -24.0f + (juce::jlimit(0.0f, 1.0f, normalizedValue) * 48.0f);
     return juce::String(gainDb, 1) + "dB";
+}
+
+juce::String FreOscEditor::formatFMRatioValue(float ratioValue)
+{
+    // Convert decimal ratio to fraction format (e.g., 1.5 -> "3:2", 2.0 -> "2:1")
+    
+    // Handle simple integer ratios first
+    if (std::abs(ratioValue - std::round(ratioValue)) < 0.01f)
+    {
+        int intRatio = static_cast<int>(std::round(ratioValue));
+        return juce::String(intRatio) + ":1";
+    }
+    
+    // For fractional ratios, find best rational approximation
+    // Common musical ratios in FM synthesis
+    struct RatioPair { float decimal; juce::String display; };
+    static const RatioPair commonRatios[] = {
+        {0.5f, "1:2"}, {0.667f, "2:3"}, {0.75f, "3:4"}, {1.0f, "1:1"},
+        {1.25f, "5:4"}, {1.33f, "4:3"}, {1.5f, "3:2"}, {1.67f, "5:3"},
+        {2.0f, "2:1"}, {2.5f, "5:2"}, {3.0f, "3:1"}, {4.0f, "4:1"},
+        {5.0f, "5:1"}, {6.0f, "6:1"}, {7.0f, "7:1"}, {8.0f, "8:1"}
+    };
+    
+    // Find closest match
+    float bestError = 1000.0f;
+    juce::String bestRatio = juce::String(ratioValue, 1) + ":1";
+    
+    for (const auto& ratio : commonRatios)
+    {
+        float error = std::abs(ratioValue - ratio.decimal);
+        if (error < bestError)
+        {
+            bestError = error;
+            bestRatio = ratio.display;
+        }
+    }
+    
+    // If no close match found (error > 0.05), show decimal format
+    if (bestError > 0.05f)
+    {
+        return juce::String(ratioValue, 1) + ":1";
+    }
+    
+    return bestRatio;
 }
 
 juce::String FreOscEditor::formatMasterVolumeValue(float normalizedValue)
@@ -3722,9 +3818,11 @@ std::unique_ptr<juce::Component> FreOscEditor::createModulationTab()
     public:
         ModulationTabComponent(FreOscEditor& editor) : owner(editor)
         {
-            // GROUP LAYOUT: Setup LFO and FM components with GroupComponent
+            // GROUP LAYOUT: Setup LFO, FM, and Modulation Envelope components with GroupComponent
             setupGroupLFO();
             setupGroupFM();
+            setupGroupModEnv1();
+            setupGroupModEnv2();
         }
 
         void setupGroupLFO()
@@ -3834,6 +3932,148 @@ std::unique_ptr<juce::Component> FreOscEditor::createModulationTab()
 
             // Add the group to the tab
             addAndMakeVisible(owner.fmGroup);
+        }
+
+        void setupGroupModEnv1()
+        {
+            // GROUP SETUP: Add ModEnv1 components to GroupComponent
+            owner.applyComponentStyling(owner.modEnv1Group);
+            owner.modEnv1Group.setText("Mod Env 1");
+
+            // Setup components with proper styling
+            owner.applyComponentStyling(owner.modEnv1TargetCombo);
+            owner.applyComponentStyling(owner.modEnv1AttackSlider);
+            owner.applyComponentStyling(owner.modEnv1DecaySlider);
+            owner.applyComponentStyling(owner.modEnv1SustainSlider);
+            owner.applyComponentStyling(owner.modEnv1ReleaseSlider);
+            owner.applyComponentStyling(owner.modEnv1AmountSlider);
+
+            owner.applyComponentStyling(owner.modEnv1TargetLabel);
+            owner.applyComponentStyling(owner.modEnv1AttackLabel);
+            owner.applyComponentStyling(owner.modEnv1DecayLabel);
+            owner.applyComponentStyling(owner.modEnv1SustainLabel);
+            owner.applyComponentStyling(owner.modEnv1ReleaseLabel);
+            owner.applyComponentStyling(owner.modEnv1AmountLabel);
+            owner.applyComponentStyling(owner.modEnv1AttackValue);
+            owner.applyComponentStyling(owner.modEnv1DecayValue);
+            owner.applyComponentStyling(owner.modEnv1SustainValue);
+            owner.applyComponentStyling(owner.modEnv1ReleaseValue);
+            owner.applyComponentStyling(owner.modEnv1AmountValue);
+
+            // Set value label styling (white like other value labels)
+            auto setValueLabelStyle = [](juce::Label& label) {
+                label.setFont(juce::Font(juce::FontOptions().withHeight(11.0f)));
+                label.setJustificationType(juce::Justification::centred);
+                label.setColour(juce::Label::textColourId, juce::Colours::white);
+                label.setColour(juce::Label::backgroundColourId, juce::Colours::transparentBlack);
+            };
+
+            setValueLabelStyle(owner.modEnv1AttackValue);
+            setValueLabelStyle(owner.modEnv1DecayValue);
+            setValueLabelStyle(owner.modEnv1SustainValue);
+            setValueLabelStyle(owner.modEnv1ReleaseValue);
+            setValueLabelStyle(owner.modEnv1AmountValue);
+
+            // Set labels
+            owner.modEnv1TargetLabel.setText("Target", juce::dontSendNotification);
+            owner.modEnv1AttackLabel.setText("Attack", juce::dontSendNotification);
+            owner.modEnv1DecayLabel.setText("Decay", juce::dontSendNotification);
+            owner.modEnv1SustainLabel.setText("Sustain", juce::dontSendNotification);
+            owner.modEnv1ReleaseLabel.setText("Release", juce::dontSendNotification);
+            owner.modEnv1AmountLabel.setText("Amount", juce::dontSendNotification);
+
+            // Add components to the group
+            owner.modEnv1Group.addAndMakeVisible(owner.modEnv1TargetLabel);
+            owner.modEnv1Group.addAndMakeVisible(owner.modEnv1TargetCombo);
+            owner.modEnv1Group.addAndMakeVisible(owner.modEnv1AttackLabel);
+            owner.modEnv1Group.addAndMakeVisible(owner.modEnv1AttackSlider);
+            owner.modEnv1Group.addAndMakeVisible(owner.modEnv1AttackValue);
+            owner.modEnv1Group.addAndMakeVisible(owner.modEnv1DecayLabel);
+            owner.modEnv1Group.addAndMakeVisible(owner.modEnv1DecaySlider);
+            owner.modEnv1Group.addAndMakeVisible(owner.modEnv1DecayValue);
+            owner.modEnv1Group.addAndMakeVisible(owner.modEnv1SustainLabel);
+            owner.modEnv1Group.addAndMakeVisible(owner.modEnv1SustainSlider);
+            owner.modEnv1Group.addAndMakeVisible(owner.modEnv1SustainValue);
+            owner.modEnv1Group.addAndMakeVisible(owner.modEnv1ReleaseLabel);
+            owner.modEnv1Group.addAndMakeVisible(owner.modEnv1ReleaseSlider);
+            owner.modEnv1Group.addAndMakeVisible(owner.modEnv1ReleaseValue);
+            owner.modEnv1Group.addAndMakeVisible(owner.modEnv1AmountLabel);
+            owner.modEnv1Group.addAndMakeVisible(owner.modEnv1AmountSlider);
+            owner.modEnv1Group.addAndMakeVisible(owner.modEnv1AmountValue);
+
+            // Add the group to the tab
+            addAndMakeVisible(owner.modEnv1Group);
+        }
+
+        void setupGroupModEnv2()
+        {
+            // GROUP SETUP: Add ModEnv2 components to GroupComponent
+            owner.applyComponentStyling(owner.modEnv2Group);
+            owner.modEnv2Group.setText("Mod Env 2");
+
+            // Setup components with proper styling
+            owner.applyComponentStyling(owner.modEnv2TargetCombo);
+            owner.applyComponentStyling(owner.modEnv2AttackSlider);
+            owner.applyComponentStyling(owner.modEnv2DecaySlider);
+            owner.applyComponentStyling(owner.modEnv2SustainSlider);
+            owner.applyComponentStyling(owner.modEnv2ReleaseSlider);
+            owner.applyComponentStyling(owner.modEnv2AmountSlider);
+
+            owner.applyComponentStyling(owner.modEnv2TargetLabel);
+            owner.applyComponentStyling(owner.modEnv2AttackLabel);
+            owner.applyComponentStyling(owner.modEnv2DecayLabel);
+            owner.applyComponentStyling(owner.modEnv2SustainLabel);
+            owner.applyComponentStyling(owner.modEnv2ReleaseLabel);
+            owner.applyComponentStyling(owner.modEnv2AmountLabel);
+            owner.applyComponentStyling(owner.modEnv2AttackValue);
+            owner.applyComponentStyling(owner.modEnv2DecayValue);
+            owner.applyComponentStyling(owner.modEnv2SustainValue);
+            owner.applyComponentStyling(owner.modEnv2ReleaseValue);
+            owner.applyComponentStyling(owner.modEnv2AmountValue);
+
+            // Set value label styling (white like other value labels)
+            auto setValueLabelStyle = [](juce::Label& label) {
+                label.setFont(juce::Font(juce::FontOptions().withHeight(11.0f)));
+                label.setJustificationType(juce::Justification::centred);
+                label.setColour(juce::Label::textColourId, juce::Colours::white);
+                label.setColour(juce::Label::backgroundColourId, juce::Colours::transparentBlack);
+            };
+
+            setValueLabelStyle(owner.modEnv2AttackValue);
+            setValueLabelStyle(owner.modEnv2DecayValue);
+            setValueLabelStyle(owner.modEnv2SustainValue);
+            setValueLabelStyle(owner.modEnv2ReleaseValue);
+            setValueLabelStyle(owner.modEnv2AmountValue);
+
+            // Set labels
+            owner.modEnv2TargetLabel.setText("Target", juce::dontSendNotification);
+            owner.modEnv2AttackLabel.setText("Attack", juce::dontSendNotification);
+            owner.modEnv2DecayLabel.setText("Decay", juce::dontSendNotification);
+            owner.modEnv2SustainLabel.setText("Sustain", juce::dontSendNotification);
+            owner.modEnv2ReleaseLabel.setText("Release", juce::dontSendNotification);
+            owner.modEnv2AmountLabel.setText("Amount", juce::dontSendNotification);
+
+            // Add components to the group
+            owner.modEnv2Group.addAndMakeVisible(owner.modEnv2TargetLabel);
+            owner.modEnv2Group.addAndMakeVisible(owner.modEnv2TargetCombo);
+            owner.modEnv2Group.addAndMakeVisible(owner.modEnv2AttackLabel);
+            owner.modEnv2Group.addAndMakeVisible(owner.modEnv2AttackSlider);
+            owner.modEnv2Group.addAndMakeVisible(owner.modEnv2AttackValue);
+            owner.modEnv2Group.addAndMakeVisible(owner.modEnv2DecayLabel);
+            owner.modEnv2Group.addAndMakeVisible(owner.modEnv2DecaySlider);
+            owner.modEnv2Group.addAndMakeVisible(owner.modEnv2DecayValue);
+            owner.modEnv2Group.addAndMakeVisible(owner.modEnv2SustainLabel);
+            owner.modEnv2Group.addAndMakeVisible(owner.modEnv2SustainSlider);
+            owner.modEnv2Group.addAndMakeVisible(owner.modEnv2SustainValue);
+            owner.modEnv2Group.addAndMakeVisible(owner.modEnv2ReleaseLabel);
+            owner.modEnv2Group.addAndMakeVisible(owner.modEnv2ReleaseSlider);
+            owner.modEnv2Group.addAndMakeVisible(owner.modEnv2ReleaseValue);
+            owner.modEnv2Group.addAndMakeVisible(owner.modEnv2AmountLabel);
+            owner.modEnv2Group.addAndMakeVisible(owner.modEnv2AmountSlider);
+            owner.modEnv2Group.addAndMakeVisible(owner.modEnv2AmountValue);
+
+            // Add the group to the tab
+            addAndMakeVisible(owner.modEnv2Group);
         }
 
         void layoutGroupLFO(juce::Rectangle<int> area)
@@ -3952,22 +4192,214 @@ std::unique_ptr<juce::Component> FreOscEditor::createModulationTab()
             owner.fmRatioValue.setBounds(ratioValueArea);
         }
 
+        void layoutGroupModEnv1(juce::Rectangle<int> area)
+        {
+            // Layout ModEnv1 using GroupComponent similar to main envelope
+            owner.modEnv1Group.setBounds(area);
+            
+            // Layout components within the group - account for bottom band
+            auto bounds = owner.modEnv1Group.getLocalBounds().reduced(8);
+            
+            // Reserve space for the bottom colored band (text height + padding)
+            juce::Font f(juce::FontOptions(14.0f).withStyle("Bold"));
+            auto textH = f.getHeight();
+            auto bottomBandHeight = textH + 8.0f;
+            bounds.removeFromBottom(static_cast<int>(bottomBandHeight));
+            
+            // Two-row layout: Target dropdown on top, ADSR+Amount knobs underneath
+            auto topRowHeight = 40;
+            auto topRow = bounds.removeFromTop(topRowHeight);
+            auto bottomRow = bounds;
+            
+            // Top row: Target dropdown (full width)
+            auto targetArea = topRow.reduced(2);
+            owner.modEnv1TargetLabel.setBounds(targetArea.removeFromTop(15));
+            owner.modEnv1TargetCombo.setBounds(targetArea);
+            
+            // Bottom row: 5 knobs horizontally (A, D, S, R, Amount)
+            auto knobWidth = bottomRow.getWidth() / 5;
+            
+            const int minKnobSize = 35;  // Smaller knobs to fit 5 in row
+            const int minLabelHeight = 12;
+            const int minValueHeight = 12;
+            
+            // Attack knob
+            auto attackArea = bottomRow.removeFromLeft(knobWidth).reduced(2);
+            owner.modEnv1AttackLabel.setBounds(attackArea.removeFromTop(minLabelHeight));
+            auto attackValueArea = attackArea.removeFromBottom(minValueHeight);
+            auto attackKnobArea = attackArea.reduced(0, 1);
+            auto attackKnobBounds = attackKnobArea.withSizeKeepingCentre(
+                juce::jlimit(minKnobSize, knobWidth - 4, attackKnobArea.getWidth()),
+                juce::jlimit(minKnobSize, attackKnobArea.getHeight(), attackKnobArea.getHeight())
+            );
+            owner.modEnv1AttackSlider.setBounds(attackKnobBounds);
+            owner.modEnv1AttackValue.setBounds(attackValueArea);
+            
+            // Decay knob
+            auto decayArea = bottomRow.removeFromLeft(knobWidth).reduced(2);
+            owner.modEnv1DecayLabel.setBounds(decayArea.removeFromTop(minLabelHeight));
+            auto decayValueArea = decayArea.removeFromBottom(minValueHeight);
+            auto decayKnobArea = decayArea.reduced(0, 1);
+            auto decayKnobBounds = decayKnobArea.withSizeKeepingCentre(
+                juce::jlimit(minKnobSize, knobWidth - 4, decayKnobArea.getWidth()),
+                juce::jlimit(minKnobSize, decayKnobArea.getHeight(), decayKnobArea.getHeight())
+            );
+            owner.modEnv1DecaySlider.setBounds(decayKnobBounds);
+            owner.modEnv1DecayValue.setBounds(decayValueArea);
+            
+            // Sustain knob
+            auto sustainArea = bottomRow.removeFromLeft(knobWidth).reduced(2);
+            owner.modEnv1SustainLabel.setBounds(sustainArea.removeFromTop(minLabelHeight));
+            auto sustainValueArea = sustainArea.removeFromBottom(minValueHeight);
+            auto sustainKnobArea = sustainArea.reduced(0, 1);
+            auto sustainKnobBounds = sustainKnobArea.withSizeKeepingCentre(
+                juce::jlimit(minKnobSize, knobWidth - 4, sustainKnobArea.getWidth()),
+                juce::jlimit(minKnobSize, sustainKnobArea.getHeight(), sustainKnobArea.getHeight())
+            );
+            owner.modEnv1SustainSlider.setBounds(sustainKnobBounds);
+            owner.modEnv1SustainValue.setBounds(sustainValueArea);
+            
+            // Release knob
+            auto releaseArea = bottomRow.removeFromLeft(knobWidth).reduced(2);
+            owner.modEnv1ReleaseLabel.setBounds(releaseArea.removeFromTop(minLabelHeight));
+            auto releaseValueArea = releaseArea.removeFromBottom(minValueHeight);
+            auto releaseKnobArea = releaseArea.reduced(0, 1);
+            auto releaseKnobBounds = releaseKnobArea.withSizeKeepingCentre(
+                juce::jlimit(minKnobSize, knobWidth - 4, releaseKnobArea.getWidth()),
+                juce::jlimit(minKnobSize, releaseKnobArea.getHeight(), releaseKnobArea.getHeight())
+            );
+            owner.modEnv1ReleaseSlider.setBounds(releaseKnobBounds);
+            owner.modEnv1ReleaseValue.setBounds(releaseValueArea);
+            
+            // Amount knob
+            auto amountArea = bottomRow.reduced(2);
+            owner.modEnv1AmountLabel.setBounds(amountArea.removeFromTop(minLabelHeight));
+            auto amountValueArea = amountArea.removeFromBottom(minValueHeight);
+            auto amountKnobArea = amountArea.reduced(0, 1);
+            auto amountKnobBounds = amountKnobArea.withSizeKeepingCentre(
+                juce::jlimit(minKnobSize, knobWidth - 4, amountKnobArea.getWidth()),
+                juce::jlimit(minKnobSize, amountKnobArea.getHeight(), amountKnobArea.getHeight())
+            );
+            owner.modEnv1AmountSlider.setBounds(amountKnobBounds);
+            owner.modEnv1AmountValue.setBounds(amountValueArea);
+        }
+
+        void layoutGroupModEnv2(juce::Rectangle<int> area)
+        {
+            // Layout ModEnv2 using GroupComponent identical to ModEnv1
+            owner.modEnv2Group.setBounds(area);
+            
+            // Layout components within the group - account for bottom band
+            auto bounds = owner.modEnv2Group.getLocalBounds().reduced(8);
+            
+            // Reserve space for the bottom colored band (text height + padding)
+            juce::Font f(juce::FontOptions(14.0f).withStyle("Bold"));
+            auto textH = f.getHeight();
+            auto bottomBandHeight = textH + 8.0f;
+            bounds.removeFromBottom(static_cast<int>(bottomBandHeight));
+            
+            // Two-row layout: Target dropdown on top, ADSR+Amount knobs underneath
+            auto topRowHeight = 40;
+            auto topRow = bounds.removeFromTop(topRowHeight);
+            auto bottomRow = bounds;
+            
+            // Top row: Target dropdown (full width)
+            auto targetArea = topRow.reduced(2);
+            owner.modEnv2TargetLabel.setBounds(targetArea.removeFromTop(15));
+            owner.modEnv2TargetCombo.setBounds(targetArea);
+            
+            // Bottom row: 5 knobs horizontally (A, D, S, R, Amount)
+            auto knobWidth = bottomRow.getWidth() / 5;
+            
+            const int minKnobSize = 35;  // Smaller knobs to fit 5 in row
+            const int minLabelHeight = 12;
+            const int minValueHeight = 12;
+            
+            // Attack knob
+            auto attackArea = bottomRow.removeFromLeft(knobWidth).reduced(2);
+            owner.modEnv2AttackLabel.setBounds(attackArea.removeFromTop(minLabelHeight));
+            auto attackValueArea = attackArea.removeFromBottom(minValueHeight);
+            auto attackKnobArea = attackArea.reduced(0, 1);
+            auto attackKnobBounds = attackKnobArea.withSizeKeepingCentre(
+                juce::jlimit(minKnobSize, knobWidth - 4, attackKnobArea.getWidth()),
+                juce::jlimit(minKnobSize, attackKnobArea.getHeight(), attackKnobArea.getHeight())
+            );
+            owner.modEnv2AttackSlider.setBounds(attackKnobBounds);
+            owner.modEnv2AttackValue.setBounds(attackValueArea);
+            
+            // Decay knob
+            auto decayArea = bottomRow.removeFromLeft(knobWidth).reduced(2);
+            owner.modEnv2DecayLabel.setBounds(decayArea.removeFromTop(minLabelHeight));
+            auto decayValueArea = decayArea.removeFromBottom(minValueHeight);
+            auto decayKnobArea = decayArea.reduced(0, 1);
+            auto decayKnobBounds = decayKnobArea.withSizeKeepingCentre(
+                juce::jlimit(minKnobSize, knobWidth - 4, decayKnobArea.getWidth()),
+                juce::jlimit(minKnobSize, decayKnobArea.getHeight(), decayKnobArea.getHeight())
+            );
+            owner.modEnv2DecaySlider.setBounds(decayKnobBounds);
+            owner.modEnv2DecayValue.setBounds(decayValueArea);
+            
+            // Sustain knob
+            auto sustainArea = bottomRow.removeFromLeft(knobWidth).reduced(2);
+            owner.modEnv2SustainLabel.setBounds(sustainArea.removeFromTop(minLabelHeight));
+            auto sustainValueArea = sustainArea.removeFromBottom(minValueHeight);
+            auto sustainKnobArea = sustainArea.reduced(0, 1);
+            auto sustainKnobBounds = sustainKnobArea.withSizeKeepingCentre(
+                juce::jlimit(minKnobSize, knobWidth - 4, sustainKnobArea.getWidth()),
+                juce::jlimit(minKnobSize, sustainKnobArea.getHeight(), sustainKnobArea.getHeight())
+            );
+            owner.modEnv2SustainSlider.setBounds(sustainKnobBounds);
+            owner.modEnv2SustainValue.setBounds(sustainValueArea);
+            
+            // Release knob
+            auto releaseArea = bottomRow.removeFromLeft(knobWidth).reduced(2);
+            owner.modEnv2ReleaseLabel.setBounds(releaseArea.removeFromTop(minLabelHeight));
+            auto releaseValueArea = releaseArea.removeFromBottom(minValueHeight);
+            auto releaseKnobArea = releaseArea.reduced(0, 1);
+            auto releaseKnobBounds = releaseKnobArea.withSizeKeepingCentre(
+                juce::jlimit(minKnobSize, knobWidth - 4, releaseKnobArea.getWidth()),
+                juce::jlimit(minKnobSize, releaseKnobArea.getHeight(), releaseKnobArea.getHeight())
+            );
+            owner.modEnv2ReleaseSlider.setBounds(releaseKnobBounds);
+            owner.modEnv2ReleaseValue.setBounds(releaseValueArea);
+            
+            // Amount knob
+            auto amountArea = bottomRow.reduced(2);
+            owner.modEnv2AmountLabel.setBounds(amountArea.removeFromTop(minLabelHeight));
+            auto amountValueArea = amountArea.removeFromBottom(minValueHeight);
+            auto amountKnobArea = amountArea.reduced(0, 1);
+            auto amountKnobBounds = amountKnobArea.withSizeKeepingCentre(
+                juce::jlimit(minKnobSize, knobWidth - 4, amountKnobArea.getWidth()),
+                juce::jlimit(minKnobSize, amountKnobArea.getHeight(), amountKnobArea.getHeight())
+            );
+            owner.modEnv2AmountSlider.setBounds(amountKnobBounds);
+            owner.modEnv2AmountValue.setBounds(amountValueArea);
+        }
+
         // No custom paint needed - GroupComponents handle their own styling
 
         void resized() override
         {
             auto bounds = getLocalBounds().reduced(5);
 
-            // Split into two sections side by side
+            // Split into 2x2 grid: LFO, FM (top row), ModEnv1, ModEnv2 (bottom row)
             auto halfWidth = bounds.getWidth() / 2;
-            auto lfoArea = bounds.removeFromLeft(halfWidth).reduced(3);
-            auto fmArea = bounds.reduced(3);  // Remaining right half
+            auto halfHeight = bounds.getHeight() / 2;
+            
+            auto topRow = bounds.removeFromTop(halfHeight).reduced(3);
+            auto bottomRow = bounds.reduced(3);
+            
+            auto lfoArea = topRow.removeFromLeft(halfWidth).reduced(3);
+            auto fmArea = topRow.reduced(3);  // Remaining right half of top row
+            
+            auto modEnv1Area = bottomRow.removeFromLeft(halfWidth).reduced(3);
+            auto modEnv2Area = bottomRow.reduced(3);  // Remaining right half of bottom row
 
             // Layout components using GroupComponent positioning
             layoutGroupLFO(lfoArea);
             layoutGroupFM(fmArea);
-            
-            // LFO styling handled by applyComponentStyling - no need to override here
+            layoutGroupModEnv1(modEnv1Area);
+            layoutGroupModEnv2(modEnv2Area);
         }
 
     private:
@@ -3984,11 +4416,27 @@ std::unique_ptr<juce::Component> FreOscEditor::createEffectsTab()
     public:
         EffectsTabComponent(FreOscEditor& editor) : owner(editor)
         {
-            // GROUP LAYOUT: Setup reverb and delay components with GroupComponent
+            // GROUP LAYOUT: Setup effects routing and effect components with GroupComponent
+            setupGroupEffectsRouting();
             setupGroupReverb();
             setupGroupDelay();
         }
 
+        void setupGroupEffectsRouting()
+        {
+            // GROUP SETUP: Add effects routing components to GroupComponent
+            owner.applyComponentStyling(owner.effectsRoutingGroup);
+            owner.effectsRoutingGroup.setText("Routing");
+            
+            // Setup routing components
+            owner.applyComponentStyling(owner.effectsRoutingCombo);
+            
+            // Add components to the routing group (no label)
+            owner.effectsRoutingGroup.addAndMakeVisible(owner.effectsRoutingCombo);
+            
+            // Add the group to the tab
+            addAndMakeVisible(owner.effectsRoutingGroup);
+        }
 
         void setupGroupReverb()
         {
@@ -4164,6 +4612,24 @@ std::unique_ptr<juce::Component> FreOscEditor::createEffectsTab()
 
             // Add the group to the tab
             addAndMakeVisible(owner.delayGroup);
+        }
+
+        void layoutGroupEffectsRouting(juce::Rectangle<int> area)
+        {
+            // Layout effects routing using GroupComponent (matching filter routing)
+            owner.effectsRoutingGroup.setBounds(area);
+            
+            // Layout components within the group - account for bottom band
+            auto bounds = owner.effectsRoutingGroup.getLocalBounds().reduced(8);
+            
+            // Reserve space for the bottom colored band (text height + padding)
+            juce::Font f(juce::FontOptions(14.0f).withStyle("Bold"));
+            auto textH = f.getHeight();
+            auto bottomBandHeight = textH + 8.0f;
+            bounds.removeFromBottom(static_cast<int>(bottomBandHeight));
+            
+            // Simple layout: combo only (no label)
+            owner.effectsRoutingCombo.setBounds(bounds.reduced(2));
         }
 
         void layoutGroupReverb(juce::Rectangle<int> area)
@@ -4374,13 +4840,17 @@ std::unique_ptr<juce::Component> FreOscEditor::createEffectsTab()
         {
             auto bounds = getLocalBounds().reduced(5);
 
-            // Arrange two sections vertically (reverb and delay)
-            auto sectionHeight = bounds.getHeight() / 2;
+            // Reserve space for effects routing at the top (matching filter routing)
+            auto routingHeight = 80;  // Same size as filter routing
+            auto routingArea = bounds.removeFromTop(routingHeight).reduced(3);
 
-            auto reverbArea = bounds.removeFromTop(sectionHeight).reduced(3);
+            // Arrange two main sections horizontally (reverb and delay side by side)
+            auto sectionWidth = bounds.getWidth() / 2;
+            auto reverbArea = bounds.removeFromLeft(sectionWidth).reduced(3);
             auto delayArea = bounds.reduced(3);
 
             // Layout components using GroupComponent positioning
+            layoutGroupEffectsRouting(routingArea);
             layoutGroupReverb(reverbArea);
             layoutGroupDelay(delayArea);
         }

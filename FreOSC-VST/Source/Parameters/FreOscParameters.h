@@ -23,10 +23,12 @@ public:
     static const juce::StringArray noiseTypes;
     static const juce::StringArray filterTypes;
     static const juce::StringArray filterRouting;
+    static const juce::StringArray effectsRouting;
     static const juce::StringArray fmSources;
     static const juce::StringArray fmTargets;
     static const juce::StringArray lfoWaveforms;
     static const juce::StringArray lfoTargets;
+    static const juce::StringArray modEnvelopeTargets;
 
     //==============================================================================
     // Parameter ranges and defaults (matching JavaScript implementation)
@@ -88,6 +90,11 @@ inline const juce::StringArray FreOscParameters::filterRouting = {
     "Filter 1 Only", "Parallel", "Series"
 };
 
+// Effects routing choices
+inline const juce::StringArray FreOscParameters::effectsRouting = {
+    "Series Reverb to Delay", "Series Delay to Reverb", "Parallel"
+};
+
 
 // FM source choices (not used - always Oscillator 3)
 inline const juce::StringArray FreOscParameters::fmSources = {
@@ -107,6 +114,11 @@ inline const juce::StringArray FreOscParameters::lfoWaveforms = {
 // LFO target choices
 inline const juce::StringArray FreOscParameters::lfoTargets = {
     "None", "Pitch", "Filter Cutoff", "Filter2 Cutoff", "Volume", "Pan"
+};
+
+// Modulation envelope target choices
+inline const juce::StringArray FreOscParameters::modEnvelopeTargets = {
+    "None", "FM Amount", "FM Ratio", "Filter Cutoff", "Filter2 Cutoff"
 };
 
 //==============================================================================
@@ -151,7 +163,7 @@ inline const std::vector<FreOscParameters::ParameterInfo> FreOscParameters::floa
     {"filter2_gain",      "Filter2 Gain",       {0.0f, 1.0f, 0.01f}, 0.5f}, // Maps to -24dB to +24dB, default 0dB
 
     // FM Synthesis
-    {"fm_amount",        "FM Amount",   {0.0f, 1000.0f, 1.0f}, 0.0f},
+    {"fm_amount",        "FM Amount",   {0.0f, 1.0f, 0.01f}, 0.0f},
     {"fm_ratio",         "FM Ratio",    {0.1f, 8.0f, 0.1f}, 1.0f},
 
     // Dynamics removed - now uses fixed internal settings optimized for polyphony
@@ -174,7 +186,21 @@ inline const std::vector<FreOscParameters::ParameterInfo> FreOscParameters::floa
 
     // LFO
     {"lfo_rate",         "LFO Rate",       {0.01f, 20.0f, 0.01f}, 2.0f, " Hz"},
-    {"lfo_amount",       "LFO Amount",     {0.0f, 1.0f, 0.01f}, 0.0f}
+    {"lfo_amount",       "LFO Amount",     {0.0f, 1.0f, 0.01f}, 0.0f},
+
+    // Modulation Envelope 1
+    {"mod_env1_attack",  "ModEnv1 Attack",  {0.0f, 2.0f, 0.01f}, 0.01f, " s"},
+    {"mod_env1_decay",   "ModEnv1 Decay",   {0.0f, 2.0f, 0.01f}, 0.2f, " s"},
+    {"mod_env1_sustain", "ModEnv1 Sustain", {0.0f, 1.0f, 0.01f}, 0.8f},
+    {"mod_env1_release", "ModEnv1 Release", {0.0f, 3.0f, 0.01f}, 0.3f, " s"},
+    {"mod_env1_amount",  "ModEnv1 Amount",  {0.0f, 1.0f, 0.01f}, 0.0f},
+
+    // Modulation Envelope 2
+    {"mod_env2_attack",  "ModEnv2 Attack",  {0.0f, 2.0f, 0.01f}, 0.01f, " s"},
+    {"mod_env2_decay",   "ModEnv2 Decay",   {0.0f, 2.0f, 0.01f}, 0.2f, " s"},
+    {"mod_env2_sustain", "ModEnv2 Sustain", {0.0f, 1.0f, 0.01f}, 0.8f},
+    {"mod_env2_release", "ModEnv2 Release", {0.0f, 3.0f, 0.01f}, 0.3f, " s"},
+    {"mod_env2_amount",  "ModEnv2 Amount",  {0.0f, 1.0f, 0.01f}, 0.0f}
 };
 
 //==============================================================================
@@ -192,6 +218,7 @@ inline const std::vector<std::tuple<juce::String, juce::String, juce::StringArra
     {"filter_type", "Filter Type", filterTypes, 0}, // Low Pass
     {"filter2_type", "Filter2 Type", filterTypes, 2}, // Band Pass for complementary filtering
     {"filter_routing", "Filter Routing", filterRouting, 0}, // Off
+    {"effects_routing", "Effects Routing", effectsRouting, 0}, // Series Reverb to Delay
 
     // FM - Source is always Oscillator 3, only target is selectable
     {"fm_source", "FM Source", fmSources, 0}, // Always Oscillator 3 (fixed)
@@ -199,5 +226,9 @@ inline const std::vector<std::tuple<juce::String, juce::String, juce::StringArra
 
     // LFO
     {"lfo_waveform", "LFO Waveform", lfoWaveforms, 0}, // Sine
-    {"lfo_target", "LFO Target", lfoTargets, 0} // None
+    {"lfo_target", "LFO Target", lfoTargets, 0}, // None
+
+    // Modulation Envelopes
+    {"mod_env1_target", "ModEnv1 Target", modEnvelopeTargets, 0}, // None
+    {"mod_env2_target", "ModEnv2 Target", modEnvelopeTargets, 0}  // None
 };
