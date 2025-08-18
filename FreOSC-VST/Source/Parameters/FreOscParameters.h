@@ -124,43 +124,43 @@ inline const juce::StringArray FreOscParameters::modEnvelopeTargets = {
 //==============================================================================
 // Float parameter definitions with ranges matching JavaScript implementation
 inline const std::vector<FreOscParameters::ParameterInfo> FreOscParameters::floatParameters = {
-    // Oscillator 1 - Main oscillator, conservative for clean polyphony
-    {"osc1_level",     "Osc1 Level",     {0.0f, 1.0f, 0.01f}, 0.3f},
+    // Oscillator 1 - Simple sine wave
+    {"osc1_level",     "Osc1 Level",     {0.0f, 1.0f, 0.01f}, 0.5f},
     {"osc1_detune",    "Osc1 Detune",    {-50.0f, 50.0f, 1.0f}, 0.0f, " cents"},
     {"osc1_pan",       "Osc1 Pan",       {-1.0f, 1.0f, 0.01f}, 0.0f},
 
-    // Oscillator 2 - Secondary oscillator with slight detune for richness
-    {"osc2_level",     "Osc2 Level",     {0.0f, 1.0f, 0.01f}, 0.15f},
-    {"osc2_detune",    "Osc2 Detune",    {-50.0f, 50.0f, 1.0f}, -7.0f, " cents"},
-    {"osc2_pan",       "Osc2 Pan",       {-1.0f, 1.0f, 0.01f}, -0.2f},
+    // Oscillator 2 - Off by default
+    {"osc2_level",     "Osc2 Level",     {0.0f, 1.0f, 0.01f}, 0.0f},
+    {"osc2_detune",    "Osc2 Detune",    {-50.0f, 50.0f, 1.0f}, 0.0f, " cents"},
+    {"osc2_pan",       "Osc2 Pan",       {-1.0f, 1.0f, 0.01f}, 0.0f},
 
-    // Oscillator 3 - Lower octave for fullness, minimal level
-    {"osc3_level",     "Osc3 Level",     {0.0f, 1.0f, 0.01f}, 0.05f},
-    {"osc3_detune",    "Osc3 Detune",    {-50.0f, 50.0f, 1.0f}, 5.0f, " cents"},
-    {"osc3_pan",       "Osc3 Pan",       {-1.0f, 1.0f, 0.01f}, 0.2f},
+    // Oscillator 3 - Off by default
+    {"osc3_level",     "Osc3 Level",     {0.0f, 1.0f, 0.01f}, 0.0f},
+    {"osc3_detune",    "Osc3 Detune",    {-50.0f, 50.0f, 1.0f}, 0.0f, " cents"},
+    {"osc3_pan",       "Osc3 Pan",       {-1.0f, 1.0f, 0.01f}, 0.0f},
 
     // Noise - Off by default
     {"noise_level",    "Noise Level",    {0.0f, 1.0f, 0.01f}, 0.0f},
     {"noise_pan",      "Noise Pan",      {-1.0f, 1.0f, 0.01f}, 0.0f},
 
-    // Master - Normalized 0-1 range, maps to -∞dB to +24dB, default 0.75 (0dB unity gain)
-    {"master_volume",  "Master Volume",  {0.0f, 1.0f, 0.01f}, 0.75f},
+    // Master - Simple moderate volume
+    {"master_volume",  "Master Volume",  {0.0f, 1.0f, 0.01f}, 0.5f},
 
-    // Envelope - Faster attack for immediate response, higher sustain for playability
-    {"envelope_attack",  "Attack",   {0.0f, 2.0f, 0.01f}, 0.01f, " s"},
-    {"envelope_decay",   "Decay",    {0.0f, 2.0f, 0.01f}, 0.2f, " s"},
-    {"envelope_sustain", "Sustain",  {0.0f, 1.0f, 0.01f}, 0.8f},
-    {"envelope_release", "Release",  {0.0f, 3.0f, 0.01f}, 0.3f, " s"},
+    // Envelope - Simple organ-style envelope
+    {"envelope_attack",  "Attack",   {0.0f, 2.0f, 0.01f}, 0.0f, " s"},
+    {"envelope_decay",   "Decay",    {0.0f, 2.0f, 0.01f}, 0.0f, " s"},
+    {"envelope_sustain", "Sustain",  {0.0f, 1.0f, 0.01f}, 1.0f},
+    {"envelope_release", "Release",  {0.0f, 3.0f, 0.01f}, 0.1f, " s"},
 
-    // Filter - Normalized values (0.0-1.0) for FreOscFilter compatibility
-    {"filter_cutoff",    "Cutoff",     {0.0f, 1.0f, 0.01f}, 0.7f}, // Maps to 20Hz-20kHz, default ~7kHz
-    {"filter_resonance", "Resonance",  {0.0f, 1.0f, 0.01f}, 0.03f}, // Maps to 0.1-5.0, default ~0.25
-    {"filter_gain",      "Filter Gain", {0.0f, 1.0f, 0.01f}, 0.5f}, // Maps to -24dB to +24dB, default 0dB
+    // Filter - Wide open for clean sound
+    {"filter_cutoff",    "Cutoff",     {0.0f, 1.0f, 0.01f}, 1.0f}, // Wide open (20kHz)
+    {"filter_resonance", "Resonance",  {0.0f, 1.0f, 0.01f}, 0.0f}, // Minimal resonance
+    {"filter_gain",      "Filter Gain", {0.0f, 1.0f, 0.01f}, 0.5f}, // Neutral gain (0dB)
 
-    // Filter 2 - Same ranges as Filter 1
-    {"filter2_cutoff",    "Filter2 Cutoff",     {0.0f, 1.0f, 0.01f}, 0.3f}, // Lower default for complementary filtering
-    {"filter2_resonance", "Filter2 Resonance",  {0.0f, 1.0f, 0.01f}, 0.03f}, // Maps to 0.1-5.0, default ~0.25
-    {"filter2_gain",      "Filter2 Gain",       {0.0f, 1.0f, 0.01f}, 0.5f}, // Maps to -24dB to +24dB, default 0dB
+    // Filter 2 - Wide open
+    {"filter2_cutoff",    "Filter2 Cutoff",     {0.0f, 1.0f, 0.01f}, 1.0f}, // Wide open (20kHz)
+    {"filter2_resonance", "Filter2 Resonance",  {0.0f, 1.0f, 0.01f}, 0.0f}, // Minimal resonance
+    {"filter2_gain",      "Filter2 Gain",       {0.0f, 1.0f, 0.01f}, 0.5f}, // Neutral gain (0dB)
 
     // FM Synthesis
     {"fm_amount",        "FM Amount",   {0.0f, 1.0f, 0.01f}, 0.0f},
@@ -168,21 +168,21 @@ inline const std::vector<FreOscParameters::ParameterInfo> FreOscParameters::floa
 
     // Dynamics removed - now uses fixed internal settings optimized for polyphony
 
-    // Plate Reverb - Professional EMT plate characteristics
-    {"plate_predelay",   "Pre-Delay",      {0.0f, 1.0f, 0.01f}, 0.1f},     // 0-250ms
-    {"plate_size",       "Size",           {0.0f, 1.0f, 0.01f}, 0.5f},     // Decay time
-    {"plate_damping",    "Damping",        {0.0f, 1.0f, 0.01f}, 0.3f},     // HF rolloff
-    {"plate_diffusion",  "Diffusion",      {0.0f, 1.0f, 0.01f}, 0.7f},     // Density
-    {"plate_wet_level",  "Plate Wet",      {0.0f, 1.0f, 0.01f}, 0.3f},     // Wet mix
-    {"plate_width",      "Stereo Width",   {0.0f, 1.0f, 0.01f}, 0.8f},     // Stereo spread
+    // Plate Reverb - Off by default
+    {"plate_predelay",   "Pre-Delay",      {0.0f, 1.0f, 0.01f}, 0.0f},
+    {"plate_size",       "Size",           {0.0f, 1.0f, 0.01f}, 0.0f},
+    {"plate_damping",    "Damping",        {0.0f, 1.0f, 0.01f}, 0.5f},
+    {"plate_diffusion",  "Diffusion",      {0.0f, 1.0f, 0.01f}, 0.5f},
+    {"plate_wet_level",  "Plate Wet",      {0.0f, 1.0f, 0.01f}, 0.0f},
+    {"plate_width",      "Stereo Width",   {0.0f, 1.0f, 0.01f}, 0.5f},
 
-    // Tape Delay - Analog warmth and character
-    {"tape_time",        "Tape Time",      {0.0f, 1.0f, 0.01f}, 0.25f},    // 20ms-2000ms
-    {"tape_feedback",    "Tape Feedback",  {0.0f, 1.0f, 0.01f}, 0.3f},     // With saturation
-    {"tape_tone",        "Tape Tone",      {0.0f, 1.0f, 0.01f}, 0.7f},     // HF rolloff
-    {"tape_flutter",     "Tape Flutter",   {0.0f, 1.0f, 0.01f}, 0.1f},     // Wow/flutter
-    {"tape_wet_level",   "Tape Wet",       {0.0f, 1.0f, 0.01f}, 0.0f},     // Off by default
-    {"tape_width",       "Tape Width",     {0.0f, 1.0f, 0.01f}, 0.6f},     // Stereo spread
+    // Tape Delay - Off by default
+    {"tape_time",        "Tape Time",      {0.0f, 1.0f, 0.01f}, 0.0f},
+    {"tape_feedback",    "Tape Feedback",  {0.0f, 1.0f, 0.01f}, 0.0f},
+    {"tape_tone",        "Tape Tone",      {0.0f, 1.0f, 0.01f}, 0.5f},
+    {"tape_flutter",     "Tape Flutter",   {0.0f, 1.0f, 0.01f}, 0.0f},
+    {"tape_wet_level",   "Tape Wet",       {0.0f, 1.0f, 0.01f}, 0.0f},
+    {"tape_width",       "Tape Width",     {0.0f, 1.0f, 0.01f}, 0.5f},
 
     // LFO
     {"lfo_rate",         "LFO Rate",       {0.01f, 20.0f, 0.01f}, 2.0f, " Hz"},
@@ -206,10 +206,10 @@ inline const std::vector<FreOscParameters::ParameterInfo> FreOscParameters::floa
 //==============================================================================
 // Choice and integer parameter definitions
 inline const std::vector<std::tuple<juce::String, juce::String, juce::StringArray, int>> FreOscParameters::choiceParameters = {
-    // Oscillator waveforms - Mix for rich sound
-    {"osc1_waveform", "Osc1 Waveform", oscillatorWaveforms, 2}, // Sawtooth (bright lead)
-    {"osc2_waveform", "Osc2 Waveform", oscillatorWaveforms, 1}, // Square (harmonic content)
-    {"osc3_waveform", "Osc3 Waveform", oscillatorWaveforms, 0}, // Sine (sub bass)
+    // Oscillator waveforms - Simple sine waves
+    {"osc1_waveform", "Osc1 Waveform", oscillatorWaveforms, 0}, // Sine
+    {"osc2_waveform", "Osc2 Waveform", oscillatorWaveforms, 0}, // Sine
+    {"osc3_waveform", "Osc3 Waveform", oscillatorWaveforms, 0}, // Sine
 
     // Noise type
     {"noise_type", "Noise Type", noiseTypes, 0}, // White
