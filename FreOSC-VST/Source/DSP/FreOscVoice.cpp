@@ -194,14 +194,16 @@ void FreOscVoice::renderNextBlock(juce::AudioBuffer<float>& outputBuffer, int st
         float lfoValue = 0.0f;
         if (params.lfoAmount > 0.0f && params.lfoTarget > 0) // Check both amount and target are set (target > 0 means not "None")
         {
-            // Set LFO amount and get the raw LFO signal
+            // Set LFO amount (required for internal activity check)
             lfo.setAmount(params.lfoAmount);
+            
+            // Get the raw LFO signal and apply amount scaling
             lfoValue = lfo.getNextSample(
                 static_cast<FreOscLFO::Waveform>(params.lfoWaveform.load()),
                 params.lfoRate,
                 static_cast<FreOscLFO::Target>(params.lfoTarget.load())
             );
-            // LFO value is now the raw oscillator signal (-1 to +1), apply amount scaling
+            // LFO value is raw oscillator signal (-1 to +1), apply amount scaling
             lfoValue *= params.lfoAmount;
         }
 
@@ -264,7 +266,7 @@ void FreOscVoice::renderNextBlock(juce::AudioBuffer<float>& outputBuffer, int st
 
         // Apply volume modulation from LFO if active
         float volumeModulation = 1.0f;
-        if (params.lfoAmount > 0.0f && params.lfoTarget == 3) // Volume target
+        if (params.lfoAmount > 0.0f && params.lfoTarget == 4) // Volume target
         {
             volumeModulation = 1.0f + (lfoValue * 0.5f); // lfoValue already includes amount scaling
             volumeModulation = juce::jmax(0.0f, volumeModulation); // Prevent negative volume
@@ -302,20 +304,86 @@ void FreOscVoice::renderNextBlock(juce::AudioBuffer<float>& outputBuffer, int st
         float modulatedCutoff = params.filterCutoff + filterModulation;
         modulatedCutoff = juce::jlimit(0.0f, 1.0f, modulatedCutoff);
 
+        // Check for LFO filter 2 modulation
+        float filter2Modulation = 0.0f;
+        if (params.lfoAmount > 0.0f && params.lfoTarget == 3) // Filter2 target
+        {
+            filter2Modulation = lfoValue * 0.3f; // ±30% modulation range
+        }
+
+        // Apply filter2 modulation to cutoff
+        float modulatedCutoff2 = params.filter2Cutoff + filter2Modulation;
+        modulatedCutoff2 = juce::jlimit(0.0f, 1.0f, modulatedCutoff2);
+
         // Update filter if modulation changed
         if (std::abs(filterModulation) > 0.001f)
         {
             voiceFilter.setCutoffFrequency(modulatedCutoff);
         }
+        
+        // Update filter2 if modulation changed
+        if (std::abs(filter2Modulation) > 0.001f)
+        {
+            voiceFilter2.setCutoffFrequency(modulatedCutoff2);
+        }
 
-        // Process sample through per-voice filter
-        // Create a temporary buffer for single sample processing
-        float tempSample = mixedSample;
-        float* samplePtr = &tempSample;
-        juce::dsp::AudioBlock<float> filterBlock(&samplePtr, 1, 1);
-        juce::dsp::ProcessContextReplacing<float> filterContext(filterBlock);
-        voiceFilter.process(filterContext);
-        mixedSample = tempSample;
+        // Process sample through dual filter system
+        FilterRouting routing = static_cast<FilterRouting>(params.filterRouting.load());
+        
+        float filteredSample = mixedSample;
+        
+        if (routing == FilterOff)
+        {
+            // Only Filter 1 processes audio
+            float tempSample = filteredSample;
+            float* samplePtr = &tempSample;
+            juce::dsp::AudioBlock<float> filterBlock(&samplePtr, 1, 1);
+            juce::dsp::ProcessContextReplacing<float> filterContext(filterBlock);
+            voiceFilter.process(filterContext);
+            filteredSample = tempSample;
+        }
+        else if (routing == FilterParallel)
+        {
+            // Both filters process in parallel, outputs summed
+            float tempSample1 = filteredSample;
+            float tempSample2 = filteredSample;
+            
+            // Process through Filter 1
+            float* samplePtr1 = &tempSample1;
+            juce::dsp::AudioBlock<float> filterBlock1(&samplePtr1, 1, 1);
+            juce::dsp::ProcessContextReplacing<float> filterContext1(filterBlock1);
+            voiceFilter.process(filterContext1);
+            
+            // Process through Filter 2
+            float* samplePtr2 = &tempSample2;
+            juce::dsp::AudioBlock<float> filterBlock2(&samplePtr2, 1, 1);
+            juce::dsp::ProcessContextReplacing<float> filterContext2(filterBlock2);
+            voiceFilter2.process(filterContext2);
+            
+            // Sum the parallel outputs (with 0.5 scaling to prevent clipping)
+            filteredSample = (tempSample1 + tempSample2) * 0.5f;
+        }
+        else if (routing == FilterSeries)
+        {
+            // Filter 1 -> Filter 2 in series
+            float tempSample = filteredSample;
+            
+            // Process through Filter 1 first
+            float* samplePtr1 = &tempSample;
+            juce::dsp::AudioBlock<float> filterBlock1(&samplePtr1, 1, 1);
+            juce::dsp::ProcessContextReplacing<float> filterContext1(filterBlock1);
+            voiceFilter.process(filterContext1);
+            
+            // Then process through Filter 2
+            float* samplePtr2 = &tempSample;
+            juce::dsp::AudioBlock<float> filterBlock2(&samplePtr2, 1, 1);
+            juce::dsp::ProcessContextReplacing<float> filterContext2(filterBlock2);
+            voiceFilter2.process(filterContext2);
+            
+            filteredSample = tempSample;
+        }
+        
+        mixedSample = filteredSample;
 
         // Scale down for polyphony to prevent clipping when multiple voices play
         // Very conservative scaling since we fixed the triple-level issue
@@ -345,7 +413,7 @@ void FreOscVoice::renderNextBlock(juce::AudioBuffer<float>& outputBuffer, int st
         }
 
         // Apply LFO pan modulation if active
-        if (params.lfoAmount > 0.0f && params.lfoTarget == 4) // Pan target
+        if (params.lfoAmount > 0.0f && params.lfoTarget == 5) // Pan target
         {
             avgPan += lfoValue; // lfoValue already includes amount scaling
             avgPan = juce::jlimit(-1.0f, 1.0f, avgPan); // Clamp to valid range
@@ -387,8 +455,9 @@ void FreOscVoice::setCurrentPlaybackSampleRate(double sampleRate)
     noiseGenerator.prepare(sampleRate);
     lfo.prepare(sampleRate);
 
-    // Prepare per-voice filter
+    // Prepare per-voice filters
     voiceFilter.prepare(spec);
+    voiceFilter2.prepare(spec);
 
     envelope.setSampleRate(sampleRate);
     
@@ -478,20 +547,37 @@ void FreOscVoice::updateLFOParameters(int lfoWaveform, float lfoRate, int lfoTar
     params.lfoAmount = lfoAmount;
 }
 
-void FreOscVoice::updateFilterParameters(int filterType, float cutoff, float resonance, float gain, int formantVowel)
+void FreOscVoice::updateFilterParameters(int filterType, float cutoff, float resonance, float gain)
 {
     params.filterType = filterType;
     params.filterCutoff = cutoff;
     params.filterResonance = resonance;
     params.filterGain = gain;
-    params.formantVowel = formantVowel;
 
     // Update the voice filter immediately
     voiceFilter.setFilterType(static_cast<FreOscFilter::FilterType>(filterType));
     voiceFilter.setCutoffFrequency(cutoff);
     voiceFilter.setResonance(resonance);
     voiceFilter.setGain(gain);
-    voiceFilter.setFormantVowel(static_cast<FreOscFilter::FormantVowel>(formantVowel));
+}
+
+void FreOscVoice::updateFilter2Parameters(int filter2Type, float cutoff2, float resonance2, float gain2)
+{
+    params.filter2Type = filter2Type;
+    params.filter2Cutoff = cutoff2;
+    params.filter2Resonance = resonance2;
+    params.filter2Gain = gain2;
+
+    // Update the voice filter 2 immediately
+    voiceFilter2.setFilterType(static_cast<FreOscFilter::FilterType>(filter2Type));
+    voiceFilter2.setCutoffFrequency(cutoff2);
+    voiceFilter2.setResonance(resonance2);
+    voiceFilter2.setGain(gain2);
+}
+
+void FreOscVoice::updateFilterRouting(int routing)
+{
+    params.filterRouting = routing;
 }
 
 //==============================================================================

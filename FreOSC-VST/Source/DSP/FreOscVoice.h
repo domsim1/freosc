@@ -25,6 +25,14 @@ class FreOscVoice : public juce::SynthesiserVoice
 {
 public:
     //==============================================================================
+    // Filter routing modes
+    enum FilterRouting
+    {
+        FilterOff = 0,      // Only Filter 1 active
+        FilterParallel,     // Both filters in parallel
+        FilterSeries        // Filter 1 -> Filter 2 in series
+    };
+    //==============================================================================
     FreOscVoice();
     ~FreOscVoice() override;
 
@@ -61,7 +69,11 @@ public:
 
     void updateLFOParameters(int lfoWaveform, float lfoRate, int lfoTarget, float lfoAmount);
 
-    void updateFilterParameters(int filterType, float cutoff, float resonance, float gain, int formantVowel);
+    void updateFilterParameters(int filterType, float cutoff, float resonance, float gain);
+    
+    void updateFilter2Parameters(int filter2Type, float cutoff2, float resonance2, float gain2);
+    
+    void updateFilterRouting(int routing);
 
 private:
     //==============================================================================
@@ -81,8 +93,9 @@ private:
     FreOscOscillator fmOscillator;
     juce::dsp::Gain<float> fmGain;
 
-    // Per-voice filter
+    // Per-voice filters
     FreOscFilter voiceFilter;
+    FreOscFilter voiceFilter2;
 
     //==============================================================================
     // Voice state
@@ -128,7 +141,14 @@ private:
 
         // Filter parameters
         std::atomic<float> filterCutoff{0.5f}, filterResonance{0.1f}, filterGain{0.5f};
-        std::atomic<int> filterType{0}, formantVowel{0}; // 0=lowpass/A
+        std::atomic<int> filterType{0}; // 0=lowpass
+        
+        // Filter 2 parameters
+        std::atomic<float> filter2Cutoff{0.5f}, filter2Resonance{0.1f}, filter2Gain{0.5f};
+        std::atomic<int> filter2Type{0}; // 0=lowpass
+        
+        // Filter routing
+        std::atomic<int> filterRouting{0}; // 0=off
     } params;
 
     //==============================================================================

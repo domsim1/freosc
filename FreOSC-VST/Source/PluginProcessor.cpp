@@ -73,9 +73,9 @@ double FreOscProcessor::getTailLengthSeconds() const
     double reverbTail = 0.0;
     double delayTail = 0.0;
 
-    // Get reverb parameters
-    auto reverbWetLevel = parameters.getRawParameterValue("reverb_wet_level")->load();
-    auto reverbRoomSize = parameters.getRawParameterValue("reverb_room_size")->load();
+    // Get plate reverb parameters
+    auto reverbWetLevel = parameters.getRawParameterValue("plate_wet_level")->load();
+    auto reverbRoomSize = parameters.getRawParameterValue("plate_size")->load();
 
     // Get delay parameters
     auto delayWetLevel = parameters.getRawParameterValue("delay_wet_level")->load();
@@ -152,7 +152,8 @@ void FreOscProcessor::prepareToPlay (double sampleRate, int samplesPerBlock)
     
     // Initialize master volume smoothing
     masterVolumeSmooth.reset(sampleRate, 0.05); // 50ms ramp time
-    float initialMasterVol = parameters.getRawParameterValue(ParameterIDs::masterVolume)->load();
+    float initialMasterVolNormalized = parameters.getRawParameterValue(ParameterIDs::masterVolume)->load();
+    float initialMasterVol = normalizedToMasterGain(initialMasterVolNormalized);
     masterVolumeSmooth.setCurrentAndTargetValue(initialMasterVol);
 
     // Update all voice parameters
@@ -219,7 +220,8 @@ void FreOscProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::Midi
     effectsChain.process(context);
 
     // Apply smoothed master volume to prevent pops
-    float targetMasterVol = parameters.getRawParameterValue(ParameterIDs::masterVolume)->load();
+    float targetMasterVolNormalized = parameters.getRawParameterValue(ParameterIDs::masterVolume)->load();
+    float targetMasterVol = normalizedToMasterGain(targetMasterVolNormalized);
     masterVolumeSmooth.setTargetValue(targetMasterVol);
     
     // Apply gain sample by sample for smooth transitions
@@ -345,7 +347,12 @@ void FreOscProcessor::updateVoiceParameters()
     auto filterCutoff = parameters.getRawParameterValue("filter_cutoff")->load();
     auto filterResonance = parameters.getRawParameterValue("filter_resonance")->load();
     auto filterGain = parameters.getRawParameterValue("filter_gain")->load();
-    auto formantVowel = static_cast<int>(parameters.getRawParameterValue("formant_vowel")->load());
+
+    auto filter2Type = static_cast<int>(parameters.getRawParameterValue("filter2_type")->load());
+    auto filter2Cutoff = parameters.getRawParameterValue("filter2_cutoff")->load();
+    auto filter2Resonance = parameters.getRawParameterValue("filter2_resonance")->load();
+    auto filter2Gain = parameters.getRawParameterValue("filter2_gain")->load();
+    auto filterRouting = static_cast<int>(parameters.getRawParameterValue("filter_routing")->load());
 
     // Update all voices with current parameters
     for (int i = 0; i < synthesiser.getNumVoices(); ++i)
@@ -362,7 +369,9 @@ void FreOscProcessor::updateVoiceParameters()
             voice->updateEnvelopeParameters(attack, decay, sustain, release);
             voice->updateFMParameters(fmAmount, fmSource, fmTarget, fmRatio);
             voice->updateLFOParameters(lfoWaveform, lfoRate, lfoTarget, lfoAmount);
-            voice->updateFilterParameters(filterType, filterCutoff, filterResonance, filterGain, formantVowel);
+            voice->updateFilterParameters(filterType, filterCutoff, filterResonance, filterGain);
+            voice->updateFilter2Parameters(filter2Type, filter2Cutoff, filter2Resonance, filter2Gain);
+            voice->updateFilterRouting(filterRouting);
         }
     }
 }
@@ -372,10 +381,14 @@ void FreOscProcessor::updateEffectsParameters()
     // Dynamics (compressor/limiter) now use fixed settings - no user control
     // This prevents distortion issues with polyphonic synthesis
 
-    // Update reverb parameters (now at index 2)
-    auto& reverb = effectsChain.get<2>();
-    reverb.setRoomSize(parameters.getRawParameterValue("reverb_room_size")->load());
-    reverb.setWetLevel(parameters.getRawParameterValue("reverb_wet_level")->load());
+    // Update plate reverb parameters (now at index 2)
+    auto& plateReverb = effectsChain.get<2>();
+    plateReverb.setPreDelay(parameters.getRawParameterValue("plate_predelay")->load());
+    plateReverb.setSize(parameters.getRawParameterValue("plate_size")->load());
+    plateReverb.setDamping(parameters.getRawParameterValue("plate_damping")->load());
+    plateReverb.setDiffusion(parameters.getRawParameterValue("plate_diffusion")->load());
+    plateReverb.setWetLevel(parameters.getRawParameterValue("plate_wet_level")->load());
+    plateReverb.setStereoWidth(parameters.getRawParameterValue("plate_width")->load());
 
     // Update delay parameters (now at index 3)
     auto& delay = effectsChain.get<3>();
@@ -393,6 +406,36 @@ void FreOscProcessor::loadPreset(int presetIndex)
 void FreOscProcessor::loadPreset(const juce::String& presetName)
 {
     presets.loadPreset(presetName, parameters);
+}
+
+//==============================================================================
+// Master volume conversion function
+float FreOscProcessor::normalizedToMasterGain(float normalized) const
+{
+    // Clamp input to valid range
+    normalized = juce::jlimit(0.0f, 1.0f, normalized);
+    
+    // Handle silence (0.0 = complete silence)
+    if (normalized <= 0.0f)
+        return 0.0f;
+    
+    // Map 0.75 to 0dB (unity gain), with smooth curve
+    // 0.0 = silence, 0.75 = 0dB, 1.0 = +24dB
+    
+    if (normalized <= 0.75f)
+    {
+        // Map 0.0-0.75 to -∞dB to 0dB (logarithmic curve for attenuation)
+        float normalizedAttenuation = normalized / 0.75f; // 0.0 to 1.0
+        float dbValue = -60.0f + (normalizedAttenuation * 60.0f); // -60dB to 0dB
+        return juce::Decibels::decibelsToGain(dbValue);
+    }
+    else
+    {
+        // Map 0.75-1.0 to 0dB to +24dB (linear in dB space for boost)
+        float normalizedBoost = (normalized - 0.75f) / 0.25f; // 0.0 to 1.0
+        float dbValue = normalizedBoost * 24.0f; // 0dB to +24dB
+        return juce::Decibels::decibelsToGain(dbValue);
+    }
 }
 
 //==============================================================================

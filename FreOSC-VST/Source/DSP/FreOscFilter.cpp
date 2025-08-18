@@ -1,25 +1,5 @@
 #include "FreOscFilter.h"
 
-//==============================================================================
-// Formant frequency data - simplified and balanced for clean vocal synthesis
-const FreOscFilter::FormantData FreOscFilter::formantTable[8] = {
-    // Vowel A: "ah" sound - classic open vowel
-    { 650.0f, 1080.0f, 2650.0f, 80.0f, 100.0f, 120.0f, 1.0f, 0.8f, 0.6f },
-    // Vowel E: "eh" sound
-    { 400.0f, 2000.0f, 2800.0f, 70.0f, 110.0f, 130.0f, 1.0f, 0.9f, 0.7f },
-    // Vowel I: "ee" sound
-    { 300.0f, 2300.0f, 3200.0f, 60.0f, 120.0f, 140.0f, 1.0f, 0.9f, 0.8f },
-    // Vowel O: "oh" sound
-    { 450.0f, 850.0f, 2200.0f, 75.0f, 90.0f, 110.0f, 1.0f, 0.8f, 0.6f },
-    // Vowel U: "oo" sound
-    { 350.0f, 850.0f, 2200.0f, 65.0f, 85.0f, 105.0f, 1.0f, 0.7f, 0.5f },
-    // Vowel AE: "ay" sound
-    { 550.0f, 1900.0f, 2600.0f, 80.0f, 115.0f, 125.0f, 1.0f, 0.8f, 0.7f },
-    // Vowel AW: "aw" sound
-    { 600.0f, 1000.0f, 2400.0f, 85.0f, 95.0f, 115.0f, 1.0f, 0.7f, 0.6f },
-    // Vowel ER: "ur" sound
-    { 450.0f, 1200.0f, 1800.0f, 75.0f, 105.0f, 110.0f, 1.0f, 0.8f, 0.7f }
-};
 
 //==============================================================================
 FreOscFilter::FreOscFilter()
@@ -49,8 +29,26 @@ void FreOscFilter::reset()
 
 void FreOscFilter::process(const juce::dsp::ProcessContextReplacing<float>& context)
 {
-    // Simple unified processing - all filter types use the same path
+    // First apply the IIR filtering
     mainFilter.process(context);
+    
+    // Then apply filter gain (if not unity gain)
+    float gainDb = normalizedToGainDb(currentGainNormalized);
+    if (std::abs(gainDb) > 0.1f) // Only apply gain if it's not near 0dB
+    {
+        float linearGain = juce::Decibels::decibelsToGain(gainDb);
+        
+        // Apply gain to all channels and samples
+        auto& audioBlock = context.getOutputBlock();
+        for (size_t channel = 0; channel < audioBlock.getNumChannels(); ++channel)
+        {
+            auto* channelData = audioBlock.getChannelPointer(channel);
+            for (size_t sample = 0; sample < audioBlock.getNumSamples(); ++sample)
+            {
+                channelData[sample] *= linearGain;
+            }
+        }
+    }
 }
 
 //==============================================================================
@@ -93,17 +91,6 @@ void FreOscFilter::setGain(float normalizedGain)
     }
 }
 
-void FreOscFilter::setFormantVowel(FormantVowel vowel)
-{
-    if (currentVowel != vowel)
-    {
-        currentVowel = vowel;
-        if (currentFilterType == Formant)
-        {
-            updateFilterCoefficients();
-        }
-    }
-}
 
 //==============================================================================
 void FreOscFilter::updateFilterCoefficients()
@@ -119,7 +106,6 @@ juce::dsp::IIR::Coefficients<float>::Ptr FreOscFilter::createFilterCoefficients(
 {
     float freq = normalizedToFrequency(currentCutoffNormalized);
     float q = normalizedToQ(currentResonanceNormalized);
-    float gainDb = normalizedToGainDb(currentGainNormalized);
 
     // Ensure frequency is within valid range
     freq = juce::jlimit(20.0f, static_cast<float>(sampleRate * 0.45), freq);
@@ -128,6 +114,11 @@ juce::dsp::IIR::Coefficients<float>::Ptr FreOscFilter::createFilterCoefficients(
     switch (currentFilterType)
     {
         case Lowpass:
+            // Low-pass filters are prone to instability at high Q - limit to 2.5 for clean sound
+            q = juce::jmin(q, 2.5f);
+            // Also ensure minimum frequency when Q is high to prevent very low freq + high Q instability
+            if (q > 2.0f && freq < 50.0f)
+                freq = 50.0f;
             return juce::dsp::IIR::Coefficients<float>::makeLowPass(sampleRate, freq, q);
 
         case Highpass:
@@ -135,44 +126,6 @@ juce::dsp::IIR::Coefficients<float>::Ptr FreOscFilter::createFilterCoefficients(
 
         case Bandpass:
             return juce::dsp::IIR::Coefficients<float>::makeBandPass(sampleRate, freq, q);
-
-        case Notch:
-            return juce::dsp::IIR::Coefficients<float>::makeNotch(sampleRate, freq, q);
-
-        case Peaking:
-            return juce::dsp::IIR::Coefficients<float>::makePeakFilter(
-                sampleRate, freq, q, juce::Decibels::decibelsToGain(gainDb)
-            );
-
-        case Lowshelf:
-            return juce::dsp::IIR::Coefficients<float>::makeLowShelf(
-                sampleRate, freq, q, juce::Decibels::decibelsToGain(gainDb)
-            );
-
-        case Highshelf:
-            return juce::dsp::IIR::Coefficients<float>::makeHighShelf(
-                sampleRate, freq, q, juce::Decibels::decibelsToGain(gainDb)
-            );
-
-        case Allpass:
-            return juce::dsp::IIR::Coefficients<float>::makeAllPass(sampleRate, freq, q);
-
-        case Formant:
-            {
-                // Simple formant filter using first formant frequency with moderate boost
-                const auto& formantData = formantTable[static_cast<int>(currentVowel)];
-                float formantFreq = juce::jlimit(100.0f, static_cast<float>(sampleRate * 0.4), formantData.f1);
-                float formantQ = formantFreq / formantData.bw1; // Q = freq/bandwidth
-                formantQ = juce::jlimit(2.0f, 12.0f, formantQ);
-
-                // Moderate vocal boost - 6-15dB based on gain setting
-                float formantGainDb = 6.0f + (gainDb * 0.5f) + (formantData.gain1 * 9.0f);
-                formantGainDb = juce::jlimit(6.0f, 18.0f, formantGainDb);
-
-                return juce::dsp::IIR::Coefficients<float>::makePeakFilter(
-                    sampleRate, formantFreq, formantQ, juce::Decibels::decibelsToGain(formantGainDb)
-                );
-            }
 
         default:
             return juce::dsp::IIR::Coefficients<float>::makeLowPass(sampleRate, freq, q);
@@ -191,9 +144,9 @@ float FreOscFilter::normalizedToFrequency(float normalized) const
 
 float FreOscFilter::normalizedToQ(float normalized) const
 {
-    // Linear scaling from 0.1 to 30.0
+    // Linear scaling from 0.1 to 5.0
     normalized = juce::jlimit(0.0f, 1.0f, normalized);
-    return 0.1f + (normalized * 29.9f);
+    return 0.1f + (normalized * 4.9f);
 }
 
 float FreOscFilter::normalizedToGainDb(float normalized) const

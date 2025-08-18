@@ -33,8 +33,9 @@ public:
         None = 0,
         Pitch = 1,
         Filter = 2,
-        Volume = 3,
-        Pan = 4
+        Filter2 = 3,
+        Volume = 4,
+        Pan = 5
     };
 
     //==============================================================================
@@ -128,11 +129,12 @@ inline juce::String FreOscLFO::getTargetName(Target target)
 {
     switch (target)
     {
-        case Target::None:   return "None";
-        case Target::Pitch:  return "Pitch";
-        case Target::Filter: return "Filter Cutoff";
-        case Target::Volume: return "Volume";
-        case Target::Pan:    return "Pan";
+        case Target::None:    return "None";
+        case Target::Pitch:   return "Pitch";
+        case Target::Filter:  return "Filter Cutoff";
+        case Target::Filter2: return "Filter2 Cutoff";
+        case Target::Volume:  return "Volume";
+        case Target::Pan:     return "Pan";
         default: return "Unknown";
     }
 }

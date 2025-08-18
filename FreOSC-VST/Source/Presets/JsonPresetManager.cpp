@@ -198,14 +198,29 @@ juce::var JsonPresetManager::createPresetJson(const juce::String& name, const ju
     envelope->setProperty("release", denormalizeTime(parameters.getRawParameterValue("envelope_release")->load()));
     json->setProperty("envelope", envelope.get());
 
-    // Filter
-    auto filter = juce::DynamicObject::Ptr(new juce::DynamicObject());
-    filter->setProperty("type", denormalizeFilterType(parameters.getRawParameterValue("filter_type")->load()));
-    filter->setProperty("cutoff", denormalizeFilterCutoff(parameters.getRawParameterValue("filter_cutoff")->load()));
-    filter->setProperty("resonance", denormalizeFilterResonance(parameters.getRawParameterValue("filter_resonance")->load()));
-    filter->setProperty("gain", denormalizeFilterGain(parameters.getRawParameterValue("filter_gain")->load()));
-    filter->setProperty("vowel", denormalizeFormantVowel(parameters.getRawParameterValue("formant_vowel")->load()));
-    json->setProperty("filter", filter.get());
+    // Filter system
+    auto filterSystem = juce::DynamicObject::Ptr(new juce::DynamicObject());
+    
+    // Filter routing
+    filterSystem->setProperty("routing", denormalizeFilterRouting(parameters.getRawParameterValue("filter_routing")->load()));
+    
+    // Filter 1
+    auto filter1 = juce::DynamicObject::Ptr(new juce::DynamicObject());
+    filter1->setProperty("type", denormalizeFilterType(parameters.getRawParameterValue("filter_type")->load()));
+    filter1->setProperty("cutoff", denormalizeFilterCutoff(parameters.getRawParameterValue("filter_cutoff")->load()));
+    filter1->setProperty("resonance", denormalizeFilterResonance(parameters.getRawParameterValue("filter_resonance")->load()));
+    filter1->setProperty("gain", denormalizeFilterGain(parameters.getRawParameterValue("filter_gain")->load()));
+    filterSystem->setProperty("filter1", filter1.get());
+    
+    // Filter 2
+    auto filter2 = juce::DynamicObject::Ptr(new juce::DynamicObject());
+    filter2->setProperty("type", denormalizeFilterType(parameters.getRawParameterValue("filter2_type")->load()));
+    filter2->setProperty("cutoff", denormalizeFilterCutoff(parameters.getRawParameterValue("filter2_cutoff")->load()));
+    filter2->setProperty("resonance", denormalizeFilterResonance(parameters.getRawParameterValue("filter2_resonance")->load()));
+    filter2->setProperty("gain", denormalizeFilterGain(parameters.getRawParameterValue("filter2_gain")->load()));
+    filterSystem->setProperty("filter2", filter2.get());
+    
+    json->setProperty("filterSystem", filterSystem.get());
 
     // LFO
     auto lfo = juce::DynamicObject::Ptr(new juce::DynamicObject());
@@ -214,6 +229,28 @@ juce::var JsonPresetManager::createPresetJson(const juce::String& name, const ju
     lfo->setProperty("target", denormalizeLfoTarget(parameters.getRawParameterValue("lfo_target")->load()));
     lfo->setProperty("amount", parameters.getRawParameterValue("lfo_amount")->load());
     json->setProperty("lfo", lfo.get());
+
+    // Effects
+    auto effects = juce::DynamicObject::Ptr(new juce::DynamicObject());
+    
+    // Plate Reverb
+    auto plateReverb = juce::DynamicObject::Ptr(new juce::DynamicObject());
+    plateReverb->setProperty("predelay", parameters.getRawParameterValue("plate_predelay")->load());
+    plateReverb->setProperty("size", parameters.getRawParameterValue("plate_size")->load());
+    plateReverb->setProperty("damping", parameters.getRawParameterValue("plate_damping")->load());
+    plateReverb->setProperty("diffusion", parameters.getRawParameterValue("plate_diffusion")->load());
+    plateReverb->setProperty("wetLevel", parameters.getRawParameterValue("plate_wet_level")->load());
+    plateReverb->setProperty("width", parameters.getRawParameterValue("plate_width")->load());
+    effects->setProperty("plateReverb", plateReverb.get());
+    
+    // Delay
+    auto delay = juce::DynamicObject::Ptr(new juce::DynamicObject());
+    delay->setProperty("time", parameters.getRawParameterValue("delay_time")->load());
+    delay->setProperty("feedback", parameters.getRawParameterValue("delay_feedback")->load());
+    delay->setProperty("wetLevel", parameters.getRawParameterValue("delay_wet_level")->load());
+    effects->setProperty("delay", delay.get());
+    
+    json->setProperty("effects", effects.get());
 
     // Master
     json->setProperty("master_volume", parameters.getRawParameterValue("master_volume")->load());
@@ -315,9 +352,69 @@ bool JsonPresetManager::applyPresetJson(const juce::var& presetData, juce::Audio
         }
     }
 
-    // Apply filter
-    if (json->hasProperty("filter"))
+    // Apply filter system (new format) or legacy filter (old format)
+    if (json->hasProperty("filterSystem"))
     {
+        auto filterSystem = json->getProperty("filterSystem").getDynamicObject();
+        if (filterSystem != nullptr)
+        {
+            // Apply filter routing
+            if (filterSystem->hasProperty("routing"))
+                parameters.getParameter("filter_routing")->setValueNotifyingHost(
+                    normalizeFilterRouting(filterSystem->getProperty("routing")));
+            
+            // Apply Filter 1
+            if (filterSystem->hasProperty("filter1"))
+            {
+                auto filter1 = filterSystem->getProperty("filter1").getDynamicObject();
+                if (filter1 != nullptr)
+                {
+                    if (filter1->hasProperty("type"))
+                        parameters.getParameter("filter_type")->setValueNotifyingHost(
+                            normalizeFilterType(filter1->getProperty("type")));
+
+                    if (filter1->hasProperty("cutoff"))
+                        parameters.getParameter("filter_cutoff")->setValueNotifyingHost(
+                            normalizeFilterCutoff(static_cast<float>(filter1->getProperty("cutoff"))));
+
+                    if (filter1->hasProperty("resonance"))
+                        parameters.getParameter("filter_resonance")->setValueNotifyingHost(
+                            normalizeFilterResonance(static_cast<float>(filter1->getProperty("resonance"))));
+
+                    if (filter1->hasProperty("gain"))
+                        parameters.getParameter("filter_gain")->setValueNotifyingHost(
+                            normalizeFilterGain(static_cast<float>(filter1->getProperty("gain"))));
+                }
+            }
+            
+            // Apply Filter 2
+            if (filterSystem->hasProperty("filter2"))
+            {
+                auto filter2 = filterSystem->getProperty("filter2").getDynamicObject();
+                if (filter2 != nullptr)
+                {
+                    if (filter2->hasProperty("type"))
+                        parameters.getParameter("filter2_type")->setValueNotifyingHost(
+                            normalizeFilterType(filter2->getProperty("type")));
+
+                    if (filter2->hasProperty("cutoff"))
+                        parameters.getParameter("filter2_cutoff")->setValueNotifyingHost(
+                            normalizeFilterCutoff(static_cast<float>(filter2->getProperty("cutoff"))));
+
+                    if (filter2->hasProperty("resonance"))
+                        parameters.getParameter("filter2_resonance")->setValueNotifyingHost(
+                            normalizeFilterResonance(static_cast<float>(filter2->getProperty("resonance"))));
+
+                    if (filter2->hasProperty("gain"))
+                        parameters.getParameter("filter2_gain")->setValueNotifyingHost(
+                            normalizeFilterGain(static_cast<float>(filter2->getProperty("gain"))));
+                }
+            }
+        }
+    }
+    else if (json->hasProperty("filter"))
+    {
+        // Legacy filter format - load as Filter 1 only
         auto filter = json->getProperty("filter").getDynamicObject();
         if (filter != nullptr)
         {
@@ -336,10 +433,6 @@ bool JsonPresetManager::applyPresetJson(const juce::var& presetData, juce::Audio
             if (filter->hasProperty("gain"))
                 parameters.getParameter("filter_gain")->setValueNotifyingHost(
                     normalizeFilterGain(static_cast<float>(filter->getProperty("gain"))));
-
-            if (filter->hasProperty("vowel"))
-                parameters.getParameter("formant_vowel")->setValueNotifyingHost(
-                    normalizeFormantVowel(filter->getProperty("vowel")));
         }
     }
 
@@ -364,6 +457,66 @@ bool JsonPresetManager::applyPresetJson(const juce::var& presetData, juce::Audio
             if (lfo->hasProperty("amount"))
                 parameters.getParameter("lfo_amount")->setValueNotifyingHost(
                     static_cast<float>(lfo->getProperty("amount")));
+        }
+    }
+
+    // Apply effects
+    if (json->hasProperty("effects"))
+    {
+        auto effects = json->getProperty("effects").getDynamicObject();
+        if (effects != nullptr)
+        {
+            // Apply plate reverb
+            if (effects->hasProperty("plateReverb"))
+            {
+                auto plateReverb = effects->getProperty("plateReverb").getDynamicObject();
+                if (plateReverb != nullptr)
+                {
+                    if (plateReverb->hasProperty("predelay"))
+                        parameters.getParameter("plate_predelay")->setValueNotifyingHost(
+                            static_cast<float>(plateReverb->getProperty("predelay")));
+
+                    if (plateReverb->hasProperty("size"))
+                        parameters.getParameter("plate_size")->setValueNotifyingHost(
+                            static_cast<float>(plateReverb->getProperty("size")));
+
+                    if (plateReverb->hasProperty("damping"))
+                        parameters.getParameter("plate_damping")->setValueNotifyingHost(
+                            static_cast<float>(plateReverb->getProperty("damping")));
+
+                    if (plateReverb->hasProperty("diffusion"))
+                        parameters.getParameter("plate_diffusion")->setValueNotifyingHost(
+                            static_cast<float>(plateReverb->getProperty("diffusion")));
+
+                    if (plateReverb->hasProperty("wetLevel"))
+                        parameters.getParameter("plate_wet_level")->setValueNotifyingHost(
+                            static_cast<float>(plateReverb->getProperty("wetLevel")));
+
+                    if (plateReverb->hasProperty("width"))
+                        parameters.getParameter("plate_width")->setValueNotifyingHost(
+                            static_cast<float>(plateReverb->getProperty("width")));
+                }
+            }
+
+            // Apply delay
+            if (effects->hasProperty("delay"))
+            {
+                auto delay = effects->getProperty("delay").getDynamicObject();
+                if (delay != nullptr)
+                {
+                    if (delay->hasProperty("time"))
+                        parameters.getParameter("delay_time")->setValueNotifyingHost(
+                            static_cast<float>(delay->getProperty("time")));
+
+                    if (delay->hasProperty("feedback"))
+                        parameters.getParameter("delay_feedback")->setValueNotifyingHost(
+                            static_cast<float>(delay->getProperty("feedback")));
+
+                    if (delay->hasProperty("wetLevel"))
+                        parameters.getParameter("delay_wet_level")->setValueNotifyingHost(
+                            static_cast<float>(delay->getProperty("wetLevel")));
+                }
+            }
         }
     }
 
@@ -423,15 +576,17 @@ float JsonPresetManager::normalizeNoiseType(const juce::String& noiseType)
 float JsonPresetManager::normalizeFilterType(const juce::String& filterType)
 {
     if (filterType == "lowpass") return 0.0f;
-    if (filterType == "highpass") return 0.125f;
-    if (filterType == "bandpass") return 0.25f;
-    if (filterType == "notch") return 0.375f;
-    if (filterType == "peaking") return 0.5f;
-    if (filterType == "lowshelf") return 0.625f;
-    if (filterType == "highshelf") return 0.75f;
-    if (filterType == "allpass") return 0.875f;
-    if (filterType == "formant") return 1.0f;
+    if (filterType == "highpass") return 0.5f;
+    if (filterType == "bandpass") return 1.0f;
     return 0.0f; // Default to lowpass
+}
+
+float JsonPresetManager::normalizeFilterRouting(const juce::String& routing)
+{
+    if (routing == "off") return 0.0f;
+    if (routing == "parallel") return 1.0f;
+    if (routing == "series") return 2.0f;
+    return 0.0f; // Default to off
 }
 
 float JsonPresetManager::normalizeFilterCutoff(float frequency)
@@ -443,8 +598,8 @@ float JsonPresetManager::normalizeFilterCutoff(float frequency)
 
 float JsonPresetManager::normalizeFilterResonance(float q)
 {
-    // Q range: 0.1 to 30.0, normalized to 0-1
-    return (q - 0.1f) / 29.9f;
+    // Q range: 0.1 to 5.0, normalized to 0-1
+    return (q - 0.1f) / 4.9f;
 }
 
 float JsonPresetManager::normalizeFilterGain(float gainDb)
@@ -453,18 +608,6 @@ float JsonPresetManager::normalizeFilterGain(float gainDb)
     return (gainDb + 24.0f) / 48.0f;
 }
 
-float JsonPresetManager::normalizeFormantVowel(const juce::String& vowel)
-{
-    if (vowel == "A") return 0.0f;
-    if (vowel == "E") return 0.14f;
-    if (vowel == "I") return 0.29f;
-    if (vowel == "O") return 0.43f;
-    if (vowel == "U") return 0.57f;
-    if (vowel == "AE") return 0.71f;
-    if (vowel == "AW") return 0.86f;
-    if (vowel == "ER") return 1.0f;
-    return 0.0f; // Default to A
-}
 
 float JsonPresetManager::normalizeLfoWaveform(const juce::String& waveform)
 {
@@ -486,9 +629,10 @@ float JsonPresetManager::normalizeLfoRate(float hz)
 float JsonPresetManager::normalizeLfoTarget(const juce::String& target)
 {
     if (target == "none") return 0.0f;
-    if (target == "pitch") return 0.25f;
-    if (target == "filter") return 0.5f;
-    if (target == "volume") return 0.75f;
+    if (target == "pitch") return 0.2f;
+    if (target == "filter") return 0.4f;
+    if (target == "filter2") return 0.6f;
+    if (target == "volume") return 0.8f;
     if (target == "pan") return 1.0f;
     return 0.0f; // Default to none
 }
@@ -547,18 +691,12 @@ juce::String JsonPresetManager::denormalizeNoiseType(float normalized)
 
 juce::String JsonPresetManager::denormalizeFilterType(float normalized)
 {
-    int index = static_cast<int>(normalized * 8.0f);
+    int index = static_cast<int>(normalized * 2.0f);
     switch (index)
     {
         case 0: return "lowpass";
         case 1: return "highpass";
         case 2: return "bandpass";
-        case 3: return "notch";
-        case 4: return "peaking";
-        case 5: return "lowshelf";
-        case 6: return "highshelf";
-        case 7: return "allpass";
-        case 8: return "formant";
         default: return "lowpass";
     }
 }
@@ -571,7 +709,7 @@ float JsonPresetManager::denormalizeFilterCutoff(float normalized)
 
 float JsonPresetManager::denormalizeFilterResonance(float normalized)
 {
-    return 0.1f + (normalized * 29.9f);
+    return 0.1f + (normalized * 4.9f);
 }
 
 float JsonPresetManager::denormalizeFilterGain(float normalized)
@@ -579,22 +717,6 @@ float JsonPresetManager::denormalizeFilterGain(float normalized)
     return (normalized * 48.0f) - 24.0f;
 }
 
-juce::String JsonPresetManager::denormalizeFormantVowel(float normalized)
-{
-    int index = static_cast<int>(normalized * 7.0f);
-    switch (index)
-    {
-        case 0: return "A";
-        case 1: return "E";
-        case 2: return "I";
-        case 3: return "O";
-        case 4: return "U";
-        case 5: return "AE";
-        case 6: return "AW";
-        case 7: return "ER";
-        default: return "A";
-    }
-}
 
 juce::String JsonPresetManager::denormalizeLfoWaveform(float normalized)
 {
@@ -617,14 +739,15 @@ float JsonPresetManager::denormalizeLfoRate(float normalized)
 
 juce::String JsonPresetManager::denormalizeLfoTarget(float normalized)
 {
-    int index = static_cast<int>(normalized * 4.0f);
+    int index = static_cast<int>(normalized * 5.0f);
     switch (index)
     {
         case 0: return "none";
         case 1: return "pitch";
         case 2: return "filter";
-        case 3: return "volume";
-        case 4: return "pan";
+        case 3: return "filter2";
+        case 4: return "volume";
+        case 5: return "pan";
         default: return "none";
     }
 }
@@ -632,4 +755,16 @@ juce::String JsonPresetManager::denormalizeLfoTarget(float normalized)
 float JsonPresetManager::denormalizeTime(float normalized)
 {
     return normalized * 5.0f;
+}
+
+juce::String JsonPresetManager::denormalizeFilterRouting(float normalized)
+{
+    int index = static_cast<int>(normalized);
+    switch (index)
+    {
+        case 0: return "off";
+        case 1: return "parallel";
+        case 2: return "series";
+        default: return "off";
+    }
 }

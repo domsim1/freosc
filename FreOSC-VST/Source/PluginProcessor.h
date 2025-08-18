@@ -5,7 +5,7 @@
 #include "DSP/FreOscVoice.h"
 #include "DSP/FreOscSound.h"
 #include "DSP/FreOscFilter.h"
-#include "DSP/FreOscReverb.h"
+#include "DSP/FreOscPlateReverb.h"
 #include "DSP/FreOscDelay.h"
 #include "DSP/FreOscLFO.h"
 #include "Parameters/FreOscParameters.h"
@@ -83,7 +83,7 @@ private:
     juce::dsp::ProcessorChain<
         juce::dsp::Compressor<float>,      // Compressor
         juce::dsp::Limiter<float>,         // Limiter
-        FreOscReverb,                      // Reverb (custom)
+        FreOscPlateReverb,                 // Plate Reverb (custom)
         FreOscDelay                        // Delay (custom)
     > effectsChain;
 
@@ -108,6 +108,9 @@ private:
     // Helper methods
     void initializeSynthesiser();
     void setupEffectsChain();
+    
+    // Master volume conversion: 0.0 = silence, 0.75 = 0dB (unity), 1.0 = +24dB
+    float normalizedToMasterGain(float normalized) const;
 
     //==============================================================================
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (FreOscProcessor)
@@ -157,7 +160,6 @@ namespace ParameterIDs
     inline const juce::String filterCutoff     = "filter_cutoff";
     inline const juce::String filterResonance  = "filter_resonance";
     inline const juce::String filterGain       = "filter_gain";
-    inline const juce::String formantVowel     = "formant_vowel";
 
     // FM Synthesis
     inline const juce::String fmAmount         = "fm_amount";
@@ -167,9 +169,13 @@ namespace ParameterIDs
 
     // Dynamics removed - now uses fixed internal settings
 
-    // Reverb
-    inline const juce::String reverbRoomSize   = "reverb_room_size";
-    inline const juce::String reverbWetLevel   = "reverb_wet_level";
+    // Plate Reverb
+    inline const juce::String platePreDelay    = "plate_predelay";
+    inline const juce::String plateSize        = "plate_size";
+    inline const juce::String plateDamping     = "plate_damping";
+    inline const juce::String plateDiffusion   = "plate_diffusion";
+    inline const juce::String plateWetLevel    = "plate_wet_level";
+    inline const juce::String plateWidth       = "plate_width";
 
     // Delay
     inline const juce::String delayTime        = "delay_time";

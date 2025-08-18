@@ -16,13 +16,13 @@
     - Header with title and preset selector
     - Three oscillator sections with waveform, octave, level, detune, pan
     - Noise section with type selector and level
-    - Filter section with type, cutoff, resonance, formant vowel
+    - Filter section with type, cutoff, resonance
     - Envelope ADSR section
     - Effects sections: Dynamics, Reverb, Delay
     - LFO and FM synthesis sections
     - Virtual keyboard at bottom
 */
-class FreOscEditor : public juce::AudioProcessorEditor, private juce::Timer, private juce::Button::Listener
+class FreOscEditor : public juce::AudioProcessorEditor, private juce::Timer, private juce::Button::Listener, private juce::ComboBox::Listener
 {
 public:
     FreOscEditor (FreOscProcessor&);
@@ -52,9 +52,20 @@ private:
     int minUsableWidth = 800;
     int minUsableHeight = 600;
 
+    // Forward declarations
+    class WaveformSelector;
+    class LFOWaveformSelector;
+    class OctaveSelector;
+    class WaveformSelectorAttachment;
+    class LFOWaveformSelectorAttachment;
+    class OctaveSelectorAttachment;
+
     // Parameter attachments for automatic GUI updates
     std::vector<std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment>> sliderAttachments;
     std::vector<std::unique_ptr<juce::AudioProcessorValueTreeState::ComboBoxAttachment>> comboAttachments;
+    std::vector<std::unique_ptr<WaveformSelectorAttachment>> waveformAttachments;
+    std::vector<std::unique_ptr<LFOWaveformSelectorAttachment>> lfoWaveformAttachments;
+    std::vector<std::unique_ptr<OctaveSelectorAttachment>> octaveAttachments;
 
     //==============================================================================
     // GUI Components
@@ -80,13 +91,152 @@ private:
     std::unique_ptr<juce::Component> modulationTab;
     std::unique_ptr<juce::Component> effectsTab;
 
+    // Custom waveform selector component
+    class WaveformSelector : public juce::Component
+    {
+    public:
+        enum Waveform { Sine = 0, Square = 1, Sawtooth = 2, Triangle = 3 };
+        
+        WaveformSelector();
+        void paint(juce::Graphics& g) override;
+        void mouseDown(const juce::MouseEvent& event) override;
+        void mouseMove(const juce::MouseEvent& event) override;
+        void mouseExit(const juce::MouseEvent& event) override;
+        void resized() override;
+        
+        void setSelectedWaveform(Waveform waveform);
+        void setSelectedWaveform(int waveform) { setSelectedWaveform(static_cast<Waveform>(waveform)); }
+        Waveform getSelectedWaveform() const { return selectedWaveform; }
+        
+        std::function<void(int)> onWaveformChanged;
+        
+    private:
+        Waveform selectedWaveform = Sine;
+        Waveform hoveredWaveform = Sine;
+        bool isHovering = false;
+        juce::Rectangle<int> sineButton, squareButton, sawButton, triangleButton;
+        
+        void drawWaveform(juce::Graphics& g, juce::Rectangle<int> area, Waveform waveform, bool isSelected);
+        juce::Rectangle<int> getButtonForWaveform(Waveform waveform) const;
+    };
+
+    // Custom LFO waveform selector component - supports 5 LFO waveforms
+    class LFOWaveformSelector : public juce::Component
+    {
+    public:
+        enum LFOWaveform { LFO_Sine = 0, LFO_Triangle = 1, LFO_Sawtooth = 2, LFO_Square = 3, LFO_Random = 4 };
+        
+        LFOWaveformSelector();
+        void paint(juce::Graphics& g) override;
+        void mouseDown(const juce::MouseEvent& event) override;
+        void mouseMove(const juce::MouseEvent& event) override;
+        void mouseExit(const juce::MouseEvent& event) override;
+        void resized() override;
+        
+        void setSelectedWaveform(LFOWaveform waveform);
+        void setSelectedWaveform(int waveform) { setSelectedWaveform(static_cast<LFOWaveform>(waveform)); }
+        LFOWaveform getSelectedWaveform() const { return selectedWaveform; }
+        
+        std::function<void(int)> onWaveformChanged;
+        
+    private:
+        LFOWaveform selectedWaveform = LFO_Sine;
+        LFOWaveform hoveredWaveform = LFO_Sine;
+        bool isHovering = false;
+        juce::Rectangle<int> sineButton, triangleButton, sawButton, squareButton, randomButton;
+        
+        void drawWaveform(juce::Graphics& g, juce::Rectangle<int> area, LFOWaveform waveform, bool isSelected);
+        juce::Rectangle<int> getButtonForWaveform(LFOWaveform waveform) const;
+    };
+
+    // Custom octave selector component
+    class OctaveSelector : public juce::Component
+    {
+    public:
+        enum OctaveValue { Minus2 = 0, Minus1 = 1, Zero = 2, Plus1 = 3, Plus2 = 4 };
+        
+        OctaveSelector();
+        void paint(juce::Graphics& g) override;
+        void mouseDown(const juce::MouseEvent& event) override;
+        void mouseMove(const juce::MouseEvent& event) override;
+        void mouseExit(const juce::MouseEvent& event) override;
+        void resized() override;
+        
+        void setSelectedOctave(OctaveValue octave);
+        void setSelectedOctave(int octave) { setSelectedOctave(static_cast<OctaveValue>(octave)); }
+        OctaveValue getSelectedOctave() const { return selectedOctave; }
+        
+        std::function<void(int)> onOctaveChanged;
+        
+    private:
+        OctaveValue selectedOctave = Zero;
+        OctaveValue hoveredOctave = Zero;
+        bool isHovering = false;
+        juce::Rectangle<int> minus2Button, minus1Button, zeroButton, plus1Button, plus2Button;
+        
+        void drawOctaveButton(juce::Graphics& g, juce::Rectangle<int> area, OctaveValue octave, bool isSelected);
+        juce::Rectangle<int> getButtonForOctave(OctaveValue octave) const;
+        juce::String getOctaveText(OctaveValue octave) const;
+    };
+
+    // Custom parameter attachment for WaveformSelector
+    class WaveformSelectorAttachment : public juce::AudioProcessorValueTreeState::Listener
+    {
+    public:
+        WaveformSelectorAttachment(juce::AudioProcessorValueTreeState& state, const juce::String& parameterID, WaveformSelector& selector);
+        ~WaveformSelectorAttachment();
+        
+        void parameterChanged(const juce::String& parameterID, float newValue) override;
+        
+    private:
+        void selectorChanged(int waveform);
+        
+        juce::AudioProcessorValueTreeState& valueTreeState;
+        juce::String paramID;
+        WaveformSelector& waveformSelector;
+    };
+
+    // Custom parameter attachment for LFOWaveformSelector
+    class LFOWaveformSelectorAttachment : public juce::AudioProcessorValueTreeState::Listener
+    {
+    public:
+        LFOWaveformSelectorAttachment(juce::AudioProcessorValueTreeState& state, const juce::String& parameterID, LFOWaveformSelector& selector);
+        ~LFOWaveformSelectorAttachment();
+        
+        void parameterChanged(const juce::String& parameterID, float newValue) override;
+        
+    private:
+        void selectorChanged(int waveform);
+        
+        juce::AudioProcessorValueTreeState& valueTreeState;
+        juce::String paramID;
+        LFOWaveformSelector& lfoWaveformSelector;
+    };
+
+    // Custom parameter attachment for OctaveSelector
+    class OctaveSelectorAttachment : public juce::AudioProcessorValueTreeState::Listener
+    {
+    public:
+        OctaveSelectorAttachment(juce::AudioProcessorValueTreeState& state, const juce::String& parameterID, OctaveSelector& selector);
+        ~OctaveSelectorAttachment();
+        
+        void parameterChanged(const juce::String& parameterID, float newValue) override;
+        
+    private:
+        void selectorChanged(int octave);
+        
+        juce::AudioProcessorValueTreeState& valueTreeState;
+        juce::String paramID;
+        OctaveSelector& octaveSelector;
+    };
+
     // Oscillator sections (3 identical sets)
     
     struct OscillatorSection
     {
         juce::GroupComponent group;
-        juce::ComboBox waveformCombo;
-        juce::ComboBox octaveCombo;
+        WaveformSelector waveformSelector;
+        OctaveSelector octaveSelector;
         juce::Slider levelSlider;
         juce::Slider detuneSlider;
         juce::Slider panSlider;
@@ -116,12 +266,23 @@ private:
     juce::Label attackValue, decayValue, sustainValue, releaseValue;
 
     // Filter section
-    juce::GroupComponent filterGroup;
+    juce::GroupComponent filterRoutingGroup;  // Routing controls
+    juce::GroupComponent filter1Group;       // Filter 1 controls
+    juce::GroupComponent filter2Group;       // Filter 2 controls
+    juce::ComboBox filterRoutingCombo;
+    juce::Label filterRoutingLabel;
+    
+    // Filter 1
     juce::ComboBox filterTypeCombo;
     juce::Slider cutoffSlider, resonanceSlider, filterGainSlider;
-    juce::ComboBox formantVowelCombo;
-    juce::Label filterTypeLabel, cutoffLabel, resonanceLabel, filterGainLabel, formantLabel;
+    juce::Label filterTypeLabel, cutoffLabel, resonanceLabel, filterGainLabel;
     juce::Label cutoffValue, resonanceValue, filterGainValue;
+    
+    // Filter 2
+    juce::ComboBox filter2TypeCombo;
+    juce::Slider cutoff2Slider, resonance2Slider, filterGain2Slider;
+    juce::Label filter2TypeLabel, cutoff2Label, resonance2Label, filterGain2Label;
+    juce::Label cutoff2Value, resonance2Value, filterGain2Value;
 
     // FM synthesis section
     juce::GroupComponent fmGroup;
@@ -132,11 +293,14 @@ private:
 
     // Dynamics section removed - now uses fixed internal settings
 
-    // Reverb section
+    // Plate Reverb section
     juce::GroupComponent reverbGroup;
-    juce::Slider roomSizeSlider, reverbWetSlider;
-    juce::Label roomSizeLabel, reverbWetLabel;
-    juce::Label roomSizeValue, reverbWetValue;
+    juce::Slider platePreDelaySlider, plateSizeSlider, plateDampingSlider;
+    juce::Slider plateDiffusionSlider, plateWetSlider, plateWidthSlider;
+    juce::Label platePreDelayLabel, plateSizeLabel, plateDampingLabel;
+    juce::Label plateDiffusionLabel, plateWetLabel, plateWidthLabel;
+    juce::Label platePreDelayValue, plateSizeValue, plateDampingValue;
+    juce::Label plateDiffusionValue, plateWetValue, plateWidthValue;
 
     // Delay section
     juce::GroupComponent delayGroup;
@@ -146,7 +310,8 @@ private:
 
     // LFO section
     juce::GroupComponent lfoGroup;
-    juce::ComboBox lfoWaveformCombo, lfoTargetCombo;
+    LFOWaveformSelector lfoWaveformSelector;
+    juce::ComboBox lfoTargetCombo;
     juce::Slider lfoRateSlider, lfoAmountSlider;
     juce::Label lfoWaveformLabel, lfoTargetLabel, lfoRateLabel, lfoAmountLabel;
     juce::Label lfoRateValue, lfoAmountValue;
@@ -171,6 +336,7 @@ private:
     juce::String formatFrequencyValue(float normalizedValue);
     juce::String formatResonanceValue(float normalizedValue);
     juce::String formatFilterGainValue(float normalizedValue);
+    juce::String formatMasterVolumeValue(float normalizedValue);
 
     // Parameter update callbacks
     void updateValueLabels();
@@ -181,11 +347,14 @@ private:
 
     // Button listener callback
     void buttonClicked(juce::Button* button) override;
+    
+    // ComboBox listener callback
+    void comboBoxChanged(juce::ComboBox* comboBoxThatHasChanged) override;
 
     // Layout methods
     void layoutOscillatorSection(OscillatorSection& section);
     void layoutNoiseSection();
-    void layoutFilterSection();
+    // layoutFilterSection() removed - now using GroupComponent layouts in tabs
     void layoutEnvelopeSection();
     void layoutMasterSection();
     void layoutFMSection();
@@ -201,7 +370,6 @@ private:
     void createTabbedInterface();
 
     // Tab-specific setup methods
-    void setupComponentStyling(juce::Component& component);
     void applyComponentStyling(juce::Component& component);
     void setupSliderForTab(juce::Slider& slider, juce::Label& label, juce::Label& valueLabel,
                           const juce::String& labelText, const juce::String& parameterID);

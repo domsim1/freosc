@@ -22,7 +22,7 @@ public:
     static const juce::StringArray oscillatorWaveforms;
     static const juce::StringArray noiseTypes;
     static const juce::StringArray filterTypes;
-    static const juce::StringArray formantVowels;
+    static const juce::StringArray filterRouting;
     static const juce::StringArray fmSources;
     static const juce::StringArray fmTargets;
     static const juce::StringArray lfoWaveforms;
@@ -80,15 +80,14 @@ inline const juce::StringArray FreOscParameters::noiseTypes = {
 
 // Filter type choices
 inline const juce::StringArray FreOscParameters::filterTypes = {
-    "Low Pass", "High Pass", "Band Pass", "Low Shelf", "High Shelf",
-    "Peaking", "Notch", "All Pass", "Formant"
+    "Low Pass", "High Pass", "Band Pass"
 };
 
-// Formant vowel choices
-inline const juce::StringArray FreOscParameters::formantVowels = {
-    "A (ah)", "E (eh)", "I (ee)", "O (oh)", "U (oo)",
-    "AE (ay)", "AW (aw)", "ER (ur)"
+// Filter routing choices
+inline const juce::StringArray FreOscParameters::filterRouting = {
+    "Filter 1 Only", "Parallel", "Series"
 };
+
 
 // FM source choices (not used - always Oscillator 3)
 inline const juce::StringArray FreOscParameters::fmSources = {
@@ -107,7 +106,7 @@ inline const juce::StringArray FreOscParameters::lfoWaveforms = {
 
 // LFO target choices
 inline const juce::StringArray FreOscParameters::lfoTargets = {
-    "None", "Pitch", "Filter Cutoff", "Volume", "Pan"
+    "None", "Pitch", "Filter Cutoff", "Filter2 Cutoff", "Volume", "Pan"
 };
 
 //==============================================================================
@@ -132,8 +131,8 @@ inline const std::vector<FreOscParameters::ParameterInfo> FreOscParameters::floa
     {"noise_level",    "Noise Level",    {0.0f, 1.0f, 0.01f}, 0.0f},
     {"noise_pan",      "Noise Pan",      {-1.0f, 1.0f, 0.01f}, 0.0f},
 
-    // Master - Conservative default to prevent clipping in polyphonic use
-    {"master_volume",  "Master Volume",  {0.0f, 1.0f, 0.01f}, 0.3f},
+    // Master - Normalized 0-1 range, maps to -∞dB to +24dB, default 0.75 (0dB unity gain)
+    {"master_volume",  "Master Volume",  {0.0f, 1.0f, 0.01f}, 0.75f},
 
     // Envelope - Faster attack for immediate response, higher sustain for playability
     {"envelope_attack",  "Attack",   {0.0f, 2.0f, 0.01f}, 0.01f, " s"},
@@ -143,8 +142,13 @@ inline const std::vector<FreOscParameters::ParameterInfo> FreOscParameters::floa
 
     // Filter - Normalized values (0.0-1.0) for FreOscFilter compatibility
     {"filter_cutoff",    "Cutoff",     {0.0f, 1.0f, 0.01f}, 0.7f}, // Maps to 20Hz-20kHz, default ~7kHz
-    {"filter_resonance", "Resonance",  {0.0f, 1.0f, 0.01f}, 0.03f}, // Maps to 0.1-30.0, default ~1.0
+    {"filter_resonance", "Resonance",  {0.0f, 1.0f, 0.01f}, 0.03f}, // Maps to 0.1-5.0, default ~0.25
     {"filter_gain",      "Filter Gain", {0.0f, 1.0f, 0.01f}, 0.5f}, // Maps to -24dB to +24dB, default 0dB
+
+    // Filter 2 - Same ranges as Filter 1
+    {"filter2_cutoff",    "Filter2 Cutoff",     {0.0f, 1.0f, 0.01f}, 0.3f}, // Lower default for complementary filtering
+    {"filter2_resonance", "Filter2 Resonance",  {0.0f, 1.0f, 0.01f}, 0.03f}, // Maps to 0.1-5.0, default ~0.25
+    {"filter2_gain",      "Filter2 Gain",       {0.0f, 1.0f, 0.01f}, 0.5f}, // Maps to -24dB to +24dB, default 0dB
 
     // FM Synthesis
     {"fm_amount",        "FM Amount",   {0.0f, 1000.0f, 1.0f}, 0.0f},
@@ -152,9 +156,13 @@ inline const std::vector<FreOscParameters::ParameterInfo> FreOscParameters::floa
 
     // Dynamics removed - now uses fixed internal settings optimized for polyphony
 
-    // Reverb - Subtle by default
-    {"reverb_room_size", "Room Size",      {0.0f, 1.0f, 0.01f}, 0.3f},
-    {"reverb_wet_level", "Reverb Wet",     {0.0f, 1.0f, 0.01f}, 0.1f},
+    // Plate Reverb - Professional EMT plate characteristics
+    {"plate_predelay",   "Pre-Delay",      {0.0f, 1.0f, 0.01f}, 0.1f},     // 0-250ms
+    {"plate_size",       "Size",           {0.0f, 1.0f, 0.01f}, 0.5f},     // Decay time
+    {"plate_damping",    "Damping",        {0.0f, 1.0f, 0.01f}, 0.3f},     // HF rolloff
+    {"plate_diffusion",  "Diffusion",      {0.0f, 1.0f, 0.01f}, 0.7f},     // Density
+    {"plate_wet_level",  "Plate Wet",      {0.0f, 1.0f, 0.01f}, 0.2f},     // Wet mix
+    {"plate_width",      "Stereo Width",   {0.0f, 1.0f, 0.01f}, 0.8f},     // Stereo spread
 
     // Delay - Off by default for cleaner sound
     {"delay_time",       "Delay Time",     {0.0f, 1000.0f, 1.0f}, 250.0f, " ms"},
@@ -179,7 +187,8 @@ inline const std::vector<std::tuple<juce::String, juce::String, juce::StringArra
 
     // Filter
     {"filter_type", "Filter Type", filterTypes, 0}, // Low Pass
-    {"formant_vowel", "Formant Vowel", formantVowels, 0}, // A (ah)
+    {"filter2_type", "Filter2 Type", filterTypes, 2}, // Band Pass for complementary filtering
+    {"filter_routing", "Filter Routing", filterRouting, 0}, // Off
 
     // FM - Source is always Oscillator 3, only target is selectable
     {"fm_source", "FM Source", fmSources, 0}, // Always Oscillator 3 (fixed)
