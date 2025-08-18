@@ -113,7 +113,7 @@ void FreOscPlateReverb::process(const juce::dsp::ProcessContextReplacing<float>&
             diffused = allpass[i].process(diffused);
         }
         
-        // Process through parallel comb filters
+        // Process through parallel comb filters with proper scaling
         float reverbL = 0.0f;
         float reverbR = 0.0f;
         
@@ -122,6 +122,12 @@ void FreOscPlateReverb::process(const juce::dsp::ProcessContextReplacing<float>&
             reverbL += combsL[i].process(diffused);
             reverbR += combsR[i].process(diffused);
         }
+        
+        // Scale comb filter output for lush but controlled levels
+        float combScale = 1.0f / static_cast<float>(numCombs / 2); // Normalize by number of combs
+        combScale *= 0.6f; // Less aggressive attenuation for more lush sound
+        reverbL *= combScale;
+        reverbR *= combScale;
         
         // Apply high frequency damping
         reverbL = dampingFilterL.processSample(reverbL);
@@ -137,6 +143,10 @@ void FreOscPlateReverb::process(const juce::dsp::ProcessContextReplacing<float>&
         // Mix wet and dry signals
         float outputL = dryGain.processSample(dryL) + wetGain.processSample(reverbL);
         float outputR = dryGain.processSample(dryR) + wetGain.processSample(reverbR);
+        
+        // Soft limiting to prevent any remaining peaks
+        outputL = juce::jlimit(-1.5f, 1.5f, outputL);
+        outputR = juce::jlimit(-1.5f, 1.5f, outputR);
         
         // Write output
         outputBlock.setSample(0, sample, outputL);
@@ -168,8 +178,8 @@ void FreOscPlateReverb::setDiffusion(float diffusion)
 {
     currentDiffusion = juce::jlimit(0.0f, 1.0f, diffusion);
     
-    // Update allpass gain based on diffusion
-    float gain = 0.5f + currentDiffusion * 0.3f; // 0.5 to 0.8
+    // Update allpass gain based on diffusion - tamed gains to prevent peaks
+    float gain = 0.4f + currentDiffusion * 0.3f; // 0.4 to 0.7 (lush but controlled)
     for (int i = 0; i < numAllpass; ++i)
     {
         allpass[i].gain = gain;
@@ -207,8 +217,8 @@ void FreOscPlateReverb::updateDelayTimes()
 
 void FreOscPlateReverb::updateFeedback()
 {
-    // Size controls decay time via feedback
-    float feedback = 0.2f + currentSize * 0.7f; // 0.2 to 0.9 feedback for much longer tails
+    // Size controls decay time via feedback - balanced for lush but stable sound
+    float feedback = 0.15f + currentSize * 0.6f; // 0.15 to 0.75 feedback (more lush while stable)
     
     for (int i = 0; i < numCombs / 2; ++i)
     {

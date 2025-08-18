@@ -161,13 +161,16 @@ inline const std::vector<FreOscParameters::ParameterInfo> FreOscParameters::floa
     {"plate_size",       "Size",           {0.0f, 1.0f, 0.01f}, 0.5f},     // Decay time
     {"plate_damping",    "Damping",        {0.0f, 1.0f, 0.01f}, 0.3f},     // HF rolloff
     {"plate_diffusion",  "Diffusion",      {0.0f, 1.0f, 0.01f}, 0.7f},     // Density
-    {"plate_wet_level",  "Plate Wet",      {0.0f, 1.0f, 0.01f}, 0.2f},     // Wet mix
+    {"plate_wet_level",  "Plate Wet",      {0.0f, 1.0f, 0.01f}, 0.3f},     // Wet mix
     {"plate_width",      "Stereo Width",   {0.0f, 1.0f, 0.01f}, 0.8f},     // Stereo spread
 
-    // Delay - Off by default for cleaner sound
-    {"delay_time",       "Delay Time",     {0.0f, 1000.0f, 1.0f}, 250.0f, " ms"},
-    {"delay_feedback",   "Delay Feedback", {0.0f, 0.95f, 0.01f}, 0.25f},
-    {"delay_wet_level",  "Delay Wet",      {0.0f, 1.0f, 0.01f}, 0.0f},
+    // Tape Delay - Analog warmth and character
+    {"tape_time",        "Tape Time",      {0.0f, 1.0f, 0.01f}, 0.25f},    // 20ms-2000ms
+    {"tape_feedback",    "Tape Feedback",  {0.0f, 1.0f, 0.01f}, 0.3f},     // With saturation
+    {"tape_tone",        "Tape Tone",      {0.0f, 1.0f, 0.01f}, 0.7f},     // HF rolloff
+    {"tape_flutter",     "Tape Flutter",   {0.0f, 1.0f, 0.01f}, 0.1f},     // Wow/flutter
+    {"tape_wet_level",   "Tape Wet",       {0.0f, 1.0f, 0.01f}, 0.0f},     // Off by default
+    {"tape_width",       "Tape Width",     {0.0f, 1.0f, 0.01f}, 0.6f},     // Stereo spread
 
     // LFO
     {"lfo_rate",         "LFO Rate",       {0.01f, 20.0f, 0.01f}, 2.0f, " Hz"},

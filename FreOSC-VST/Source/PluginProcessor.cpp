@@ -77,10 +77,10 @@ double FreOscProcessor::getTailLengthSeconds() const
     auto reverbWetLevel = parameters.getRawParameterValue("plate_wet_level")->load();
     auto reverbRoomSize = parameters.getRawParameterValue("plate_size")->load();
 
-    // Get delay parameters
-    auto delayWetLevel = parameters.getRawParameterValue("delay_wet_level")->load();
-    auto delayTime = parameters.getRawParameterValue("delay_time")->load();
-    auto delayFeedback = parameters.getRawParameterValue("delay_feedback")->load();
+    // Get tape delay parameters
+    auto delayWetLevel = parameters.getRawParameterValue("tape_wet_level")->load();
+    auto delayTime = parameters.getRawParameterValue("tape_time")->load() * (2000.0f - 20.0f) + 20.0f; // Convert normalized to ms
+    auto delayFeedback = parameters.getRawParameterValue("tape_feedback")->load();
 
     // Calculate reverb tail (if reverb is active)
     if (reverbWetLevel > 0.01f)
@@ -390,11 +390,14 @@ void FreOscProcessor::updateEffectsParameters()
     plateReverb.setWetLevel(parameters.getRawParameterValue("plate_wet_level")->load());
     plateReverb.setStereoWidth(parameters.getRawParameterValue("plate_width")->load());
 
-    // Update delay parameters (now at index 3)
-    auto& delay = effectsChain.get<3>();
-    delay.setDelayTime(parameters.getRawParameterValue("delay_time")->load());
-    delay.setFeedback(parameters.getRawParameterValue("delay_feedback")->load());
-    delay.setWetLevel(parameters.getRawParameterValue("delay_wet_level")->load());
+    // Update tape delay parameters (now at index 3)
+    auto& tapeDelay = effectsChain.get<3>();
+    tapeDelay.setTime(parameters.getRawParameterValue("tape_time")->load());
+    tapeDelay.setFeedback(parameters.getRawParameterValue("tape_feedback")->load());
+    tapeDelay.setTone(parameters.getRawParameterValue("tape_tone")->load());
+    tapeDelay.setFlutter(parameters.getRawParameterValue("tape_flutter")->load());
+    tapeDelay.setWetLevel(parameters.getRawParameterValue("tape_wet_level")->load());
+    tapeDelay.setStereoWidth(parameters.getRawParameterValue("tape_width")->load());
 }
 
 //==============================================================================

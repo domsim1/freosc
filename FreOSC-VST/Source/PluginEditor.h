@@ -302,11 +302,14 @@ private:
     juce::Label platePreDelayValue, plateSizeValue, plateDampingValue;
     juce::Label plateDiffusionValue, plateWetValue, plateWidthValue;
 
-    // Delay section
+    // Tape Delay section
     juce::GroupComponent delayGroup;
-    juce::Slider delayTimeSlider, delayFeedbackSlider, delayWetSlider;
-    juce::Label delayTimeLabel, delayFeedbackLabel, delayWetLabel;
-    juce::Label delayTimeValue, delayFeedbackValue, delayWetValue;
+    juce::Slider tapeTimeSlider, tapeFeedbackSlider, tapeToneSlider;
+    juce::Slider tapeFlutterSlider, tapeWetSlider, tapeWidthSlider;
+    juce::Label tapeTimeLabel, tapeFeedbackLabel, tapeToneLabel;
+    juce::Label tapeFlutterLabel, tapeWetLabel, tapeWidthLabel;
+    juce::Label tapeTimeValue, tapeFeedbackValue, tapeToneValue;
+    juce::Label tapeFlutterValue, tapeWetValue, tapeWidthValue;
 
     // LFO section
     juce::GroupComponent lfoGroup;

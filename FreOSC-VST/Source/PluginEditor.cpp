@@ -269,13 +269,13 @@ public:
         
         // Choose color based on group text
         juce::Colour groupColour;
-        if (text == "LFO" || text == "FM")
+        if (text == "LFO" || text == "FM" || text == "Tape Delay")
         {
-            groupColour = juce::Colour(0xff7A9A5A); // Green color matching image for LFO and FM groups
+            groupColour = juce::Colour(0xff7A9A5A); // Green color matching image for LFO, FM, and delay groups
         }
-        else if (text == "Noise Generator" || text == "Filter 1" || text == "Filter 2")
+        else if (text == "Noise Generator" || text == "Filter 1" || text == "Filter 2" || text == "Plate Reverb")
         {
-            groupColour = juce::Colour(0xff9bb3c7); // Light blue color for noise generator and filter groups
+            groupColour = juce::Colour(0xff9bb3c7); // Light blue color for noise generator, filter groups, and reverb
         }
         else if (text == "Envelope" || text == "Routing")
         {
@@ -2104,29 +2104,6 @@ void FreOscEditor::layoutFMSection()
 
 
 
-void FreOscEditor::layoutDelaySection()
-{
-    auto bounds = delayGroup.getBounds().reduced(10);
-    auto rowHeight = bounds.getHeight() / 3;
-
-    // Time
-    auto row = bounds.removeFromTop(rowHeight);
-    delayTimeLabel.setBounds(row.removeFromTop(15));
-    delayTimeSlider.setBounds(row.removeFromTop(row.getHeight() - 15));
-    delayTimeValue.setBounds(row);
-
-    // Feedback
-    row = bounds.removeFromTop(rowHeight);
-    delayFeedbackLabel.setBounds(row.removeFromTop(15));
-    delayFeedbackSlider.setBounds(row.removeFromTop(row.getHeight() - 15));
-    delayFeedbackValue.setBounds(row);
-
-    // Wet Level
-    row = bounds;
-    delayWetLabel.setBounds(row.removeFromTop(15));
-    delayWetSlider.setBounds(row.removeFromTop(row.getHeight() - 15));
-    delayWetValue.setBounds(row);
-}
 
 void FreOscEditor::layoutLFOSection()
 {
@@ -2276,9 +2253,12 @@ void FreOscEditor::createParameterAttachments()
     sliderAttachments.push_back(std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(valueTreeState, "plate_wet_level", plateWetSlider));
     sliderAttachments.push_back(std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(valueTreeState, "plate_width", plateWidthSlider));
 
-    sliderAttachments.push_back(std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(valueTreeState, "delay_time", delayTimeSlider));
-    sliderAttachments.push_back(std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(valueTreeState, "delay_feedback", delayFeedbackSlider));
-    sliderAttachments.push_back(std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(valueTreeState, "delay_wet_level", delayWetSlider));
+    sliderAttachments.push_back(std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(valueTreeState, "tape_time", tapeTimeSlider));
+    sliderAttachments.push_back(std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(valueTreeState, "tape_feedback", tapeFeedbackSlider));
+    sliderAttachments.push_back(std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(valueTreeState, "tape_tone", tapeToneSlider));
+    sliderAttachments.push_back(std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(valueTreeState, "tape_flutter", tapeFlutterSlider));
+    sliderAttachments.push_back(std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(valueTreeState, "tape_wet_level", tapeWetSlider));
+    sliderAttachments.push_back(std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(valueTreeState, "tape_width", tapeWidthSlider));
 
     // Create waveform selector attachments
     waveformAttachments.push_back(std::make_unique<WaveformSelectorAttachment>(valueTreeState, "osc1_waveform", osc1Section.waveformSelector));
@@ -2355,9 +2335,12 @@ void FreOscEditor::updateValueLabels()
     plateWetValue.setText(juce::String(static_cast<int>(plateWetSlider.getValue() * 100.0f)) + "%", juce::dontSendNotification);
     plateWidthValue.setText(juce::String(static_cast<int>(plateWidthSlider.getValue() * 100.0f)) + "%", juce::dontSendNotification);
 
-    delayTimeValue.setText(juce::String(static_cast<int>(delayTimeSlider.getValue())) + "ms", juce::dontSendNotification);
-    delayFeedbackValue.setText(juce::String(delayFeedbackSlider.getValue(), 2), juce::dontSendNotification);
-    delayWetValue.setText(juce::String(delayWetSlider.getValue(), 2), juce::dontSendNotification);
+    tapeTimeValue.setText(juce::String(static_cast<int>(tapeTimeSlider.getValue() * (2000.0f - 20.0f) + 20.0f)) + "ms", juce::dontSendNotification);
+    tapeFeedbackValue.setText(juce::String(static_cast<int>(tapeFeedbackSlider.getValue() * 100.0f)) + "%", juce::dontSendNotification);
+    tapeToneValue.setText(juce::String(static_cast<int>(tapeToneSlider.getValue() * 100.0f)) + "%", juce::dontSendNotification);
+    tapeFlutterValue.setText(juce::String(static_cast<int>(tapeFlutterSlider.getValue() * 100.0f)) + "%", juce::dontSendNotification);
+    tapeWetValue.setText(juce::String(static_cast<int>(tapeWetSlider.getValue() * 100.0f)) + "%", juce::dontSendNotification);
+    tapeWidthValue.setText(juce::String(static_cast<int>(tapeWidthSlider.getValue() * 100.0f)) + "%", juce::dontSendNotification);
 
     lfoRateValue.setText(juce::String(lfoRateSlider.getValue(), 2) + " Hz", juce::dontSendNotification);
     lfoAmountValue.setText(juce::String(static_cast<int>(lfoAmountSlider.getValue() * 100)) + "%", juce::dontSendNotification);
@@ -4097,53 +4080,87 @@ std::unique_ptr<juce::Component> FreOscEditor::createEffectsTab()
 
         void setupGroupDelay()
         {
-            // GROUP SETUP: Add delay components to GroupComponent
+            // GROUP SETUP: Add tape delay components to GroupComponent
             owner.applyComponentStyling(owner.delayGroup);
-            owner.delayGroup.setText("Delay");
+            owner.delayGroup.setText("Tape Delay");
 
-            // Setup components with proper styling
-            owner.applyComponentStyling(owner.delayTimeSlider);
-            owner.applyComponentStyling(owner.delayFeedbackSlider);
-            owner.applyComponentStyling(owner.delayWetSlider);
+            // Set names for tape delay sliders so they can be identified as rotary knobs
+            owner.tapeTimeSlider.setName("tape_time");
+            owner.tapeFeedbackSlider.setName("tape_feedback");
+            owner.tapeToneSlider.setName("tape_tone");
+            owner.tapeFlutterSlider.setName("tape_flutter");
+            owner.tapeWetSlider.setName("tape_wet");
+            owner.tapeWidthSlider.setName("tape_width");
 
-            owner.applyComponentStyling(owner.delayTimeLabel);
-            owner.applyComponentStyling(owner.delayFeedbackLabel);
-            owner.applyComponentStyling(owner.delayWetLabel);
-            owner.applyComponentStyling(owner.delayTimeValue);
-            owner.applyComponentStyling(owner.delayFeedbackValue);
-            owner.applyComponentStyling(owner.delayWetValue);
+            // Setup components with proper styling (rotary knobs)
+            owner.applyComponentStyling(owner.tapeTimeSlider);
+            owner.applyComponentStyling(owner.tapeFeedbackSlider);
+            owner.applyComponentStyling(owner.tapeToneSlider);
+            owner.applyComponentStyling(owner.tapeFlutterSlider);
+            owner.applyComponentStyling(owner.tapeWetSlider);
+            owner.applyComponentStyling(owner.tapeWidthSlider);
 
-            // Set value label styling for delay controls (orange accent color)
-            owner.delayTimeValue.setFont(juce::Font(juce::FontOptions().withHeight(11.0f)));
-            owner.delayTimeValue.setJustificationType(juce::Justification::centred);
-            owner.delayTimeValue.setColour(juce::Label::textColourId, owner.accentColour.brighter(0.1f));
-            owner.delayTimeValue.setColour(juce::Label::backgroundColourId, juce::Colours::transparentBlack);
+            owner.applyComponentStyling(owner.tapeTimeLabel);
+            owner.applyComponentStyling(owner.tapeFeedbackLabel);
+            owner.applyComponentStyling(owner.tapeToneLabel);
+            owner.applyComponentStyling(owner.tapeFlutterLabel);
+            owner.applyComponentStyling(owner.tapeWetLabel);
+            owner.applyComponentStyling(owner.tapeWidthLabel);
+            
+            owner.applyComponentStyling(owner.tapeTimeValue);
+            owner.applyComponentStyling(owner.tapeFeedbackValue);
+            owner.applyComponentStyling(owner.tapeToneValue);
+            owner.applyComponentStyling(owner.tapeFlutterValue);
+            owner.applyComponentStyling(owner.tapeWetValue);
+            owner.applyComponentStyling(owner.tapeWidthValue);
 
-            owner.delayFeedbackValue.setFont(juce::Font(juce::FontOptions().withHeight(11.0f)));
-            owner.delayFeedbackValue.setJustificationType(juce::Justification::centred);
-            owner.delayFeedbackValue.setColour(juce::Label::textColourId, owner.accentColour.brighter(0.1f));
-            owner.delayFeedbackValue.setColour(juce::Label::backgroundColourId, juce::Colours::transparentBlack);
+            // Set value label styling for tape delay controls (white text like other value labels)
+            auto setupValueLabel = [&](juce::Label& label) {
+                label.setFont(juce::Font(juce::FontOptions().withHeight(11.0f)));
+                label.setJustificationType(juce::Justification::centred);
+                label.setColour(juce::Label::textColourId, juce::Colours::white);
+                label.setColour(juce::Label::backgroundColourId, juce::Colours::transparentBlack);
+            };
 
-            owner.delayWetValue.setFont(juce::Font(juce::FontOptions().withHeight(11.0f)));
-            owner.delayWetValue.setJustificationType(juce::Justification::centred);
-            owner.delayWetValue.setColour(juce::Label::textColourId, owner.accentColour.brighter(0.1f));
-            owner.delayWetValue.setColour(juce::Label::backgroundColourId, juce::Colours::transparentBlack);
+            setupValueLabel(owner.tapeTimeValue);
+            setupValueLabel(owner.tapeFeedbackValue);
+            setupValueLabel(owner.tapeToneValue);
+            setupValueLabel(owner.tapeFlutterValue);
+            setupValueLabel(owner.tapeWetValue);
+            setupValueLabel(owner.tapeWidthValue);
 
             // Set labels
-            owner.delayTimeLabel.setText("Time", juce::dontSendNotification);
-            owner.delayFeedbackLabel.setText("Feedback", juce::dontSendNotification);
-            owner.delayWetLabel.setText("Wet Level", juce::dontSendNotification);
+            owner.tapeTimeLabel.setText("Time", juce::dontSendNotification);
+            owner.tapeFeedbackLabel.setText("Feedback", juce::dontSendNotification);
+            owner.tapeToneLabel.setText("Tone", juce::dontSendNotification);
+            owner.tapeFlutterLabel.setText("Flutter", juce::dontSendNotification);
+            owner.tapeWetLabel.setText("Wet Level", juce::dontSendNotification);
+            owner.tapeWidthLabel.setText("Width", juce::dontSendNotification);
 
             // Add components to the group
-            owner.delayGroup.addAndMakeVisible(owner.delayTimeLabel);
-            owner.delayGroup.addAndMakeVisible(owner.delayTimeSlider);
-            owner.delayGroup.addAndMakeVisible(owner.delayTimeValue);
-            owner.delayGroup.addAndMakeVisible(owner.delayFeedbackLabel);
-            owner.delayGroup.addAndMakeVisible(owner.delayFeedbackSlider);
-            owner.delayGroup.addAndMakeVisible(owner.delayFeedbackValue);
-            owner.delayGroup.addAndMakeVisible(owner.delayWetLabel);
-            owner.delayGroup.addAndMakeVisible(owner.delayWetSlider);
-            owner.delayGroup.addAndMakeVisible(owner.delayWetValue);
+            owner.delayGroup.addAndMakeVisible(owner.tapeTimeLabel);
+            owner.delayGroup.addAndMakeVisible(owner.tapeTimeSlider);
+            owner.delayGroup.addAndMakeVisible(owner.tapeTimeValue);
+            
+            owner.delayGroup.addAndMakeVisible(owner.tapeFeedbackLabel);
+            owner.delayGroup.addAndMakeVisible(owner.tapeFeedbackSlider);
+            owner.delayGroup.addAndMakeVisible(owner.tapeFeedbackValue);
+            
+            owner.delayGroup.addAndMakeVisible(owner.tapeToneLabel);
+            owner.delayGroup.addAndMakeVisible(owner.tapeToneSlider);
+            owner.delayGroup.addAndMakeVisible(owner.tapeToneValue);
+            
+            owner.delayGroup.addAndMakeVisible(owner.tapeFlutterLabel);
+            owner.delayGroup.addAndMakeVisible(owner.tapeFlutterSlider);
+            owner.delayGroup.addAndMakeVisible(owner.tapeFlutterValue);
+            
+            owner.delayGroup.addAndMakeVisible(owner.tapeWetLabel);
+            owner.delayGroup.addAndMakeVisible(owner.tapeWetSlider);
+            owner.delayGroup.addAndMakeVisible(owner.tapeWetValue);
+            
+            owner.delayGroup.addAndMakeVisible(owner.tapeWidthLabel);
+            owner.delayGroup.addAndMakeVisible(owner.tapeWidthSlider);
+            owner.delayGroup.addAndMakeVisible(owner.tapeWidthValue);
 
             // Add the group to the tab
             addAndMakeVisible(owner.delayGroup);
@@ -4252,7 +4269,7 @@ std::unique_ptr<juce::Component> FreOscEditor::createEffectsTab()
         
         void layoutGroupDelay(juce::Rectangle<int> area)
         {
-            // Layout delay using GroupComponent
+            // Layout tape delay using GroupComponent
             owner.delayGroup.setBounds(area);
             
             // Layout components within the group - account for bottom band
@@ -4264,48 +4281,91 @@ std::unique_ptr<juce::Component> FreOscEditor::createEffectsTab()
             auto bottomBandHeight = textH + 8.0f;
             bounds.removeFromBottom(static_cast<int>(bottomBandHeight));
             
-            // Three knobs horizontally: Time, Feedback, Wet Level
+            // Six knobs in 2 rows of 3: Top: Time, Feedback, Tone | Bottom: Flutter, Wet Level, Width
             auto knobWidth = bounds.getWidth() / 3;
+            auto rowHeight = bounds.getHeight() / 2;
             
-            const int minKnobSize = 55;
+            const int minKnobSize = 40;
             const int minLabelHeight = 12;
             const int minValueHeight = 12;
             
-            // Time knob (left)
-            auto timeArea = bounds.removeFromLeft(knobWidth).reduced(3);
-            owner.delayTimeLabel.setBounds(timeArea.removeFromTop(minLabelHeight));
+            // Top row: Time, Feedback, Tone
+            auto topRow = bounds.removeFromTop(rowHeight);
+            
+            // Time knob (top-left)
+            auto timeArea = topRow.removeFromLeft(knobWidth).reduced(3);
+            owner.tapeTimeLabel.setBounds(timeArea.removeFromTop(minLabelHeight));
             auto timeValueArea = timeArea.removeFromBottom(minValueHeight);
             auto timeKnobArea = timeArea.reduced(0, 2);
             auto timeKnobBounds = timeKnobArea.withSizeKeepingCentre(
                 juce::jlimit(minKnobSize, knobWidth - 8, timeKnobArea.getWidth()),
                 juce::jlimit(minKnobSize, timeKnobArea.getHeight(), timeKnobArea.getHeight())
             );
-            owner.delayTimeSlider.setBounds(timeKnobBounds);
-            owner.delayTimeValue.setBounds(timeValueArea);
+            owner.tapeTimeSlider.setBounds(timeKnobBounds);
+            owner.tapeTimeValue.setBounds(timeValueArea);
             
-            // Feedback knob (center)
-            auto feedbackArea = bounds.removeFromLeft(knobWidth).reduced(3);
-            owner.delayFeedbackLabel.setBounds(feedbackArea.removeFromTop(minLabelHeight));
+            // Feedback knob (top-center)
+            auto feedbackArea = topRow.removeFromLeft(knobWidth).reduced(3);
+            owner.tapeFeedbackLabel.setBounds(feedbackArea.removeFromTop(minLabelHeight));
             auto feedbackValueArea = feedbackArea.removeFromBottom(minValueHeight);
             auto feedbackKnobArea = feedbackArea.reduced(0, 2);
             auto feedbackKnobBounds = feedbackKnobArea.withSizeKeepingCentre(
                 juce::jlimit(minKnobSize, knobWidth - 8, feedbackKnobArea.getWidth()),
                 juce::jlimit(minKnobSize, feedbackKnobArea.getHeight(), feedbackKnobArea.getHeight())
             );
-            owner.delayFeedbackSlider.setBounds(feedbackKnobBounds);
-            owner.delayFeedbackValue.setBounds(feedbackValueArea);
+            owner.tapeFeedbackSlider.setBounds(feedbackKnobBounds);
+            owner.tapeFeedbackValue.setBounds(feedbackValueArea);
             
-            // Wet Level knob (right)
-            auto wetLevelArea = bounds.reduced(3);
-            owner.delayWetLabel.setBounds(wetLevelArea.removeFromTop(minLabelHeight));
-            auto wetLevelValueArea = wetLevelArea.removeFromBottom(minValueHeight);
-            auto wetLevelKnobArea = wetLevelArea.reduced(0, 2);
-            auto wetLevelKnobBounds = wetLevelKnobArea.withSizeKeepingCentre(
-                juce::jlimit(minKnobSize, knobWidth - 8, wetLevelKnobArea.getWidth()),
-                juce::jlimit(minKnobSize, wetLevelKnobArea.getHeight(), wetLevelKnobArea.getHeight())
+            // Tone knob (top-right)
+            auto toneArea = topRow.reduced(3);
+            owner.tapeToneLabel.setBounds(toneArea.removeFromTop(minLabelHeight));
+            auto toneValueArea = toneArea.removeFromBottom(minValueHeight);
+            auto toneKnobArea = toneArea.reduced(0, 2);
+            auto toneKnobBounds = toneKnobArea.withSizeKeepingCentre(
+                juce::jlimit(minKnobSize, knobWidth - 8, toneKnobArea.getWidth()),
+                juce::jlimit(minKnobSize, toneKnobArea.getHeight(), toneKnobArea.getHeight())
             );
-            owner.delayWetSlider.setBounds(wetLevelKnobBounds);
-            owner.delayWetValue.setBounds(wetLevelValueArea);
+            owner.tapeToneSlider.setBounds(toneKnobBounds);
+            owner.tapeToneValue.setBounds(toneValueArea);
+            
+            // Bottom row: Flutter, Wet Level, Width
+            auto bottomRow = bounds;
+            
+            // Flutter knob (bottom-left)
+            auto flutterArea = bottomRow.removeFromLeft(knobWidth).reduced(3);
+            owner.tapeFlutterLabel.setBounds(flutterArea.removeFromTop(minLabelHeight));
+            auto flutterValueArea = flutterArea.removeFromBottom(minValueHeight);
+            auto flutterKnobArea = flutterArea.reduced(0, 2);
+            auto flutterKnobBounds = flutterKnobArea.withSizeKeepingCentre(
+                juce::jlimit(minKnobSize, knobWidth - 8, flutterKnobArea.getWidth()),
+                juce::jlimit(minKnobSize, flutterKnobArea.getHeight(), flutterKnobArea.getHeight())
+            );
+            owner.tapeFlutterSlider.setBounds(flutterKnobBounds);
+            owner.tapeFlutterValue.setBounds(flutterValueArea);
+            
+            // Wet Level knob (bottom-center)
+            auto wetArea = bottomRow.removeFromLeft(knobWidth).reduced(3);
+            owner.tapeWetLabel.setBounds(wetArea.removeFromTop(minLabelHeight));
+            auto wetValueArea = wetArea.removeFromBottom(minValueHeight);
+            auto wetKnobArea = wetArea.reduced(0, 2);
+            auto wetKnobBounds = wetKnobArea.withSizeKeepingCentre(
+                juce::jlimit(minKnobSize, knobWidth - 8, wetKnobArea.getWidth()),
+                juce::jlimit(minKnobSize, wetKnobArea.getHeight(), wetKnobArea.getHeight())
+            );
+            owner.tapeWetSlider.setBounds(wetKnobBounds);
+            owner.tapeWetValue.setBounds(wetValueArea);
+            
+            // Width knob (bottom-right)
+            auto widthArea = bottomRow.reduced(3);
+            owner.tapeWidthLabel.setBounds(widthArea.removeFromTop(minLabelHeight));
+            auto widthValueArea = widthArea.removeFromBottom(minValueHeight);
+            auto widthKnobArea = widthArea.reduced(0, 2);
+            auto widthKnobBounds = widthKnobArea.withSizeKeepingCentre(
+                juce::jlimit(minKnobSize, knobWidth - 8, widthKnobArea.getWidth()),
+                juce::jlimit(minKnobSize, widthKnobArea.getHeight(), widthKnobArea.getHeight())
+            );
+            owner.tapeWidthSlider.setBounds(widthKnobBounds);
+            owner.tapeWidthValue.setBounds(widthValueArea);
         }
 
         // No custom paint needed - GroupComponents handle their own styling
@@ -4409,11 +4469,11 @@ void FreOscEditor::applyComponentStyling(juce::Component& component)
     {
         // Check slider type by name
         juce::String sliderName = slider->getName();
-        bool isRotaryKnob = sliderName.contains("noise") || sliderName.contains("plate");
+        bool isRotaryKnob = sliderName.contains("noise") || sliderName.contains("plate") || sliderName.contains("tape");
         
         if (isRotaryKnob)
         {
-            // Noise and plate reverb sliders are rotary knobs with LEDs
+            // Noise, plate reverb, and tape delay sliders are rotary knobs with LEDs
             slider->setSliderStyle(juce::Slider::RotaryHorizontalVerticalDrag);
             slider->setTextBoxStyle(juce::Slider::NoTextBox, false, 0, 0);
             // Metallic knob styling like other rotary controls

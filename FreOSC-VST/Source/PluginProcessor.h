@@ -6,7 +6,7 @@
 #include "DSP/FreOscSound.h"
 #include "DSP/FreOscFilter.h"
 #include "DSP/FreOscPlateReverb.h"
-#include "DSP/FreOscDelay.h"
+#include "DSP/FreOscTapeDelay.h"
 #include "DSP/FreOscLFO.h"
 #include "Parameters/FreOscParameters.h"
 #include "Presets/JsonPresetManager.h"
@@ -84,7 +84,7 @@ private:
         juce::dsp::Compressor<float>,      // Compressor
         juce::dsp::Limiter<float>,         // Limiter
         FreOscPlateReverb,                 // Plate Reverb (custom)
-        FreOscDelay                        // Delay (custom)
+        FreOscTapeDelay                    // Tape Delay (custom)
     > effectsChain;
 
     // Preset management
@@ -177,10 +177,13 @@ namespace ParameterIDs
     inline const juce::String plateWetLevel    = "plate_wet_level";
     inline const juce::String plateWidth       = "plate_width";
 
-    // Delay
-    inline const juce::String delayTime        = "delay_time";
-    inline const juce::String delayFeedback    = "delay_feedback";
-    inline const juce::String delayWetLevel    = "delay_wet_level";
+    // Tape Delay
+    inline const juce::String tapeTime         = "tape_time";
+    inline const juce::String tapeFeedback     = "tape_feedback";
+    inline const juce::String tapeTone         = "tape_tone";
+    inline const juce::String tapeFlutter      = "tape_flutter";
+    inline const juce::String tapeWetLevel     = "tape_wet_level";
+    inline const juce::String tapeWidth        = "tape_width";
 
     // LFO
     inline const juce::String lfoWaveform      = "lfo_waveform";

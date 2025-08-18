@@ -243,12 +243,15 @@ juce::var JsonPresetManager::createPresetJson(const juce::String& name, const ju
     plateReverb->setProperty("width", parameters.getRawParameterValue("plate_width")->load());
     effects->setProperty("plateReverb", plateReverb.get());
     
-    // Delay
-    auto delay = juce::DynamicObject::Ptr(new juce::DynamicObject());
-    delay->setProperty("time", parameters.getRawParameterValue("delay_time")->load());
-    delay->setProperty("feedback", parameters.getRawParameterValue("delay_feedback")->load());
-    delay->setProperty("wetLevel", parameters.getRawParameterValue("delay_wet_level")->load());
-    effects->setProperty("delay", delay.get());
+    // Tape Delay
+    auto tapeDelay = juce::DynamicObject::Ptr(new juce::DynamicObject());
+    tapeDelay->setProperty("time", parameters.getRawParameterValue("tape_time")->load());
+    tapeDelay->setProperty("feedback", parameters.getRawParameterValue("tape_feedback")->load());
+    tapeDelay->setProperty("tone", parameters.getRawParameterValue("tape_tone")->load());
+    tapeDelay->setProperty("flutter", parameters.getRawParameterValue("tape_flutter")->load());
+    tapeDelay->setProperty("wetLevel", parameters.getRawParameterValue("tape_wet_level")->load());
+    tapeDelay->setProperty("width", parameters.getRawParameterValue("tape_width")->load());
+    effects->setProperty("tapeDelay", tapeDelay.get());
     
     json->setProperty("effects", effects.get());
 
@@ -498,23 +501,60 @@ bool JsonPresetManager::applyPresetJson(const juce::var& presetData, juce::Audio
                 }
             }
 
-            // Apply delay
-            if (effects->hasProperty("delay"))
+            // Apply tape delay (new format)
+            if (effects->hasProperty("tapeDelay"))
+            {
+                auto tapeDelay = effects->getProperty("tapeDelay").getDynamicObject();
+                if (tapeDelay != nullptr)
+                {
+                    if (tapeDelay->hasProperty("time"))
+                        parameters.getParameter("tape_time")->setValueNotifyingHost(
+                            static_cast<float>(tapeDelay->getProperty("time")));
+
+                    if (tapeDelay->hasProperty("feedback"))
+                        parameters.getParameter("tape_feedback")->setValueNotifyingHost(
+                            static_cast<float>(tapeDelay->getProperty("feedback")));
+
+                    if (tapeDelay->hasProperty("tone"))
+                        parameters.getParameter("tape_tone")->setValueNotifyingHost(
+                            static_cast<float>(tapeDelay->getProperty("tone")));
+
+                    if (tapeDelay->hasProperty("flutter"))
+                        parameters.getParameter("tape_flutter")->setValueNotifyingHost(
+                            static_cast<float>(tapeDelay->getProperty("flutter")));
+
+                    if (tapeDelay->hasProperty("wetLevel"))
+                        parameters.getParameter("tape_wet_level")->setValueNotifyingHost(
+                            static_cast<float>(tapeDelay->getProperty("wetLevel")));
+
+                    if (tapeDelay->hasProperty("width"))
+                        parameters.getParameter("tape_width")->setValueNotifyingHost(
+                            static_cast<float>(tapeDelay->getProperty("width")));
+                }
+            }
+            // Apply legacy delay format for backward compatibility
+            else if (effects->hasProperty("delay"))
             {
                 auto delay = effects->getProperty("delay").getDynamicObject();
                 if (delay != nullptr)
                 {
+                    // Map old delay parameters to new tape delay parameters
                     if (delay->hasProperty("time"))
-                        parameters.getParameter("delay_time")->setValueNotifyingHost(
+                        parameters.getParameter("tape_time")->setValueNotifyingHost(
                             static_cast<float>(delay->getProperty("time")));
 
                     if (delay->hasProperty("feedback"))
-                        parameters.getParameter("delay_feedback")->setValueNotifyingHost(
+                        parameters.getParameter("tape_feedback")->setValueNotifyingHost(
                             static_cast<float>(delay->getProperty("feedback")));
 
                     if (delay->hasProperty("wetLevel"))
-                        parameters.getParameter("delay_wet_level")->setValueNotifyingHost(
+                        parameters.getParameter("tape_wet_level")->setValueNotifyingHost(
                             static_cast<float>(delay->getProperty("wetLevel")));
+
+                    // Set default values for new tape delay parameters not in old format
+                    parameters.getParameter("tape_tone")->setValueNotifyingHost(0.7f);     // Mid tone
+                    parameters.getParameter("tape_flutter")->setValueNotifyingHost(0.1f);  // Light flutter
+                    parameters.getParameter("tape_width")->setValueNotifyingHost(0.5f);    // Centered width
                 }
             }
         }
