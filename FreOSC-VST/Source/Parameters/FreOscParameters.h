@@ -28,6 +28,7 @@ public:
     static const juce::StringArray lfoWaveforms;
     static const juce::StringArray lfoTargets;
     static const juce::StringArray modEnvelopeTargets;
+    static const juce::StringArray envelopeModes;
 
     //==============================================================================
     // Parameter ranges and defaults (matching JavaScript implementation)
@@ -91,7 +92,7 @@ inline const juce::StringArray FreOscParameters::filterRouting = {
 
 // Effects routing choices
 inline const juce::StringArray FreOscParameters::effectsRouting = {
-    "Series Reverb to Delay", "Series Delay to Reverb", "Parallel"
+    "Wavefolder to Reverb to Delay", "Wavefolder to Delay to Reverb", "Wavefolder Parallel with Reverb+Delay"
 };
 
 
@@ -113,6 +114,11 @@ inline const juce::StringArray FreOscParameters::lfoTargets = {
 // Modulation envelope target choices
 inline const juce::StringArray FreOscParameters::modEnvelopeTargets = {
     "None", "PM Index", "PM Ratio", "Filter Cutoff", "Filter2 Cutoff"
+};
+
+// Modulation envelope mode choices
+inline const juce::StringArray FreOscParameters::envelopeModes = {
+    "One-Shot", "Gate", "Looping"
 };
 
 //==============================================================================
@@ -188,13 +194,22 @@ inline const std::vector<FreOscParameters::ParameterInfo> FreOscParameters::floa
     {"mod_env1_sustain", "ModEnv1 Sustain", {0.0f, 1.0f, 0.01f}, 0.8f},
     {"mod_env1_release", "ModEnv1 Release", {0.0f, 3.0f, 0.01f}, 0.3f, " s"},
     {"mod_env1_amount",  "ModEnv1 Amount",  {0.0f, 1.0f, 0.01f}, 0.0f},
+    {"mod_env1_rate",    "ModEnv1 Rate",    {0.1f, 10.0f, 0.1f}, 1.0f, " Hz"},
 
     // Modulation Envelope 2
     {"mod_env2_attack",  "ModEnv2 Attack",  {0.0f, 2.0f, 0.01f}, 0.01f, " s"},
     {"mod_env2_decay",   "ModEnv2 Decay",   {0.0f, 2.0f, 0.01f}, 0.2f, " s"},
     {"mod_env2_sustain", "ModEnv2 Sustain", {0.0f, 1.0f, 0.01f}, 0.8f},
     {"mod_env2_release", "ModEnv2 Release", {0.0f, 3.0f, 0.01f}, 0.3f, " s"},
-    {"mod_env2_amount",  "ModEnv2 Amount",  {0.0f, 1.0f, 0.01f}, 0.0f}
+    {"mod_env2_amount",  "ModEnv2 Amount",  {0.0f, 1.0f, 0.01f}, 0.0f},
+    {"mod_env2_rate",    "ModEnv2 Rate",    {0.1f, 10.0f, 0.1f}, 1.0f, " Hz"},
+
+    // Wavefolder Distortion - Off by default
+    {"wavefolder_drive",     "Wavefolder Drive",     {0.0f, 1.0f, 0.01f}, 0.0f},
+    {"wavefolder_threshold", "Wavefolder Threshold", {0.0f, 1.0f, 0.01f}, 0.6f},
+    {"wavefolder_symmetry",  "Wavefolder Symmetry",  {0.0f, 1.0f, 0.01f}, 0.0f},
+    {"wavefolder_mix",       "Wavefolder Mix",       {0.0f, 1.0f, 0.01f}, 0.0f},
+    {"wavefolder_output",    "Wavefolder Output",    {0.0f, 1.0f, 0.01f}, 0.5f}
 };
 
 //==============================================================================
@@ -223,5 +238,7 @@ inline const std::vector<std::tuple<juce::String, juce::String, juce::StringArra
 
     // Modulation Envelopes
     {"mod_env1_target", "ModEnv1 Target", modEnvelopeTargets, 0}, // None
-    {"mod_env2_target", "ModEnv2 Target", modEnvelopeTargets, 0}  // None
+    {"mod_env2_target", "ModEnv2 Target", modEnvelopeTargets, 0}, // None
+    {"mod_env1_mode", "ModEnv1 Mode", envelopeModes, 1}, // Gate (for backward compatibility)
+    {"mod_env2_mode", "ModEnv2 Mode", envelopeModes, 1}  // Gate (for backward compatibility)
 };

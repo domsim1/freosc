@@ -281,9 +281,9 @@ public:
         {
             groupColour = juce::Colour(0xffc5c2a3); // Tan/beige color for envelope, routing, and modulation envelopes
         }
-        else if (text.contains("Oscillator"))
+        else if (text.contains("Oscillator") || text == "Wavefolder Distortion")
         {
-            groupColour = juce::Colour(0xffc77b7b); // Reddish-pink color for oscillator groups
+            groupColour = juce::Colour(0xffc77b7b); // Reddish-pink color for oscillator groups and wavefolder distortion
         }
         else
         {
@@ -1837,6 +1837,7 @@ void FreOscEditor::comboBoxChanged(juce::ComboBox* comboBoxThatHasChanged)
             audioProcessor.loadPreset(selectedIndex - 1);
         }
     }
+    // Rate controls are now always visible - no mode-based hiding
 }
 
 //==============================================================================
@@ -2155,9 +2156,9 @@ void FreOscEditor::setupComboBoxOptions()
     filterRoutingCombo.addItem("Series", 3);
 
     // Effects routing options
-    effectsRoutingCombo.addItem("Series Reverb to Delay", 1);
-    effectsRoutingCombo.addItem("Series Delay to Reverb", 2);
-    effectsRoutingCombo.addItem("Parallel", 3);
+    effectsRoutingCombo.addItem("Wavefolder to Reverb to Delay", 1);
+    effectsRoutingCombo.addItem("Wavefolder to Delay to Reverb", 2);
+    effectsRoutingCombo.addItem("Wavefolder Parallel with Reverb+Delay", 3);
 
     // Filter 1 type options
     filterTypeCombo.addItem("Low Pass", 1);
@@ -2187,18 +2188,15 @@ void FreOscEditor::setupComboBoxOptions()
     lfoTargetCombo.addItem("Volume", 5);
     lfoTargetCombo.addItem("Pan", 6);
 
-    // Modulation Envelope target options
-    modEnv1TargetCombo.addItem("None", 1);
-    modEnv1TargetCombo.addItem("PM Index", 2);
-    modEnv1TargetCombo.addItem("PM Ratio", 3);
-    modEnv1TargetCombo.addItem("Filter Cutoff", 4);
-    modEnv1TargetCombo.addItem("Filter2 Cutoff", 5);
-
-    modEnv2TargetCombo.addItem("None", 1);
-    modEnv2TargetCombo.addItem("PM Index", 2);
-    modEnv2TargetCombo.addItem("PM Ratio", 3);
-    modEnv2TargetCombo.addItem("Filter Cutoff", 4);
-    modEnv2TargetCombo.addItem("Filter2 Cutoff", 5);
+    // Modulation Envelope target options (use addItemList for proper 0-based indexing)
+    juce::StringArray modEnvTargetOptions = {"None", "PM Index", "PM Ratio", "Filter Cutoff", "Filter2 Cutoff"};
+    modEnv1TargetCombo.addItemList(modEnvTargetOptions, 1);  // Base ID 1 for 0-based indexing
+    modEnv2TargetCombo.addItemList(modEnvTargetOptions, 1);
+    
+    // Modulation Envelope mode options (use addItemList for proper 0-based indexing)
+    juce::StringArray envelopeModeOptions = {"One-Shot", "Gate", "Looping"};
+    modEnv1ModeCombo.addItemList(envelopeModeOptions, 1);  // Base ID 1 for 0-based indexing
+    modEnv2ModeCombo.addItemList(envelopeModeOptions, 1);
 
     // Preset options - get from JSON preset manager
     presetSelector.addItem("Custom", 1); // Always have "Custom" as first option
@@ -2268,6 +2266,7 @@ void FreOscEditor::createParameterAttachments()
     sliderAttachments.push_back(std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(valueTreeState, "mod_env1_sustain", modEnv1SustainSlider));
     sliderAttachments.push_back(std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(valueTreeState, "mod_env1_release", modEnv1ReleaseSlider));
     sliderAttachments.push_back(std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(valueTreeState, "mod_env1_amount", modEnv1AmountSlider));
+    sliderAttachments.push_back(std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(valueTreeState, "mod_env1_rate", modEnv1RateSlider));
 
     // Modulation Envelope 2 attachments
     sliderAttachments.push_back(std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(valueTreeState, "mod_env2_attack", modEnv2AttackSlider));
@@ -2275,6 +2274,7 @@ void FreOscEditor::createParameterAttachments()
     sliderAttachments.push_back(std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(valueTreeState, "mod_env2_sustain", modEnv2SustainSlider));
     sliderAttachments.push_back(std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(valueTreeState, "mod_env2_release", modEnv2ReleaseSlider));
     sliderAttachments.push_back(std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(valueTreeState, "mod_env2_amount", modEnv2AmountSlider));
+    sliderAttachments.push_back(std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(valueTreeState, "mod_env2_rate", modEnv2RateSlider));
 
     // Dynamics parameters removed - now uses fixed internal settings
 
@@ -2291,6 +2291,13 @@ void FreOscEditor::createParameterAttachments()
     sliderAttachments.push_back(std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(valueTreeState, "tape_flutter", tapeFlutterSlider));
     sliderAttachments.push_back(std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(valueTreeState, "tape_wet_level", tapeWetSlider));
     sliderAttachments.push_back(std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(valueTreeState, "tape_width", tapeWidthSlider));
+
+    // Wavefolder parameters
+    sliderAttachments.push_back(std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(valueTreeState, "wavefolder_drive", wavefolderDriveSlider));
+    sliderAttachments.push_back(std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(valueTreeState, "wavefolder_threshold", wavefolderThresholdSlider));
+    sliderAttachments.push_back(std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(valueTreeState, "wavefolder_symmetry", wavefolderSymmetrySlider));
+    sliderAttachments.push_back(std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(valueTreeState, "wavefolder_mix", wavefolderMixSlider));
+    sliderAttachments.push_back(std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(valueTreeState, "wavefolder_output", wavefolderOutputSlider));
 
     // Create waveform selector attachments
     waveformAttachments.push_back(std::make_unique<WaveformSelectorAttachment>(valueTreeState, "osc1_waveform", osc1Section.waveformSelector));
@@ -2321,6 +2328,8 @@ void FreOscEditor::createParameterAttachments()
     // Modulation Envelope target attachments
     comboAttachments.push_back(std::make_unique<juce::AudioProcessorValueTreeState::ComboBoxAttachment>(valueTreeState, "mod_env1_target", modEnv1TargetCombo));
     comboAttachments.push_back(std::make_unique<juce::AudioProcessorValueTreeState::ComboBoxAttachment>(valueTreeState, "mod_env2_target", modEnv2TargetCombo));
+    comboAttachments.push_back(std::make_unique<juce::AudioProcessorValueTreeState::ComboBoxAttachment>(valueTreeState, "mod_env1_mode", modEnv1ModeCombo));
+    comboAttachments.push_back(std::make_unique<juce::AudioProcessorValueTreeState::ComboBoxAttachment>(valueTreeState, "mod_env2_mode", modEnv2ModeCombo));
 }
 
 void FreOscEditor::updateValueLabels()
@@ -2380,6 +2389,13 @@ void FreOscEditor::updateValueLabels()
     tapeWetValue.setText(juce::String(static_cast<int>(tapeWetSlider.getValue() * 100.0f)) + "%", juce::dontSendNotification);
     tapeWidthValue.setText(juce::String(static_cast<int>(tapeWidthSlider.getValue() * 100.0f)) + "%", juce::dontSendNotification);
 
+    // Wavefolder value labels
+    wavefolderDriveValue.setText(juce::String(static_cast<int>(wavefolderDriveSlider.getValue() * 100.0f)) + "%", juce::dontSendNotification);
+    wavefolderThresholdValue.setText(juce::String(static_cast<int>(wavefolderThresholdSlider.getValue() * 100.0f)) + "%", juce::dontSendNotification);
+    wavefolderSymmetryValue.setText(juce::String(static_cast<int>(wavefolderSymmetrySlider.getValue() * 100.0f)) + "%", juce::dontSendNotification);
+    wavefolderMixValue.setText(juce::String(static_cast<int>(wavefolderMixSlider.getValue() * 100.0f)) + "%", juce::dontSendNotification);
+    wavefolderOutputValue.setText(juce::String(static_cast<int>(wavefolderOutputSlider.getValue() * 100.0f)) + "%", juce::dontSendNotification);
+
     lfoRateValue.setText(juce::String(lfoRateSlider.getValue(), 2) + " Hz", juce::dontSendNotification);
     lfoAmountValue.setText(juce::String(static_cast<int>(lfoAmountSlider.getValue() * 100)) + "%", juce::dontSendNotification);
 
@@ -2389,6 +2405,7 @@ void FreOscEditor::updateValueLabels()
     modEnv1SustainValue.setText(juce::String(static_cast<int>(modEnv1SustainSlider.getValue() * 100)) + "%", juce::dontSendNotification);
     modEnv1ReleaseValue.setText(formatTimeValue(static_cast<float>(modEnv1ReleaseSlider.getValue())), juce::dontSendNotification);
     modEnv1AmountValue.setText(juce::String(static_cast<int>(modEnv1AmountSlider.getValue() * 100)) + "%", juce::dontSendNotification);
+    modEnv1RateValue.setText(juce::String(modEnv1RateSlider.getValue(), 1) + " Hz", juce::dontSendNotification);
 
     // Modulation Envelope 2 value labels
     modEnv2AttackValue.setText(formatTimeValue(static_cast<float>(modEnv2AttackSlider.getValue())), juce::dontSendNotification);
@@ -2396,7 +2413,9 @@ void FreOscEditor::updateValueLabels()
     modEnv2SustainValue.setText(juce::String(static_cast<int>(modEnv2SustainSlider.getValue() * 100)) + "%", juce::dontSendNotification);
     modEnv2ReleaseValue.setText(formatTimeValue(static_cast<float>(modEnv2ReleaseSlider.getValue())), juce::dontSendNotification);
     modEnv2AmountValue.setText(juce::String(static_cast<int>(modEnv2AmountSlider.getValue() * 100)) + "%", juce::dontSendNotification);
+    modEnv2RateValue.setText(juce::String(modEnv2RateSlider.getValue(), 1) + " Hz", juce::dontSendNotification);
 }
+
 
 juce::String FreOscEditor::formatPanValue(float value)
 {
@@ -3942,23 +3961,28 @@ std::unique_ptr<juce::Component> FreOscEditor::createModulationTab()
 
             // Setup components with proper styling
             owner.applyComponentStyling(owner.modEnv1TargetCombo);
+            owner.applyComponentStyling(owner.modEnv1ModeCombo);
             owner.applyComponentStyling(owner.modEnv1AttackSlider);
             owner.applyComponentStyling(owner.modEnv1DecaySlider);
             owner.applyComponentStyling(owner.modEnv1SustainSlider);
             owner.applyComponentStyling(owner.modEnv1ReleaseSlider);
             owner.applyComponentStyling(owner.modEnv1AmountSlider);
+            owner.applyComponentStyling(owner.modEnv1RateSlider);
 
             owner.applyComponentStyling(owner.modEnv1TargetLabel);
+            owner.applyComponentStyling(owner.modEnv1ModeLabel);
             owner.applyComponentStyling(owner.modEnv1AttackLabel);
             owner.applyComponentStyling(owner.modEnv1DecayLabel);
             owner.applyComponentStyling(owner.modEnv1SustainLabel);
             owner.applyComponentStyling(owner.modEnv1ReleaseLabel);
             owner.applyComponentStyling(owner.modEnv1AmountLabel);
+            owner.applyComponentStyling(owner.modEnv1RateLabel);
             owner.applyComponentStyling(owner.modEnv1AttackValue);
             owner.applyComponentStyling(owner.modEnv1DecayValue);
             owner.applyComponentStyling(owner.modEnv1SustainValue);
             owner.applyComponentStyling(owner.modEnv1ReleaseValue);
             owner.applyComponentStyling(owner.modEnv1AmountValue);
+            owner.applyComponentStyling(owner.modEnv1RateValue);
 
             // Set value label styling (white like other value labels)
             auto setValueLabelStyle = [](juce::Label& label) {
@@ -3973,18 +3997,23 @@ std::unique_ptr<juce::Component> FreOscEditor::createModulationTab()
             setValueLabelStyle(owner.modEnv1SustainValue);
             setValueLabelStyle(owner.modEnv1ReleaseValue);
             setValueLabelStyle(owner.modEnv1AmountValue);
+            setValueLabelStyle(owner.modEnv1RateValue);
 
             // Set labels
             owner.modEnv1TargetLabel.setText("Target", juce::dontSendNotification);
+            owner.modEnv1ModeLabel.setText("Mode", juce::dontSendNotification);
             owner.modEnv1AttackLabel.setText("Attack", juce::dontSendNotification);
             owner.modEnv1DecayLabel.setText("Decay", juce::dontSendNotification);
             owner.modEnv1SustainLabel.setText("Sustain", juce::dontSendNotification);
             owner.modEnv1ReleaseLabel.setText("Release", juce::dontSendNotification);
             owner.modEnv1AmountLabel.setText("Amount", juce::dontSendNotification);
+            owner.modEnv1RateLabel.setText("Rate", juce::dontSendNotification);
 
             // Add components to the group
             owner.modEnv1Group.addAndMakeVisible(owner.modEnv1TargetLabel);
             owner.modEnv1Group.addAndMakeVisible(owner.modEnv1TargetCombo);
+            owner.modEnv1Group.addAndMakeVisible(owner.modEnv1ModeLabel);
+            owner.modEnv1Group.addAndMakeVisible(owner.modEnv1ModeCombo);
             owner.modEnv1Group.addAndMakeVisible(owner.modEnv1AttackLabel);
             owner.modEnv1Group.addAndMakeVisible(owner.modEnv1AttackSlider);
             owner.modEnv1Group.addAndMakeVisible(owner.modEnv1AttackValue);
@@ -4000,6 +4029,9 @@ std::unique_ptr<juce::Component> FreOscEditor::createModulationTab()
             owner.modEnv1Group.addAndMakeVisible(owner.modEnv1AmountLabel);
             owner.modEnv1Group.addAndMakeVisible(owner.modEnv1AmountSlider);
             owner.modEnv1Group.addAndMakeVisible(owner.modEnv1AmountValue);
+            owner.modEnv1Group.addAndMakeVisible(owner.modEnv1RateLabel);
+            owner.modEnv1Group.addAndMakeVisible(owner.modEnv1RateSlider);
+            owner.modEnv1Group.addAndMakeVisible(owner.modEnv1RateValue);
 
             // Add the group to the tab
             addAndMakeVisible(owner.modEnv1Group);
@@ -4013,23 +4045,28 @@ std::unique_ptr<juce::Component> FreOscEditor::createModulationTab()
 
             // Setup components with proper styling
             owner.applyComponentStyling(owner.modEnv2TargetCombo);
+            owner.applyComponentStyling(owner.modEnv2ModeCombo);
             owner.applyComponentStyling(owner.modEnv2AttackSlider);
             owner.applyComponentStyling(owner.modEnv2DecaySlider);
             owner.applyComponentStyling(owner.modEnv2SustainSlider);
             owner.applyComponentStyling(owner.modEnv2ReleaseSlider);
             owner.applyComponentStyling(owner.modEnv2AmountSlider);
+            owner.applyComponentStyling(owner.modEnv2RateSlider);
 
             owner.applyComponentStyling(owner.modEnv2TargetLabel);
+            owner.applyComponentStyling(owner.modEnv2ModeLabel);
             owner.applyComponentStyling(owner.modEnv2AttackLabel);
             owner.applyComponentStyling(owner.modEnv2DecayLabel);
             owner.applyComponentStyling(owner.modEnv2SustainLabel);
             owner.applyComponentStyling(owner.modEnv2ReleaseLabel);
             owner.applyComponentStyling(owner.modEnv2AmountLabel);
+            owner.applyComponentStyling(owner.modEnv2RateLabel);
             owner.applyComponentStyling(owner.modEnv2AttackValue);
             owner.applyComponentStyling(owner.modEnv2DecayValue);
             owner.applyComponentStyling(owner.modEnv2SustainValue);
             owner.applyComponentStyling(owner.modEnv2ReleaseValue);
             owner.applyComponentStyling(owner.modEnv2AmountValue);
+            owner.applyComponentStyling(owner.modEnv2RateValue);
 
             // Set value label styling (white like other value labels)
             auto setValueLabelStyle = [](juce::Label& label) {
@@ -4044,18 +4081,23 @@ std::unique_ptr<juce::Component> FreOscEditor::createModulationTab()
             setValueLabelStyle(owner.modEnv2SustainValue);
             setValueLabelStyle(owner.modEnv2ReleaseValue);
             setValueLabelStyle(owner.modEnv2AmountValue);
+            setValueLabelStyle(owner.modEnv2RateValue);
 
             // Set labels
             owner.modEnv2TargetLabel.setText("Target", juce::dontSendNotification);
+            owner.modEnv2ModeLabel.setText("Mode", juce::dontSendNotification);
             owner.modEnv2AttackLabel.setText("Attack", juce::dontSendNotification);
             owner.modEnv2DecayLabel.setText("Decay", juce::dontSendNotification);
             owner.modEnv2SustainLabel.setText("Sustain", juce::dontSendNotification);
             owner.modEnv2ReleaseLabel.setText("Release", juce::dontSendNotification);
             owner.modEnv2AmountLabel.setText("Amount", juce::dontSendNotification);
+            owner.modEnv2RateLabel.setText("Rate", juce::dontSendNotification);
 
             // Add components to the group
             owner.modEnv2Group.addAndMakeVisible(owner.modEnv2TargetLabel);
             owner.modEnv2Group.addAndMakeVisible(owner.modEnv2TargetCombo);
+            owner.modEnv2Group.addAndMakeVisible(owner.modEnv2ModeLabel);
+            owner.modEnv2Group.addAndMakeVisible(owner.modEnv2ModeCombo);
             owner.modEnv2Group.addAndMakeVisible(owner.modEnv2AttackLabel);
             owner.modEnv2Group.addAndMakeVisible(owner.modEnv2AttackSlider);
             owner.modEnv2Group.addAndMakeVisible(owner.modEnv2AttackValue);
@@ -4071,6 +4113,9 @@ std::unique_ptr<juce::Component> FreOscEditor::createModulationTab()
             owner.modEnv2Group.addAndMakeVisible(owner.modEnv2AmountLabel);
             owner.modEnv2Group.addAndMakeVisible(owner.modEnv2AmountSlider);
             owner.modEnv2Group.addAndMakeVisible(owner.modEnv2AmountValue);
+            owner.modEnv2Group.addAndMakeVisible(owner.modEnv2RateLabel);
+            owner.modEnv2Group.addAndMakeVisible(owner.modEnv2RateSlider);
+            owner.modEnv2Group.addAndMakeVisible(owner.modEnv2RateValue);
 
             // Add the group to the tab
             addAndMakeVisible(owner.modEnv2Group);
@@ -4206,20 +4251,29 @@ std::unique_ptr<juce::Component> FreOscEditor::createModulationTab()
             auto bottomBandHeight = textH + 8.0f;
             bounds.removeFromBottom(static_cast<int>(bottomBandHeight));
             
-            // Two-row layout: Target dropdown on top, ADSR+Amount knobs underneath
+            // Two-row layout: Target dropdown on top, ADSR+Amount+Rate knobs underneath
             auto topRowHeight = 40;
             auto topRow = bounds.removeFromTop(topRowHeight);
             auto bottomRow = bounds;
             
-            // Top row: Target dropdown (full width)
-            auto targetArea = topRow.reduced(2);
+            // Top row: Target and Mode dropdowns side by side
+            auto topRowArea = topRow.reduced(2);
+            auto halfWidth = topRowArea.getWidth() / 2;
+            
+            // Target dropdown (left half)
+            auto targetArea = topRowArea.removeFromLeft(halfWidth).reduced(2, 0);
             owner.modEnv1TargetLabel.setBounds(targetArea.removeFromTop(15));
             owner.modEnv1TargetCombo.setBounds(targetArea);
             
-            // Bottom row: 5 knobs horizontally (A, D, S, R, Amount)
-            auto knobWidth = bottomRow.getWidth() / 5;
+            // Mode dropdown (right half)
+            auto modeArea = topRowArea.reduced(2, 0);
+            owner.modEnv1ModeLabel.setBounds(modeArea.removeFromTop(15));
+            owner.modEnv1ModeCombo.setBounds(modeArea);
             
-            const int minKnobSize = 35;  // Smaller knobs to fit 5 in row
+            // Bottom row: 6 knobs horizontally (A, D, S, R, Amount, Rate)
+            auto knobWidth = bottomRow.getWidth() / 6;
+            
+            const int minKnobSize = 30;  // Smaller knobs to fit 6 in row
             const int minLabelHeight = 12;
             const int minValueHeight = 12;
             
@@ -4272,7 +4326,7 @@ std::unique_ptr<juce::Component> FreOscEditor::createModulationTab()
             owner.modEnv1ReleaseValue.setBounds(releaseValueArea);
             
             // Amount knob
-            auto amountArea = bottomRow.reduced(2);
+            auto amountArea = bottomRow.removeFromLeft(knobWidth).reduced(2);
             owner.modEnv1AmountLabel.setBounds(amountArea.removeFromTop(minLabelHeight));
             auto amountValueArea = amountArea.removeFromBottom(minValueHeight);
             auto amountKnobArea = amountArea.reduced(0, 1);
@@ -4282,6 +4336,18 @@ std::unique_ptr<juce::Component> FreOscEditor::createModulationTab()
             );
             owner.modEnv1AmountSlider.setBounds(amountKnobBounds);
             owner.modEnv1AmountValue.setBounds(amountValueArea);
+            
+            // Rate knob
+            auto rateArea = bottomRow.reduced(2);
+            owner.modEnv1RateLabel.setBounds(rateArea.removeFromTop(minLabelHeight));
+            auto rateValueArea = rateArea.removeFromBottom(minValueHeight);
+            auto rateKnobArea = rateArea.reduced(0, 1);
+            auto rateKnobBounds = rateKnobArea.withSizeKeepingCentre(
+                juce::jlimit(minKnobSize, knobWidth - 4, rateKnobArea.getWidth()),
+                juce::jlimit(minKnobSize, rateKnobArea.getHeight(), rateKnobArea.getHeight())
+            );
+            owner.modEnv1RateSlider.setBounds(rateKnobBounds);
+            owner.modEnv1RateValue.setBounds(rateValueArea);
         }
 
         void layoutGroupModEnv2(juce::Rectangle<int> area)
@@ -4298,20 +4364,29 @@ std::unique_ptr<juce::Component> FreOscEditor::createModulationTab()
             auto bottomBandHeight = textH + 8.0f;
             bounds.removeFromBottom(static_cast<int>(bottomBandHeight));
             
-            // Two-row layout: Target dropdown on top, ADSR+Amount knobs underneath
+            // Two-row layout: Target dropdown on top, ADSR+Amount+Rate knobs underneath
             auto topRowHeight = 40;
             auto topRow = bounds.removeFromTop(topRowHeight);
             auto bottomRow = bounds;
             
-            // Top row: Target dropdown (full width)
-            auto targetArea = topRow.reduced(2);
+            // Top row: Target and Mode dropdowns side by side
+            auto topRowArea = topRow.reduced(2);
+            auto halfWidth = topRowArea.getWidth() / 2;
+            
+            // Target dropdown (left half)
+            auto targetArea = topRowArea.removeFromLeft(halfWidth).reduced(2, 0);
             owner.modEnv2TargetLabel.setBounds(targetArea.removeFromTop(15));
             owner.modEnv2TargetCombo.setBounds(targetArea);
             
-            // Bottom row: 5 knobs horizontally (A, D, S, R, Amount)
-            auto knobWidth = bottomRow.getWidth() / 5;
+            // Mode dropdown (right half)
+            auto modeArea = topRowArea.reduced(2, 0);
+            owner.modEnv2ModeLabel.setBounds(modeArea.removeFromTop(15));
+            owner.modEnv2ModeCombo.setBounds(modeArea);
             
-            const int minKnobSize = 35;  // Smaller knobs to fit 5 in row
+            // Bottom row: 6 knobs horizontally (A, D, S, R, Amount, Rate)
+            auto knobWidth = bottomRow.getWidth() / 6;
+            
+            const int minKnobSize = 30;  // Smaller knobs to fit 6 in row
             const int minLabelHeight = 12;
             const int minValueHeight = 12;
             
@@ -4364,7 +4439,7 @@ std::unique_ptr<juce::Component> FreOscEditor::createModulationTab()
             owner.modEnv2ReleaseValue.setBounds(releaseValueArea);
             
             // Amount knob
-            auto amountArea = bottomRow.reduced(2);
+            auto amountArea = bottomRow.removeFromLeft(knobWidth).reduced(2);
             owner.modEnv2AmountLabel.setBounds(amountArea.removeFromTop(minLabelHeight));
             auto amountValueArea = amountArea.removeFromBottom(minValueHeight);
             auto amountKnobArea = amountArea.reduced(0, 1);
@@ -4374,6 +4449,18 @@ std::unique_ptr<juce::Component> FreOscEditor::createModulationTab()
             );
             owner.modEnv2AmountSlider.setBounds(amountKnobBounds);
             owner.modEnv2AmountValue.setBounds(amountValueArea);
+            
+            // Rate knob
+            auto rateArea = bottomRow.reduced(2);
+            owner.modEnv2RateLabel.setBounds(rateArea.removeFromTop(minLabelHeight));
+            auto rateValueArea = rateArea.removeFromBottom(minValueHeight);
+            auto rateKnobArea = rateArea.reduced(0, 1);
+            auto rateKnobBounds = rateKnobArea.withSizeKeepingCentre(
+                juce::jlimit(minKnobSize, knobWidth - 4, rateKnobArea.getWidth()),
+                juce::jlimit(minKnobSize, rateKnobArea.getHeight(), rateKnobArea.getHeight())
+            );
+            owner.modEnv2RateSlider.setBounds(rateKnobBounds);
+            owner.modEnv2RateValue.setBounds(rateValueArea);
         }
 
         // No custom paint needed - GroupComponents handle their own styling
@@ -4420,6 +4507,7 @@ std::unique_ptr<juce::Component> FreOscEditor::createEffectsTab()
             setupGroupEffectsRouting();
             setupGroupReverb();
             setupGroupDelay();
+            setupGroupWavefolder();
         }
 
         void setupGroupEffectsRouting()
@@ -4612,6 +4700,84 @@ std::unique_ptr<juce::Component> FreOscEditor::createEffectsTab()
 
             // Add the group to the tab
             addAndMakeVisible(owner.delayGroup);
+        }
+
+        void setupGroupWavefolder()
+        {
+            // GROUP SETUP: Add wavefolder components to GroupComponent
+            owner.applyComponentStyling(owner.wavefolderGroup);
+            owner.wavefolderGroup.setText("Wavefolder Distortion");
+
+            // Set names for wavefolder sliders so they can be identified as rotary knobs
+            owner.wavefolderDriveSlider.setName("wavefolder_drive");
+            owner.wavefolderThresholdSlider.setName("wavefolder_threshold");
+            owner.wavefolderSymmetrySlider.setName("wavefolder_symmetry");
+            owner.wavefolderMixSlider.setName("wavefolder_mix");
+            owner.wavefolderOutputSlider.setName("wavefolder_output");
+
+            // Setup components with proper styling (rotary knobs)
+            owner.applyComponentStyling(owner.wavefolderDriveSlider);
+            owner.applyComponentStyling(owner.wavefolderThresholdSlider);
+            owner.applyComponentStyling(owner.wavefolderSymmetrySlider);
+            owner.applyComponentStyling(owner.wavefolderMixSlider);
+            owner.applyComponentStyling(owner.wavefolderOutputSlider);
+
+            owner.applyComponentStyling(owner.wavefolderDriveLabel);
+            owner.applyComponentStyling(owner.wavefolderThresholdLabel);
+            owner.applyComponentStyling(owner.wavefolderSymmetryLabel);
+            owner.applyComponentStyling(owner.wavefolderMixLabel);
+            owner.applyComponentStyling(owner.wavefolderOutputLabel);
+            
+            owner.applyComponentStyling(owner.wavefolderDriveValue);
+            owner.applyComponentStyling(owner.wavefolderThresholdValue);
+            owner.applyComponentStyling(owner.wavefolderSymmetryValue);
+            owner.applyComponentStyling(owner.wavefolderMixValue);
+            owner.applyComponentStyling(owner.wavefolderOutputValue);
+
+            // Set value label styling for wavefolder controls (white text like other value labels)
+            auto setupValueLabel = [&](juce::Label& label) {
+                label.setFont(juce::Font(juce::FontOptions().withHeight(11.0f)));
+                label.setJustificationType(juce::Justification::centred);
+                label.setColour(juce::Label::textColourId, juce::Colours::white);
+                label.setColour(juce::Label::backgroundColourId, juce::Colours::transparentBlack);
+            };
+
+            setupValueLabel(owner.wavefolderDriveValue);
+            setupValueLabel(owner.wavefolderThresholdValue);
+            setupValueLabel(owner.wavefolderSymmetryValue);
+            setupValueLabel(owner.wavefolderMixValue);
+            setupValueLabel(owner.wavefolderOutputValue);
+
+            // Set labels
+            owner.wavefolderDriveLabel.setText("Drive", juce::dontSendNotification);
+            owner.wavefolderThresholdLabel.setText("Threshold", juce::dontSendNotification);
+            owner.wavefolderSymmetryLabel.setText("Symmetry", juce::dontSendNotification);
+            owner.wavefolderMixLabel.setText("Mix", juce::dontSendNotification);
+            owner.wavefolderOutputLabel.setText("Output", juce::dontSendNotification);
+
+            // Add components to the group
+            owner.wavefolderGroup.addAndMakeVisible(owner.wavefolderDriveLabel);
+            owner.wavefolderGroup.addAndMakeVisible(owner.wavefolderDriveSlider);
+            owner.wavefolderGroup.addAndMakeVisible(owner.wavefolderDriveValue);
+            
+            owner.wavefolderGroup.addAndMakeVisible(owner.wavefolderThresholdLabel);
+            owner.wavefolderGroup.addAndMakeVisible(owner.wavefolderThresholdSlider);
+            owner.wavefolderGroup.addAndMakeVisible(owner.wavefolderThresholdValue);
+            
+            owner.wavefolderGroup.addAndMakeVisible(owner.wavefolderSymmetryLabel);
+            owner.wavefolderGroup.addAndMakeVisible(owner.wavefolderSymmetrySlider);
+            owner.wavefolderGroup.addAndMakeVisible(owner.wavefolderSymmetryValue);
+            
+            owner.wavefolderGroup.addAndMakeVisible(owner.wavefolderMixLabel);
+            owner.wavefolderGroup.addAndMakeVisible(owner.wavefolderMixSlider);
+            owner.wavefolderGroup.addAndMakeVisible(owner.wavefolderMixValue);
+            
+            owner.wavefolderGroup.addAndMakeVisible(owner.wavefolderOutputLabel);
+            owner.wavefolderGroup.addAndMakeVisible(owner.wavefolderOutputSlider);
+            owner.wavefolderGroup.addAndMakeVisible(owner.wavefolderOutputValue);
+
+            // Add the group to the tab
+            addAndMakeVisible(owner.wavefolderGroup);
         }
 
         void layoutGroupEffectsRouting(juce::Rectangle<int> area)
@@ -4834,6 +5000,87 @@ std::unique_ptr<juce::Component> FreOscEditor::createEffectsTab()
             owner.tapeWidthValue.setBounds(widthValueArea);
         }
 
+        void layoutGroupWavefolder(juce::Rectangle<int> area)
+        {
+            // Layout Wavefolder using GroupComponent similar to reverb/delay
+            owner.wavefolderGroup.setBounds(area);
+            
+            // Layout components within the group - account for bottom band
+            auto bounds = owner.wavefolderGroup.getLocalBounds().reduced(8);
+            
+            // Reserve space for the bottom colored band (text height + padding)
+            juce::Font f(juce::FontOptions(14.0f).withStyle("Bold"));
+            auto textH = f.getHeight();
+            auto bottomBandHeight = textH + 8.0f;
+            bounds.removeFromBottom(static_cast<int>(bottomBandHeight));
+            
+            // 5 knobs in a single row: Drive, Threshold, Symmetry, Mix, Output
+            auto knobWidth = bounds.getWidth() / 5;
+            const int minKnobSize = 40;
+            const int minLabelHeight = 15;
+            const int minValueHeight = 15;
+            
+            // Drive knob
+            auto driveArea = bounds.removeFromLeft(knobWidth).reduced(3);
+            owner.wavefolderDriveLabel.setBounds(driveArea.removeFromTop(minLabelHeight));
+            auto driveValueArea = driveArea.removeFromBottom(minValueHeight);
+            auto driveKnobArea = driveArea.reduced(0, 2);
+            auto driveKnobBounds = driveKnobArea.withSizeKeepingCentre(
+                juce::jlimit(minKnobSize, knobWidth - 8, driveKnobArea.getWidth()),
+                juce::jlimit(minKnobSize, driveKnobArea.getHeight(), driveKnobArea.getHeight())
+            );
+            owner.wavefolderDriveSlider.setBounds(driveKnobBounds);
+            owner.wavefolderDriveValue.setBounds(driveValueArea);
+            
+            // Threshold knob
+            auto thresholdArea = bounds.removeFromLeft(knobWidth).reduced(3);
+            owner.wavefolderThresholdLabel.setBounds(thresholdArea.removeFromTop(minLabelHeight));
+            auto thresholdValueArea = thresholdArea.removeFromBottom(minValueHeight);
+            auto thresholdKnobArea = thresholdArea.reduced(0, 2);
+            auto thresholdKnobBounds = thresholdKnobArea.withSizeKeepingCentre(
+                juce::jlimit(minKnobSize, knobWidth - 8, thresholdKnobArea.getWidth()),
+                juce::jlimit(minKnobSize, thresholdKnobArea.getHeight(), thresholdKnobArea.getHeight())
+            );
+            owner.wavefolderThresholdSlider.setBounds(thresholdKnobBounds);
+            owner.wavefolderThresholdValue.setBounds(thresholdValueArea);
+            
+            // Symmetry knob
+            auto symmetryArea = bounds.removeFromLeft(knobWidth).reduced(3);
+            owner.wavefolderSymmetryLabel.setBounds(symmetryArea.removeFromTop(minLabelHeight));
+            auto symmetryValueArea = symmetryArea.removeFromBottom(minValueHeight);
+            auto symmetryKnobArea = symmetryArea.reduced(0, 2);
+            auto symmetryKnobBounds = symmetryKnobArea.withSizeKeepingCentre(
+                juce::jlimit(minKnobSize, knobWidth - 8, symmetryKnobArea.getWidth()),
+                juce::jlimit(minKnobSize, symmetryKnobArea.getHeight(), symmetryKnobArea.getHeight())
+            );
+            owner.wavefolderSymmetrySlider.setBounds(symmetryKnobBounds);
+            owner.wavefolderSymmetryValue.setBounds(symmetryValueArea);
+            
+            // Mix knob
+            auto mixArea = bounds.removeFromLeft(knobWidth).reduced(3);
+            owner.wavefolderMixLabel.setBounds(mixArea.removeFromTop(minLabelHeight));
+            auto mixValueArea = mixArea.removeFromBottom(minValueHeight);
+            auto mixKnobArea = mixArea.reduced(0, 2);
+            auto mixKnobBounds = mixKnobArea.withSizeKeepingCentre(
+                juce::jlimit(minKnobSize, knobWidth - 8, mixKnobArea.getWidth()),
+                juce::jlimit(minKnobSize, mixKnobArea.getHeight(), mixKnobArea.getHeight())
+            );
+            owner.wavefolderMixSlider.setBounds(mixKnobBounds);
+            owner.wavefolderMixValue.setBounds(mixValueArea);
+            
+            // Output knob
+            auto outputArea = bounds.reduced(3);
+            owner.wavefolderOutputLabel.setBounds(outputArea.removeFromTop(minLabelHeight));
+            auto outputValueArea = outputArea.removeFromBottom(minValueHeight);
+            auto outputKnobArea = outputArea.reduced(0, 2);
+            auto outputKnobBounds = outputKnobArea.withSizeKeepingCentre(
+                juce::jlimit(minKnobSize, knobWidth - 8, outputKnobArea.getWidth()),
+                juce::jlimit(minKnobSize, outputKnobArea.getHeight(), outputKnobArea.getHeight())
+            );
+            owner.wavefolderOutputSlider.setBounds(outputKnobBounds);
+            owner.wavefolderOutputValue.setBounds(outputValueArea);
+        }
+
         // No custom paint needed - GroupComponents handle their own styling
 
         void resized() override
@@ -4844,13 +5091,22 @@ std::unique_ptr<juce::Component> FreOscEditor::createEffectsTab()
             auto routingHeight = 80;  // Same size as filter routing
             auto routingArea = bounds.removeFromTop(routingHeight).reduced(3);
 
-            // Arrange two main sections horizontally (reverb and delay side by side)
-            auto sectionWidth = bounds.getWidth() / 2;
-            auto reverbArea = bounds.removeFromLeft(sectionWidth).reduced(3);
-            auto delayArea = bounds.reduced(3);
+            // Arrange effects in 2x2 grid: wavefolder on top row (full width), reverb and delay on bottom row
+            auto halfHeight = bounds.getHeight() / 2;
+            auto topRow = bounds.removeFromTop(halfHeight);
+            auto bottomRow = bounds;
+            
+            // Top row: wavefolder (full width)
+            auto wavefolderArea = topRow.reduced(3);
+            
+            // Bottom row: reverb and delay side by side
+            auto sectionWidth = bottomRow.getWidth() / 2;
+            auto reverbArea = bottomRow.removeFromLeft(sectionWidth).reduced(3);
+            auto delayArea = bottomRow.reduced(3);
 
             // Layout components using GroupComponent positioning
             layoutGroupEffectsRouting(routingArea);
+            layoutGroupWavefolder(wavefolderArea);
             layoutGroupReverb(reverbArea);
             layoutGroupDelay(delayArea);
         }
@@ -4939,11 +5195,11 @@ void FreOscEditor::applyComponentStyling(juce::Component& component)
     {
         // Check slider type by name
         juce::String sliderName = slider->getName();
-        bool isRotaryKnob = sliderName.contains("noise") || sliderName.contains("plate") || sliderName.contains("tape");
+        bool isRotaryKnob = sliderName.contains("noise") || sliderName.contains("plate") || sliderName.contains("tape") || sliderName.contains("wavefolder");
         
         if (isRotaryKnob)
         {
-            // Noise, plate reverb, and tape delay sliders are rotary knobs with LEDs
+            // Noise, plate reverb, tape delay, and wavefolder sliders are rotary knobs with LEDs
             slider->setSliderStyle(juce::Slider::RotaryHorizontalVerticalDrag);
             slider->setTextBoxStyle(juce::Slider::NoTextBox, false, 0, 0);
             // Metallic knob styling like other rotary controls

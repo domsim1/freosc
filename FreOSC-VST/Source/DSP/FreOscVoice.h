@@ -75,9 +75,9 @@ public:
     
     void updateFilterRouting(int routing);
 
-    void updateModEnv1Parameters(float attack, float decay, float sustain, float release, float amount, int target);
+    void updateModEnv1Parameters(float attack, float decay, float sustain, float release, float amount, int target, int mode, float rate);
 
-    void updateModEnv2Parameters(float attack, float decay, float sustain, float release, float amount, int target);
+    void updateModEnv2Parameters(float attack, float decay, float sustain, float release, float amount, int target, int mode, float rate);
 
 private:
     //==============================================================================
@@ -94,6 +94,19 @@ private:
     // Modulation envelopes
     juce::ADSR modEnvelope1, modEnvelope2;
     juce::ADSR::Parameters modEnv1Parameters, modEnv2Parameters;
+    
+    // Envelope mode state tracking (atomic for thread safety)
+    std::atomic<bool> modEnv1IsLooping{false}, modEnv2IsLooping{false};
+    std::atomic<bool> modEnv1OneShotCompleted{false}, modEnv2OneShotCompleted{false};
+    
+    // Additional state for proper looping implementation
+    std::atomic<int> modEnv1LastMode{1}, modEnv2LastMode{1}; // Track mode changes
+    std::atomic<bool> modEnv1LoopingActive{false}, modEnv2LoopingActive{false};
+    
+    // Per-voice rate-based timing state
+    double modEnv1CycleSamples = 0.0, modEnv2CycleSamples = 0.0;
+    int modEnv1CurrentCycleSample = 0, modEnv2CurrentCycleSample = 0;
+    bool modEnv1CycleActive = false, modEnv2CycleActive = false;
 
     // Panning (stereo positioning)
     juce::dsp::Panner<float> panner1, panner2, panner3, noisePanner;
@@ -160,10 +173,14 @@ private:
         // Modulation Envelope 1 parameters
         std::atomic<float> modEnv1Amount{0.0f};
         std::atomic<int> modEnv1Target{0}; // 0=none
+        std::atomic<int> modEnv1Mode{1}; // 0=One-Shot, 1=Gate, 2=Looping
+        std::atomic<float> modEnv1Rate{1.0f}; // Hz for One-Shot/Looping modes
 
         // Modulation Envelope 2 parameters
         std::atomic<float> modEnv2Amount{0.0f};
         std::atomic<int> modEnv2Target{0}; // 0=none
+        std::atomic<int> modEnv2Mode{1}; // 0=One-Shot, 1=Gate, 2=Looping
+        std::atomic<float> modEnv2Rate{1.0f}; // Hz for One-Shot/Looping modes
     } params;
 
     //==============================================================================

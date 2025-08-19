@@ -7,6 +7,7 @@
 #include "DSP/FreOscFilter.h"
 #include "DSP/FreOscPlateReverb.h"
 #include "DSP/FreOscTapeDelay.h"
+#include "DSP/FreOscWavefolder.h"
 #include "DSP/FreOscLFO.h"
 #include "Parameters/FreOscParameters.h"
 #include "Presets/JsonPresetManager.h"
@@ -84,7 +85,8 @@ private:
         juce::dsp::Compressor<float>,      // Compressor
         juce::dsp::Limiter<float>,         // Limiter
         FreOscPlateReverb,                 // Plate Reverb (custom)
-        FreOscTapeDelay                    // Tape Delay (custom)
+        FreOscTapeDelay,                   // Tape Delay (custom)
+        FreOscWavefolder                   // Wavefolder Distortion (custom)
     > effectsChain;
 
     // Preset management

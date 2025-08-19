@@ -87,9 +87,44 @@ void FreOscVoice::startNote(int midiNoteNumber, float velocity, juce::Synthesise
     // Start envelope
     envelope.noteOn();
     
-    // Start modulation envelopes
+    // Start modulation envelopes and reset mode state
     modEnvelope1.noteOn();
     modEnvelope2.noteOn();
+    
+    // Reset envelope mode state for new note
+    int currentMode1 = params.modEnv1Mode.load();
+    int currentMode2 = params.modEnv2Mode.load();
+    
+    modEnv1IsLooping = (currentMode1 == 2); // Looping mode
+    modEnv2IsLooping = (currentMode2 == 2);
+    modEnv1LoopingActive = (currentMode1 == 2);
+    modEnv2LoopingActive = (currentMode2 == 2);
+    
+    // Reset one-shot completion state on new notes (not per-voice lifetime)
+    modEnv1OneShotCompleted = false;
+    modEnv2OneShotCompleted = false;
+    
+    // Reset rate-based timing state
+    modEnv1CurrentCycleSample = 0;
+    modEnv2CurrentCycleSample = 0;
+    modEnv1CycleActive = false;
+    modEnv2CycleActive = false;
+    
+    // Calculate initial cycle lengths based on current rates
+    if (currentMode1 == 0 || currentMode1 == 2) // One-Shot or Looping
+    {
+        modEnv1CycleSamples = currentSampleRate / juce::jmax(0.1f, params.modEnv1Rate.load());
+        modEnv1CycleActive = true;
+    }
+    if (currentMode2 == 0 || currentMode2 == 2) // One-Shot or Looping
+    {
+        modEnv2CycleSamples = currentSampleRate / juce::jmax(0.1f, params.modEnv2Rate.load());
+        modEnv2CycleActive = true;
+    }
+    
+    // Track current modes for change detection
+    modEnv1LastMode = currentMode1;
+    modEnv2LastMode = currentMode2;
     
     // Initialize amplitude ramping for anti-pop (20ms fade-in)
     amplitudeRamp.reset(currentSampleRate, 0.02); // 20ms ramp
@@ -109,9 +144,33 @@ void FreOscVoice::stopNote(float velocity, bool allowTailOff)
         // Let the envelope handle the release
         envelope.noteOff();
         
-        // Release modulation envelopes too
-        modEnvelope1.noteOff();
-        modEnvelope2.noteOff();
+        // Handle modulation envelope release based on mode
+        // Gate mode (1): Standard noteOff behavior
+        // One-Shot mode (0): Don't call noteOff, let it complete naturally
+        // Looping mode (2): Stop looping and go to release phase
+        
+        int currentMode1 = params.modEnv1Mode.load();
+        int currentMode2 = params.modEnv2Mode.load();
+        
+        if (currentMode1 == 1) // Gate mode
+            modEnvelope1.noteOff();
+        else if (currentMode1 == 2) // Looping mode
+        {
+            modEnv1IsLooping = false; // Stop looping
+            modEnv1LoopingActive = false; // Deactivate looping
+            modEnvelope1.noteOff(); // Go to release
+        }
+        // One-Shot mode: Do nothing, let it complete naturally
+        
+        if (currentMode2 == 1) // Gate mode
+            modEnvelope2.noteOff();
+        else if (currentMode2 == 2) // Looping mode
+        {
+            modEnv2IsLooping = false; // Stop looping
+            modEnv2LoopingActive = false; // Deactivate looping
+            modEnvelope2.noteOff(); // Go to release
+        }
+        // One-Shot mode: Do nothing, let it complete naturally
     }
     else
     {
@@ -189,9 +248,173 @@ void FreOscVoice::renderNextBlock(juce::AudioBuffer<float>& outputBuffer, int st
         // Get envelope level
         float envelopeLevel = envelope.getNextSample();
         
-        // Get modulation envelope levels
-        float modEnv1Level = modEnvelope1.getNextSample();
-        float modEnv2Level = modEnvelope2.getNextSample();
+        // Get modulation envelope levels with mode-specific processing
+        float modEnv1Level = 0.0f;
+        float modEnv2Level = 0.0f;
+        
+        // Check for mode changes and reset state if needed
+        int currentMode1 = params.modEnv1Mode.load();
+        int currentMode2 = params.modEnv2Mode.load();
+        
+        if (currentMode1 != modEnv1LastMode)
+        {
+            // Mode changed - reset envelope state
+            modEnv1OneShotCompleted = false;
+            modEnv1IsLooping = (currentMode1 == 2);
+            modEnv1LoopingActive = (currentMode1 == 2) && noteIsOn;
+            modEnv1LastMode = currentMode1;
+            
+            // Reset rate-based timing
+            modEnv1CurrentCycleSample = 0;
+            modEnv1CycleActive = (currentMode1 == 0 || currentMode1 == 2) && noteIsOn;
+            if (modEnv1CycleActive)
+            {
+                modEnv1CycleSamples = currentSampleRate / juce::jmax(0.1f, params.modEnv1Rate.load());
+            }
+            
+            // Restart envelope if note is active
+            if (noteIsOn)
+                modEnvelope1.noteOn();
+        }
+        
+        if (currentMode2 != modEnv2LastMode)
+        {
+            // Mode changed - reset envelope state
+            modEnv2OneShotCompleted = false;
+            modEnv2IsLooping = (currentMode2 == 2);
+            modEnv2LoopingActive = (currentMode2 == 2) && noteIsOn;
+            modEnv2LastMode = currentMode2;
+            
+            // Reset rate-based timing
+            modEnv2CurrentCycleSample = 0;
+            modEnv2CycleActive = (currentMode2 == 0 || currentMode2 == 2) && noteIsOn;
+            if (modEnv2CycleActive)
+            {
+                modEnv2CycleSamples = currentSampleRate / juce::jmax(0.1f, params.modEnv2Rate.load());
+            }
+            
+            // Restart envelope if note is active
+            if (noteIsOn)
+                modEnvelope2.noteOn();
+        }
+        
+        // Process ModEnv1 based on current mode
+        switch (currentMode1)
+        {
+            case 0: // One-Shot mode (rate-based timing)
+                if (modEnv1CycleActive && !modEnv1OneShotCompleted)
+                {
+                    modEnv1CurrentCycleSample++;
+                    
+                    // Check if cycle is complete
+                    if (modEnv1CurrentCycleSample >= modEnv1CycleSamples)
+                    {
+                        modEnv1OneShotCompleted = true;
+                        modEnv1CycleActive = false;
+                        modEnvelope1.noteOff(); // Start release phase
+                    }
+                    
+                    modEnv1Level = modEnvelope1.getNextSample();
+                    
+                    // Restart envelope if it finishes before cycle time
+                    if (!modEnvelope1.isActive() && modEnv1CycleActive)
+                    {
+                        modEnvelope1.reset();
+                        modEnvelope1.noteOn();
+                    }
+                }
+                else if (!modEnv1OneShotCompleted)
+                {
+                    modEnv1Level = modEnvelope1.getNextSample();
+                }
+                // Once completed, envelope stays at 0
+                break;
+                
+            case 1: // Gate mode (standard ADSR, ignores rate)
+                modEnv1Level = modEnvelope1.getNextSample();
+                break;
+                
+            case 2: // Looping mode (rate-based timing)
+                if (modEnv1CycleActive && noteIsOn)
+                {
+                    modEnv1CurrentCycleSample++;
+                    
+                    // Check if cycle is complete - restart immediately
+                    if (modEnv1CurrentCycleSample >= modEnv1CycleSamples)
+                    {
+                        modEnv1CurrentCycleSample = 0;
+                        modEnvelope1.reset();
+                        modEnvelope1.noteOn();
+                    }
+                    
+                    modEnv1Level = modEnvelope1.getNextSample();
+                }
+                else
+                {
+                    // Note released or looping stopped - normal envelope behavior
+                    modEnv1Level = modEnvelope1.getNextSample();
+                }
+                break;
+        }
+        
+        // Process ModEnv2 based on current mode
+        switch (currentMode2)
+        {
+            case 0: // One-Shot mode (rate-based timing)
+                if (modEnv2CycleActive && !modEnv2OneShotCompleted)
+                {
+                    modEnv2CurrentCycleSample++;
+                    
+                    // Check if cycle is complete
+                    if (modEnv2CurrentCycleSample >= modEnv2CycleSamples)
+                    {
+                        modEnv2OneShotCompleted = true;
+                        modEnv2CycleActive = false;
+                        modEnvelope2.noteOff(); // Start release phase
+                    }
+                    
+                    modEnv2Level = modEnvelope2.getNextSample();
+                    
+                    // Restart envelope if it finishes before cycle time
+                    if (!modEnvelope2.isActive() && modEnv2CycleActive)
+                    {
+                        modEnvelope2.reset();
+                        modEnvelope2.noteOn();
+                    }
+                }
+                else if (!modEnv2OneShotCompleted)
+                {
+                    modEnv2Level = modEnvelope2.getNextSample();
+                }
+                // Once completed, envelope stays at 0
+                break;
+                
+            case 1: // Gate mode (standard ADSR, ignores rate)
+                modEnv2Level = modEnvelope2.getNextSample();
+                break;
+                
+            case 2: // Looping mode (rate-based timing)
+                if (modEnv2CycleActive && noteIsOn)
+                {
+                    modEnv2CurrentCycleSample++;
+                    
+                    // Check if cycle is complete - restart immediately
+                    if (modEnv2CurrentCycleSample >= modEnv2CycleSamples)
+                    {
+                        modEnv2CurrentCycleSample = 0;
+                        modEnvelope2.reset();
+                        modEnvelope2.noteOn();
+                    }
+                    
+                    modEnv2Level = modEnvelope2.getNextSample();
+                }
+                else
+                {
+                    // Note released or looping stopped - normal envelope behavior
+                    modEnv2Level = modEnvelope2.getNextSample();
+                }
+                break;
+        }
 
         // Get amplitude ramp value for anti-pop
         float amplitudeRampValue = amplitudeRamp.getNextValue();
@@ -680,7 +903,7 @@ void FreOscVoice::updateFilterRouting(int routing)
     params.filterRouting = routing;
 }
 
-void FreOscVoice::updateModEnv1Parameters(float attack, float decay, float sustain, float release, float amount, int target)
+void FreOscVoice::updateModEnv1Parameters(float attack, float decay, float sustain, float release, float amount, int target, int mode, float rate)
 {
     // Update envelope parameters
     modEnv1Parameters.attack = attack;
@@ -692,9 +915,17 @@ void FreOscVoice::updateModEnv1Parameters(float attack, float decay, float susta
     // Update modulation parameters
     params.modEnv1Amount = amount;
     params.modEnv1Target = target;
+    params.modEnv1Mode = mode;
+    params.modEnv1Rate = rate;
+    
+    // Calculate cycle length in samples for rate-based modes
+    if (mode == 0 || mode == 2) // One-Shot or Looping
+    {
+        modEnv1CycleSamples = currentSampleRate / juce::jmax(0.1f, rate); // Prevent division by zero
+    }
 }
 
-void FreOscVoice::updateModEnv2Parameters(float attack, float decay, float sustain, float release, float amount, int target)
+void FreOscVoice::updateModEnv2Parameters(float attack, float decay, float sustain, float release, float amount, int target, int mode, float rate)
 {
     // Update envelope parameters
     modEnv2Parameters.attack = attack;
@@ -706,6 +937,14 @@ void FreOscVoice::updateModEnv2Parameters(float attack, float decay, float susta
     // Update modulation parameters
     params.modEnv2Amount = amount;
     params.modEnv2Target = target;
+    params.modEnv2Mode = mode;
+    params.modEnv2Rate = rate;
+    
+    // Calculate cycle length in samples for rate-based modes
+    if (mode == 0 || mode == 2) // One-Shot or Looping
+    {
+        modEnv2CycleSamples = currentSampleRate / juce::jmax(0.1f, rate); // Prevent division by zero
+    }
 }
 
 //==============================================================================

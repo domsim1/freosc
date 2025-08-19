@@ -316,6 +316,15 @@ private:
     juce::Label tapeTimeValue, tapeFeedbackValue, tapeToneValue;
     juce::Label tapeFlutterValue, tapeWetValue, tapeWidthValue;
 
+    // Wavefolder Distortion section
+    juce::GroupComponent wavefolderGroup;
+    juce::Slider wavefolderDriveSlider, wavefolderThresholdSlider, wavefolderSymmetrySlider;
+    juce::Slider wavefolderMixSlider, wavefolderOutputSlider;
+    juce::Label wavefolderDriveLabel, wavefolderThresholdLabel, wavefolderSymmetryLabel;
+    juce::Label wavefolderMixLabel, wavefolderOutputLabel;
+    juce::Label wavefolderDriveValue, wavefolderThresholdValue, wavefolderSymmetryValue;
+    juce::Label wavefolderMixValue, wavefolderOutputValue;
+
     // LFO section
     juce::GroupComponent lfoGroup;
     LFOWaveformSelector lfoWaveformSelector;
@@ -329,13 +338,16 @@ private:
     juce::Slider modEnv1AttackSlider, modEnv1DecaySlider, modEnv1SustainSlider, modEnv1ReleaseSlider;
     juce::Slider modEnv2AttackSlider, modEnv2DecaySlider, modEnv2SustainSlider, modEnv2ReleaseSlider;
     juce::Slider modEnv1AmountSlider, modEnv2AmountSlider;
+    juce::Slider modEnv1RateSlider, modEnv2RateSlider;
     juce::ComboBox modEnv1TargetCombo, modEnv2TargetCombo;
+    juce::ComboBox modEnv1ModeCombo, modEnv2ModeCombo;
     juce::Label modEnv1AttackLabel, modEnv1DecayLabel, modEnv1SustainLabel, modEnv1ReleaseLabel;
     juce::Label modEnv2AttackLabel, modEnv2DecayLabel, modEnv2SustainLabel, modEnv2ReleaseLabel;
     juce::Label modEnv1AmountLabel, modEnv2AmountLabel, modEnv1TargetLabel, modEnv2TargetLabel;
+    juce::Label modEnv1ModeLabel, modEnv2ModeLabel, modEnv1RateLabel, modEnv2RateLabel;
     juce::Label modEnv1AttackValue, modEnv1DecayValue, modEnv1SustainValue, modEnv1ReleaseValue;
     juce::Label modEnv2AttackValue, modEnv2DecayValue, modEnv2SustainValue, modEnv2ReleaseValue;
-    juce::Label modEnv1AmountValue, modEnv2AmountValue;
+    juce::Label modEnv1AmountValue, modEnv2AmountValue, modEnv1RateValue, modEnv2RateValue;
 
     //==============================================================================
     // Helper methods

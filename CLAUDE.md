@@ -8,7 +8,7 @@ FreOSC-VST is a **general-purpose cross-platform VST3 synthesizer plugin** built
 
 **Important**: FreOSC-VST is designed as a **versatile general synthesizer** capable of creating a wide range of sounds - leads, pads, basses, plucks, ambient textures, etc. While it includes advanced formant filtering capabilities for vocal-style synthesis, this is just **one feature among many**. The synthesizer should maintain excellent performance and sound quality across all synthesis types.
 
-**Current Status**: Fully functional general synthesizer with 9 filter types (including formant filtering), 17 factory presets covering diverse synthesis styles, and optimized effects processing.
+**Current Status**: Fully functional general synthesizer with dual filter system, 2 modulation envelopes, enhanced FM synthesis with intuitive ratio display, 17 factory presets covering diverse synthesis styles, and flexible effects routing.
 
 ## Build Process
 
@@ -31,8 +31,10 @@ cmake --build . --config Release --parallel 4
 The built VST3 will be located in: `build/FreOSC-VST_artefacts/Release/VST3/FreOSC.vst3`
 
 ### Testing Commands
-- **Release Build**: `msbuild FreOSC-VST.sln /p:Configuration=Release /p:Platform=x64`
-- **Debug Build**: `msbuild FreOSC-VST.sln /p:Configuration=Debug /p:Platform=x64`
+- **CMake Release Build**: `cd FreOSC-VST && mkdir -p build && cd build && cmake .. && cmake --build . --config Release`
+- **CMake Debug Build**: `cd FreOSC-VST && mkdir -p build && cd build && cmake .. && cmake --build . --config Debug`
+- **MSBuild Release**: `msbuild FreOSC-VST.sln /p:Configuration=Release /p:Platform=x64` (if .sln exists)
+- **MSBuild Debug**: `msbuild FreOSC-VST.sln /p:Configuration=Debug /p:Platform=x64` (if .sln exists)
 
 ### Requirements
 - JUCE Framework 7.0+ (installed at C:\JUCE)
@@ -96,8 +98,13 @@ Summed Voices → Compressor → Limiter → Filter → Reverb → Delay → Mas
 #### Modulation & Polyphony
 - **16-Voice Polyphony**: Full polyphonic synthesis with proper voice stealing
 - **LFO**: 5 waveforms (sine, triangle, sawtooth, square, random)
-- **LFO Targets**: Pitch, Filter Cutoff, Volume, Pan
-- **Envelope**: ADSR with 0.01ms to 5s timing ranges
+- **LFO Targets**: Pitch, Filter Cutoff, Filter2 Cutoff, Volume, Pan
+- **Main Envelope**: ADSR with 0.01ms to 5s timing ranges for amplitude control
+- **Modulation Envelopes**: 2 independent ADSR envelopes for parameter modulation
+  - **ModEnv Targets**: FM Amount, FM Ratio, Filter Cutoff, Filter2 Cutoff
+  - **ModEnv Modes**: Gate (standard), One-Shot (complete cycle), Looping (continuous cycle)
+  - **Per-Voice Processing**: Each voice has independent modulation envelope instances
+  - **Real-time Control**: 0-100% modulation amount with selectable targets and modes
 
 #### Filter System
 - **9 Filter Types**: Lowpass, Highpass, Bandpass, Notch, Peaking, Shelving, Allpass, **Formant**
@@ -109,6 +116,15 @@ Summed Voices → Compressor → Limiter → Filter → Reverb → Delay → Mas
 - **Resonance**: 0.1 to 30.0 Q factor range
 - **Filter Gain**: ±24dB for peaking/shelving filters
 
+#### FM Synthesis
+- **Classic FM Implementation**: Phase modulation using Oscillator 3 as fixed modulator source
+- **Intuitive Controls**: 
+  - **FM Amount**: 0-100% modulation depth (improved from 0-1000 range)
+  - **FM Ratio**: Displays as proper ratios (1:1, 3:2, 2:1, etc.) for musical context
+- **Flexible Routing**: Modulate Osc1, Osc2, or both from Osc3
+- **Modulation Envelope Control**: Both modulation envelopes can target FM parameters
+- **Musical Ratios**: Common harmonic ratios (1:2, 3:2, 2:1, 5:3, etc.) for bell, brass, and complex timbres
+
 #### Effects
 - **Dynamics**: Compressor + Limiter with full parameter control
 - **Reverb**: **Optimized Algorithmic Processing**
@@ -119,10 +135,10 @@ Summed Voices → Compressor → Limiter → Filter → Reverb → Delay → Mas
 
 #### GUI Interface
 - **5 Organized Tabs**:
-  1. **Oscillators**: All 3 oscillators + noise generator
-  2. **Filter & Envelope**: Filter settings + ADSR controls  
-  3. **Modulation**: LFO + FM synthesis parameters
-  4. **Effects**: Dynamics + Reverb + Delay
+  1. **Oscillators**: All 3 oscillators + noise generator + main envelope
+  2. **Filter & Envelope**: Dual filter system + routing controls  
+  3. **Modulation**: LFO + FM synthesis + 2 modulation envelopes with Target/Mode selection (2x2 grid layout)
+  4. **Effects**: Plate Reverb + Tape Delay with flexible routing
   5. **Master**: Volume + preset management
 - **Resizable Interface**: 50%-150% scaling with maintained aspect ratio
 - **Dark Theme**: Professional appearance with blue accents
@@ -239,6 +255,12 @@ The reverb system has been optimized for stability and vocal clarity:
 - **Threading**: GUI updates happen on message thread only
 
 ### Recent Fixes Applied
+
+#### Modulation Envelope Modes (Latest)
+- **UI Implementation**: Added Mode dropdown controls next to Target dropdowns in Mod Env 1/2
+- **Parameter Mapping**: Fixed combo box indexing for proper 0-based parameter alignment
+- **Mode Functionality**: Implemented Gate/One-Shot/Looping envelope behaviors in voice processing
+- **Layout**: Target and Mode controls positioned side-by-side in modulation envelope sections
 
 #### Formant Filter Issues
 - **No Audio Through Filter**: Fixed by changing from parallel bandpass to series peaking filters

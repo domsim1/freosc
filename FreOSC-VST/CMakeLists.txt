@@ -78,6 +78,8 @@ set(SOURCE_FILES
     Source/DSP/FreOscPlateReverb.h
     Source/DSP/FreOscTapeDelay.cpp
     Source/DSP/FreOscTapeDelay.h
+    Source/DSP/FreOscWavefolder.cpp
+    Source/DSP/FreOscWavefolder.h
     Source/DSP/FreOscNoiseGenerator.cpp
     Source/DSP/FreOscNoiseGenerator.h
     

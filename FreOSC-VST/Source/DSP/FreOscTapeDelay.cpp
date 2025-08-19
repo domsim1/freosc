@@ -131,13 +131,17 @@ void FreOscTapeDelay::process(const juce::dsp::ProcessContextReplacing<float>& c
         delaySamplesL = juce::jlimit(1.0f, static_cast<float>(delayLineL.size - 2), delaySamplesL);
         delaySamplesR = juce::jlimit(1.0f, static_cast<float>(delayLineR.size - 2), delaySamplesR);
         
-        // Read delayed signal (basic, no filtering)
+        // Read delayed signal and apply tone filtering
         float delayedL = delayLineL.readInterpolated(delaySamplesL);
         float delayedR = delayLineR.readInterpolated(delaySamplesR);
         
-        // Simple feedback (no filtering or saturation)
-        float feedbackL = delayedL * currentFeedback;
-        float feedbackR = delayedR * currentFeedback;
+        // Apply tape tone filtering to delayed signal for tape character
+        delayedL = tapeFilterL.processSample(delayedL);
+        delayedR = tapeFilterR.processSample(delayedR);
+        
+        // Apply feedback with additional filtering for warmth
+        float feedbackL = feedbackFilterL.processSample(delayedL) * currentFeedback;
+        float feedbackR = feedbackFilterR.processSample(delayedR) * currentFeedback;
         
         // Write to delay line (input + feedback)
         delayLineL.write(inputL + feedbackL);

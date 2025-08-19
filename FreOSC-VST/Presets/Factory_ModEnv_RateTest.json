@@ -1,0 +1,33 @@
+{
+  "name": "ModEnv Rate Test", 
+  "description": "Tests rate-based envelope modes - One-Shot at 1Hz and Looping at 3Hz",
+  "parameters": {
+    "osc1_waveform": 2,
+    "osc1_level": 0.8,
+    "osc1_octave": 0,
+    "filter_type": 0,
+    "filter_cutoff": 0.4,
+    "filter_resonance": 0.6,
+    "mod_env1_attack": 0.1,
+    "mod_env1_decay": 0.3,
+    "mod_env1_sustain": 0.2,
+    "mod_env1_release": 0.2,
+    "mod_env1_amount": 0.8,
+    "mod_env1_target": 3,
+    "mod_env1_mode": 0,
+    "mod_env1_rate": 1.0,
+    "mod_env2_attack": 0.05,
+    "mod_env2_decay": 0.2,
+    "mod_env2_sustain": 0.1,
+    "mod_env2_release": 0.1,
+    "mod_env2_amount": 0.6,
+    "mod_env2_target": 4,
+    "mod_env2_mode": 2,
+    "mod_env2_rate": 3.0,
+    "envelope_attack": 0.01,
+    "envelope_decay": 0.1,
+    "envelope_sustain": 0.9,
+    "envelope_release": 0.8,
+    "master_volume": 0.6
+  }
+}

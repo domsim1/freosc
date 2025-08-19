@@ -369,6 +369,8 @@ void FreOscProcessor::updateVoiceParameters()
     auto modEnv1Release = parameters.getRawParameterValue("mod_env1_release")->load();
     auto modEnv1Amount = parameters.getRawParameterValue("mod_env1_amount")->load();
     auto modEnv1Target = static_cast<int>(parameters.getRawParameterValue("mod_env1_target")->load());
+    auto modEnv1Mode = static_cast<int>(parameters.getRawParameterValue("mod_env1_mode")->load());
+    auto modEnv1Rate = parameters.getRawParameterValue("mod_env1_rate")->load();
 
     // Modulation Envelope 2 parameters
     auto modEnv2Attack = parameters.getRawParameterValue("mod_env2_attack")->load();
@@ -377,6 +379,8 @@ void FreOscProcessor::updateVoiceParameters()
     auto modEnv2Release = parameters.getRawParameterValue("mod_env2_release")->load();
     auto modEnv2Amount = parameters.getRawParameterValue("mod_env2_amount")->load();
     auto modEnv2Target = static_cast<int>(parameters.getRawParameterValue("mod_env2_target")->load());
+    auto modEnv2Mode = static_cast<int>(parameters.getRawParameterValue("mod_env2_mode")->load());
+    auto modEnv2Rate = parameters.getRawParameterValue("mod_env2_rate")->load();
 
     // Update all voices with current parameters
     for (int i = 0; i < synthesiser.getNumVoices(); ++i)
@@ -396,8 +400,8 @@ void FreOscProcessor::updateVoiceParameters()
             voice->updateFilterParameters(filterType, filterCutoff, filterResonance, filterGain);
             voice->updateFilter2Parameters(filter2Type, filter2Cutoff, filter2Resonance, filter2Gain);
             voice->updateFilterRouting(filterRouting);
-            voice->updateModEnv1Parameters(modEnv1Attack, modEnv1Decay, modEnv1Sustain, modEnv1Release, modEnv1Amount, modEnv1Target);
-            voice->updateModEnv2Parameters(modEnv2Attack, modEnv2Decay, modEnv2Sustain, modEnv2Release, modEnv2Amount, modEnv2Target);
+            voice->updateModEnv1Parameters(modEnv1Attack, modEnv1Decay, modEnv1Sustain, modEnv1Release, modEnv1Amount, modEnv1Target, modEnv1Mode, modEnv1Rate);
+            voice->updateModEnv2Parameters(modEnv2Attack, modEnv2Decay, modEnv2Sustain, modEnv2Release, modEnv2Amount, modEnv2Target, modEnv2Mode, modEnv2Rate);
         }
     }
 }
@@ -424,6 +428,14 @@ void FreOscProcessor::updateEffectsParameters()
     tapeDelay.setFlutter(parameters.getRawParameterValue("tape_flutter")->load());
     tapeDelay.setWetLevel(parameters.getRawParameterValue("tape_wet_level")->load());
     tapeDelay.setStereoWidth(parameters.getRawParameterValue("tape_width")->load());
+
+    // Update wavefolder parameters (now at index 4)
+    auto& wavefolder = effectsChain.get<4>();
+    wavefolder.setDrive(parameters.getRawParameterValue("wavefolder_drive")->load());
+    wavefolder.setThreshold(parameters.getRawParameterValue("wavefolder_threshold")->load());
+    wavefolder.setSymmetry(parameters.getRawParameterValue("wavefolder_symmetry")->load());
+    wavefolder.setMix(parameters.getRawParameterValue("wavefolder_mix")->load());
+    wavefolder.setOutputLevel(parameters.getRawParameterValue("wavefolder_output")->load());
 }
 
 //==============================================================================
@@ -472,33 +484,35 @@ void FreOscProcessor::processEffectsWithRouting(juce::dsp::ProcessContextReplaci
 {
     auto& plateReverb = effectsChain.get<2>();
     auto& tapeDelay = effectsChain.get<3>();
+    auto& wavefolder = effectsChain.get<4>();
     
     switch (routingMode)
     {
-        case 0: // Series Reverb → Delay (default/current behavior)
+        case 0: // Wavefolder to Reverb to Delay
         {
+            wavefolder.process(context);
             plateReverb.process(context);
             tapeDelay.process(context);
             break;
         }
         
-        case 1: // Series Delay → Reverb 
+        case 1: // Wavefolder to Delay to Reverb
         {
+            wavefolder.process(context);
             tapeDelay.process(context);
             plateReverb.process(context);
             break;
         }
         
-        case 2: // Parallel
+        case 2: // Wavefolder Parallel with Reverb+Delay
         {
-            // Create a copy of the audio block for parallel processing
+            // Create buffers for parallel processing
             auto& inputBlock = context.getInputBlock();
             
-            // Create temporary buffers for parallel processing
-            juce::AudioBuffer<float> reverbBuffer(static_cast<int>(inputBlock.getNumChannels()), 
-                                                  static_cast<int>(inputBlock.getNumSamples()));
-            juce::AudioBuffer<float> delayBuffer(static_cast<int>(inputBlock.getNumChannels()), 
-                                                 static_cast<int>(inputBlock.getNumSamples()));
+            juce::AudioBuffer<float> wavefolderBuffer(static_cast<int>(inputBlock.getNumChannels()), 
+                                                      static_cast<int>(inputBlock.getNumSamples()));
+            juce::AudioBuffer<float> reverbDelayBuffer(static_cast<int>(inputBlock.getNumChannels()), 
+                                                       static_cast<int>(inputBlock.getNumSamples()));
             
             // Copy input to both buffers
             for (int ch = 0; ch < static_cast<int>(inputBlock.getNumChannels()); ++ch)
@@ -506,45 +520,41 @@ void FreOscProcessor::processEffectsWithRouting(juce::dsp::ProcessContextReplaci
                 for (int sample = 0; sample < static_cast<int>(inputBlock.getNumSamples()); ++sample)
                 {
                     auto inputSample = inputBlock.getSample(ch, sample);
-                    reverbBuffer.setSample(ch, sample, inputSample);
-                    delayBuffer.setSample(ch, sample, inputSample);
+                    wavefolderBuffer.setSample(ch, sample, inputSample);
+                    reverbDelayBuffer.setSample(ch, sample, inputSample);
                 }
             }
             
-            // Process reverb and delay in parallel
-            auto reverbBlock = juce::dsp::AudioBlock<float>(reverbBuffer);
-            auto delayBlock = juce::dsp::AudioBlock<float>(delayBuffer);
+            // Process wavefolder on one path
+            auto wavefolderBlock = juce::dsp::AudioBlock<float>(wavefolderBuffer);
+            juce::dsp::ProcessContextReplacing<float> wavefolderContext(wavefolderBlock);
+            wavefolder.process(wavefolderContext);
             
-            juce::dsp::ProcessContextReplacing<float> reverbContext(reverbBlock);
-            juce::dsp::ProcessContextReplacing<float> delayContext(delayBlock);
+            // Process reverb+delay on the other path
+            auto reverbDelayBlock = juce::dsp::AudioBlock<float>(reverbDelayBuffer);
+            juce::dsp::ProcessContextReplacing<float> reverbDelayContext(reverbDelayBlock);
+            plateReverb.process(reverbDelayContext);
+            tapeDelay.process(reverbDelayContext);
             
-            plateReverb.process(reverbContext);
-            tapeDelay.process(delayContext);
-            
-            // Mix the results back to the output (effects handle their own wet/dry mixing)
+            // Mix the parallel outputs
             auto& outputBlock = context.getOutputBlock();
             for (int ch = 0; ch < static_cast<int>(outputBlock.getNumChannels()); ++ch)
             {
                 for (int sample = 0; sample < static_cast<int>(outputBlock.getNumSamples()); ++sample)
                 {
-                    auto reverbSample = reverbBuffer.getSample(ch, sample);
-                    auto delaySample = delayBuffer.getSample(ch, sample);
+                    auto wavefolderSample = wavefolderBuffer.getSample(ch, sample);
+                    auto reverbDelaySample = reverbDelayBuffer.getSample(ch, sample);
                     
-                    // Since each effect handles its own dry/wet mix, we need to extract just the wet portions
-                    // For parallel mode, we reconstruct: dry + reverb_wet + delay_wet
-                    // This is approximated by: (reverb_output + delay_output - input) 
-                    // since reverb_output = dry + reverb_wet and delay_output = dry + delay_wet
-                    auto originalInput = inputBlock.getSample(ch, sample);
-                    auto combinedOutput = reverbSample + delaySample - originalInput;
-                    
-                    outputBlock.setSample(ch, sample, combinedOutput);
+                    // Mix the parallel paths
+                    outputBlock.setSample(ch, sample, (wavefolderSample + reverbDelaySample) * 0.5f);
                 }
             }
             break;
         }
         
         default:
-            // Fallback to series reverb → delay
+            // Fallback to first wavefolder routing
+            wavefolder.process(context);
             plateReverb.process(context);
             tapeDelay.process(context);
             break;
