@@ -48,6 +48,7 @@ public:
     //==============================================================================
     // Processing
     float processSample(float fmInput = 0.0f);
+    float processRawSample(float fmInput = 0.0f); // Raw waveform without level scaling (for PM)
     void processBlock(juce::AudioBuffer<float>& buffer, int startSample, int numSamples, float fmInput = 0.0f);
 
     //==============================================================================

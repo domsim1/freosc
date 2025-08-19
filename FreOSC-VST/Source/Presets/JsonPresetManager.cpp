@@ -174,7 +174,7 @@ juce::var JsonPresetManager::createPresetJson(const juce::String& name, const ju
         juce::String prefix = "osc" + juce::String(i) + "_";
 
         osc->setProperty("waveform", denormalizeOscillatorWaveform(parameters.getRawParameterValue(prefix + "waveform")->load()));
-        osc->setProperty("octave", denormalizeOscillatorOctave(parameters.getRawParameterValue(prefix + "octave")->load()));
+        osc->setProperty("octave", static_cast<int>(parameters.getRawParameterValue(prefix + "octave")->load()));
         osc->setProperty("level", parameters.getRawParameterValue(prefix + "level")->load());
         osc->setProperty("detune", denormalizeDetune(parameters.getRawParameterValue(prefix + "detune")->load()));
         osc->setProperty("pan", denormalizePan(parameters.getRawParameterValue(prefix + "pan")->load()));
@@ -255,6 +255,13 @@ juce::var JsonPresetManager::createPresetJson(const juce::String& name, const ju
     
     json->setProperty("modulation", modulation.get());
 
+    // PM Synthesis
+    auto pm = juce::DynamicObject::Ptr(new juce::DynamicObject());
+    pm->setProperty("index", parameters.getRawParameterValue("pm_index")->load());
+    pm->setProperty("ratio", parameters.getRawParameterValue("pm_ratio")->load());
+    pm->setProperty("carrier", denormalizePmCarrier(parameters.getRawParameterValue("pm_carrier")->load()));
+    json->setProperty("pm", pm.get());
+
     // Effects
     auto effects = juce::DynamicObject::Ptr(new juce::DynamicObject());
     
@@ -320,7 +327,7 @@ bool JsonPresetManager::applyPresetJson(const juce::var& presetData, juce::Audio
 
                         if (osc->hasProperty("octave"))
                             parameters.getParameter(prefix + "octave")->setValueNotifyingHost(
-                                normalizeOscillatorOctave(static_cast<int>(osc->getProperty("octave"))));
+                                static_cast<float>(static_cast<int>(osc->getProperty("octave"))));
 
                         if (osc->hasProperty("level"))
                             parameters.getParameter(prefix + "level")->setValueNotifyingHost(
@@ -563,6 +570,57 @@ bool JsonPresetManager::applyPresetJson(const juce::var& presetData, juce::Audio
         }
     }
 
+    // Apply PM synthesis
+    if (json->hasProperty("pm"))
+    {
+        auto pm = json->getProperty("pm").getDynamicObject();
+        if (pm != nullptr)
+        {
+            if (pm->hasProperty("index"))
+                parameters.getParameter("pm_index")->setValueNotifyingHost(
+                    static_cast<float>(pm->getProperty("index")));
+
+            if (pm->hasProperty("ratio"))
+                parameters.getParameter("pm_ratio")->setValueNotifyingHost(
+                    static_cast<float>(pm->getProperty("ratio")));
+
+            if (pm->hasProperty("carrier"))
+                parameters.getParameter("pm_carrier")->setValueNotifyingHost(
+                    normalizePmCarrier(pm->getProperty("carrier")));
+        }
+    }
+    // Backward compatibility: load old FM presets and convert to PM
+    else if (json->hasProperty("fm"))
+    {
+        auto fm = json->getProperty("fm").getDynamicObject();
+        if (fm != nullptr)
+        {
+            // Convert FM amount (0-1) to PM index (0-10)
+            if (fm->hasProperty("amount"))
+            {
+                float fmAmount = static_cast<float>(fm->getProperty("amount"));
+                float pmIndex = fmAmount * 10.0f; // Scale 0-1 to 0-10
+                parameters.getParameter("pm_index")->setValueNotifyingHost(pmIndex);
+            }
+
+            if (fm->hasProperty("ratio"))
+                parameters.getParameter("pm_ratio")->setValueNotifyingHost(
+                    static_cast<float>(fm->getProperty("ratio")));
+
+            // Convert FM target to PM carrier
+            if (fm->hasProperty("target"))
+            {
+                juce::String target = fm->getProperty("target").toString();
+                juce::String carrier = "oscillator1"; // default
+                if (target == "osc1") carrier = "oscillator1";
+                else if (target == "osc2") carrier = "oscillator2";  
+                else if (target == "both") carrier = "both";
+                parameters.getParameter("pm_carrier")->setValueNotifyingHost(
+                    normalizePmCarrier(carrier));
+            }
+        }
+    }
+
     // Apply effects
     if (json->hasProperty("effects"))
     {
@@ -678,18 +736,13 @@ bool JsonPresetManager::applyPresetJson(const juce::var& presetData, juce::Audio
 
 float JsonPresetManager::normalizeOscillatorWaveform(const juce::String& waveform)
 {
-    if (waveform == "sine") return 0.0f;
-    if (waveform == "square") return 0.25f;
-    if (waveform == "sawtooth") return 0.5f;
-    if (waveform == "triangle") return 0.75f;
+    if (waveform == "sine") return 0.0f / 3.0f;
+    if (waveform == "square") return 1.0f / 3.0f;
+    if (waveform == "sawtooth") return 2.0f / 3.0f;
+    if (waveform == "triangle") return 3.0f / 3.0f;
     return 0.0f; // Default to sine
 }
 
-float JsonPresetManager::normalizeOscillatorOctave(int octave)
-{
-    // Octave range: -2 to +2, normalized to 0-1
-    return (octave + 2) / 4.0f;
-}
 
 float JsonPresetManager::normalizeDetune(float cents)
 {
@@ -705,40 +758,40 @@ float JsonPresetManager::normalizePan(float pan)
 
 float JsonPresetManager::normalizeNoiseType(const juce::String& noiseType)
 {
-    if (noiseType == "white") return 0.0f;
-    if (noiseType == "pink") return 0.1f;
-    if (noiseType == "brown") return 0.2f;
-    if (noiseType == "blue") return 0.3f;
-    if (noiseType == "violet") return 0.4f;
-    if (noiseType == "grey") return 0.5f;
-    if (noiseType == "crackle") return 0.6f;
-    if (noiseType == "digital") return 0.7f;
-    if (noiseType == "wind") return 0.8f;
-    if (noiseType == "ocean") return 0.9f;
+    if (noiseType == "white") return 0.0f / 9.0f;
+    if (noiseType == "pink") return 1.0f / 9.0f;
+    if (noiseType == "brown") return 2.0f / 9.0f;
+    if (noiseType == "blue") return 3.0f / 9.0f;
+    if (noiseType == "violet") return 4.0f / 9.0f;
+    if (noiseType == "grey") return 5.0f / 9.0f;
+    if (noiseType == "crackle") return 6.0f / 9.0f;
+    if (noiseType == "digital") return 7.0f / 9.0f;
+    if (noiseType == "wind") return 8.0f / 9.0f;
+    if (noiseType == "ocean") return 9.0f / 9.0f;
     return 0.0f; // Default to white
 }
 
 float JsonPresetManager::normalizeFilterType(const juce::String& filterType)
 {
-    if (filterType == "lowpass") return 0.0f;
-    if (filterType == "highpass") return 0.5f;
-    if (filterType == "bandpass") return 1.0f;
+    if (filterType == "lowpass") return 0.0f / 2.0f;
+    if (filterType == "highpass") return 1.0f / 2.0f;
+    if (filterType == "bandpass") return 2.0f / 2.0f;
     return 0.0f; // Default to lowpass
 }
 
 float JsonPresetManager::normalizeFilterRouting(const juce::String& routing)
 {
-    if (routing == "off") return 0.0f;
-    if (routing == "parallel") return 1.0f;
-    if (routing == "series") return 2.0f;
+    if (routing == "off") return 0.0f / 2.0f;
+    if (routing == "parallel") return 1.0f / 2.0f;
+    if (routing == "series") return 2.0f / 2.0f;
     return 0.0f; // Default to off
 }
 
 float JsonPresetManager::normalizeEffectsRouting(const juce::String& routing)
 {
-    if (routing == "series_reverb_delay") return 0.0f;
-    if (routing == "series_delay_reverb") return 1.0f;
-    if (routing == "parallel") return 2.0f;
+    if (routing == "series_reverb_delay") return 0.0f / 2.0f;
+    if (routing == "series_delay_reverb") return 1.0f / 2.0f;
+    if (routing == "parallel") return 2.0f / 2.0f;
     return 0.0f; // Default to series reverb→delay
 }
 
@@ -764,11 +817,11 @@ float JsonPresetManager::normalizeFilterGain(float gainDb)
 
 float JsonPresetManager::normalizeLfoWaveform(const juce::String& waveform)
 {
-    if (waveform == "sine") return 0.0f;
-    if (waveform == "triangle") return 0.25f;
-    if (waveform == "sawtooth") return 0.5f;
-    if (waveform == "square") return 0.75f;
-    if (waveform == "random") return 1.0f;
+    if (waveform == "sine") return 0.0f / 4.0f;
+    if (waveform == "triangle") return 1.0f / 4.0f;
+    if (waveform == "sawtooth") return 2.0f / 4.0f;
+    if (waveform == "square") return 3.0f / 4.0f;
+    if (waveform == "random") return 4.0f / 4.0f;
     return 0.0f; // Default to sine
 }
 
@@ -781,24 +834,33 @@ float JsonPresetManager::normalizeLfoRate(float hz)
 
 float JsonPresetManager::normalizeLfoTarget(const juce::String& target)
 {
-    if (target == "none") return 0.0f;
-    if (target == "pitch") return 0.2f;
-    if (target == "filter") return 0.4f;
-    if (target == "filter2") return 0.6f;
-    if (target == "volume") return 0.8f;
-    if (target == "pan") return 1.0f;
+    if (target == "none") return 0.0f / 5.0f;
+    if (target == "pitch") return 1.0f / 5.0f;
+    if (target == "filter") return 2.0f / 5.0f;
+    if (target == "filter2") return 3.0f / 5.0f;
+    if (target == "volume") return 4.0f / 5.0f;
+    if (target == "pan") return 5.0f / 5.0f;
     return 0.0f; // Default to none
 }
 
 float JsonPresetManager::normalizeModEnvTarget(const juce::String& target)
 {
-    if (target == "none") return 0.0f;
-    if (target == "fm_amount") return 1.0f;
-    if (target == "fm_ratio") return 2.0f;
-    if (target == "filter_cutoff") return 3.0f;
-    if (target == "filter2_cutoff") return 4.0f;
+    if (target == "none") return 0.0f / 4.0f;
+    if (target == "pm_index") return 1.0f / 4.0f;
+    if (target == "pm_ratio") return 2.0f / 4.0f;
+    if (target == "filter_cutoff") return 3.0f / 4.0f;
+    if (target == "filter2_cutoff") return 4.0f / 4.0f;
     return 0.0f; // Default to none
 }
+
+float JsonPresetManager::normalizePmCarrier(const juce::String& carrier)
+{
+    if (carrier == "oscillator1" || carrier == "osc1") return 0.0f / 2.0f;
+    if (carrier == "oscillator2" || carrier == "osc2") return 1.0f / 2.0f;
+    if (carrier == "both" || carrier == "Both Osc 1 & 2") return 2.0f / 2.0f;
+    return 0.0f; // Default to oscillator1
+}
+
 
 float JsonPresetManager::normalizeTime(float seconds)
 {
@@ -812,16 +874,17 @@ float JsonPresetManager::normalizeTime(float seconds)
 
 juce::String JsonPresetManager::denormalizeOscillatorWaveform(float normalized)
 {
-    if (normalized < 0.125f) return "sine";
-    if (normalized < 0.375f) return "square";
-    if (normalized < 0.625f) return "sawtooth";
-    return "triangle";
+    int index = static_cast<int>(normalized * 3.0f + 0.5f);
+    switch (index)
+    {
+        case 0: return "sine";
+        case 1: return "square";
+        case 2: return "sawtooth";
+        case 3: return "triangle";
+        default: return "sine";
+    }
 }
 
-int JsonPresetManager::denormalizeOscillatorOctave(float normalized)
-{
-    return static_cast<int>(normalized * 4.0f) - 2;
-}
 
 float JsonPresetManager::denormalizeDetune(float normalized)
 {
@@ -835,7 +898,7 @@ float JsonPresetManager::denormalizePan(float normalized)
 
 juce::String JsonPresetManager::denormalizeNoiseType(float normalized)
 {
-    int index = static_cast<int>(normalized * 10.0f);
+    int index = static_cast<int>(normalized * 9.0f + 0.5f);
     switch (index)
     {
         case 0: return "white";
@@ -854,7 +917,7 @@ juce::String JsonPresetManager::denormalizeNoiseType(float normalized)
 
 juce::String JsonPresetManager::denormalizeFilterType(float normalized)
 {
-    int index = static_cast<int>(normalized * 2.0f);
+    int index = static_cast<int>(normalized * 2.0f + 0.5f);
     switch (index)
     {
         case 0: return "lowpass";
@@ -883,7 +946,7 @@ float JsonPresetManager::denormalizeFilterGain(float normalized)
 
 juce::String JsonPresetManager::denormalizeLfoWaveform(float normalized)
 {
-    int index = static_cast<int>(normalized * 4.0f);
+    int index = static_cast<int>(normalized * 4.0f + 0.5f);
     switch (index)
     {
         case 0: return "sine";
@@ -902,7 +965,7 @@ float JsonPresetManager::denormalizeLfoRate(float normalized)
 
 juce::String JsonPresetManager::denormalizeLfoTarget(float normalized)
 {
-    int index = static_cast<int>(normalized * 5.0f);
+    int index = static_cast<int>(normalized * 5.0f + 0.5f);
     switch (index)
     {
         case 0: return "none";
@@ -922,7 +985,7 @@ float JsonPresetManager::denormalizeTime(float normalized)
 
 juce::String JsonPresetManager::denormalizeFilterRouting(float normalized)
 {
-    int index = static_cast<int>(normalized);
+    int index = static_cast<int>(normalized * 2.0f + 0.5f);
     switch (index)
     {
         case 0: return "off";
@@ -934,7 +997,7 @@ juce::String JsonPresetManager::denormalizeFilterRouting(float normalized)
 
 juce::String JsonPresetManager::denormalizeEffectsRouting(float normalized)
 {
-    int index = static_cast<int>(normalized);
+    int index = static_cast<int>(normalized * 2.0f + 0.5f);
     switch (index)
     {
         case 0: return "series_reverb_delay";
@@ -946,14 +1009,27 @@ juce::String JsonPresetManager::denormalizeEffectsRouting(float normalized)
 
 juce::String JsonPresetManager::denormalizeModEnvTarget(float normalized)
 {
-    int index = static_cast<int>(normalized);
+    int index = static_cast<int>(normalized * 4.0f + 0.5f);
     switch (index)
     {
         case 0: return "none";
-        case 1: return "fm_amount";
-        case 2: return "fm_ratio";
+        case 1: return "pm_index";
+        case 2: return "pm_ratio";
         case 3: return "filter_cutoff";
         case 4: return "filter2_cutoff";
         default: return "none";
     }
 }
+
+juce::String JsonPresetManager::denormalizePmCarrier(float normalized)
+{
+    int index = static_cast<int>(normalized * 2.0f + 0.5f);
+    switch (index)
+    {
+        case 0: return "oscillator1";
+        case 1: return "oscillator2";
+        case 2: return "both";
+        default: return "oscillator1";
+    }
+}
+

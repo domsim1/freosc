@@ -19,7 +19,7 @@
     - Noise generator
     - ADSR envelope
     - LFO modulation
-    - FM synthesis capabilities
+    - PM (Phase Modulation) synthesis capabilities
 */
 class FreOscVoice : public juce::SynthesiserVoice
 {
@@ -65,7 +65,7 @@ public:
 
     void updateEnvelopeParameters(float attack, float decay, float sustain, float release);
 
-    void updateFMParameters(float fmAmount, int fmSource, int fmTarget, float fmRatio);
+    void updatePMParameters(float pmIndex, int pmCarrier, float pmRatio);
 
     void updateLFOParameters(int lfoWaveform, float lfoRate, int lfoTarget, float lfoAmount);
 
@@ -83,6 +83,7 @@ private:
     //==============================================================================
     // Audio components
     FreOscOscillator oscillator1, oscillator2, oscillator3;
+    FreOscOscillator pmModulator; // Dedicated PM modulator (copies OSC3 settings)
     FreOscNoiseGenerator noiseGenerator;
     FreOscLFO lfo;
 
@@ -97,9 +98,7 @@ private:
     // Panning (stereo positioning)
     juce::dsp::Panner<float> panner1, panner2, panner3, noisePanner;
 
-    // FM synthesis
-    FreOscOscillator fmOscillator;
-    juce::dsp::Gain<float> fmGain;
+    // PM synthesis (uses Oscillator 3 actual output as modulator)
 
     // Per-voice filters
     FreOscFilter voiceFilter;
@@ -139,9 +138,9 @@ private:
         std::atomic<float> osc1Pan{0.0f}, osc2Pan{-0.2f}, osc3Pan{0.2f};
         std::atomic<float> noiseLevel{0.0f}, noisePan{0.0f};
 
-        // FM parameters
-        std::atomic<float> fmAmount{0.0f}, fmRatio{1.0f};
-        std::atomic<int> fmSource{0}, fmTarget{0}; // 0=none/osc1
+        // PM parameters
+        std::atomic<float> pmIndex{0.0f}, pmRatio{1.0f};
+        std::atomic<int> pmCarrier{0}; // 0=osc1, 1=osc2, 2=both
 
         // LFO parameters
         std::atomic<float> lfoRate{2.0f}, lfoAmount{0.0f};
@@ -171,8 +170,9 @@ private:
     // Helper methods
     void setupOscillators();
     void calculateNoteFrequency(int midiNote, int octaveOffset, float detuneAmount);
-    float getFMModulationSignal();
-    bool shouldReceiveFM(int oscillatorIndex);
+    void syncPMModulatorWithOSC3(); // Copy OSC3 settings to PM modulator
+    float getPMModulationSignal();
+    bool shouldReceivePM(int oscillatorIndex);
 
     //==============================================================================
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(FreOscVoice)

@@ -24,8 +24,7 @@ public:
     static const juce::StringArray filterTypes;
     static const juce::StringArray filterRouting;
     static const juce::StringArray effectsRouting;
-    static const juce::StringArray fmSources;
-    static const juce::StringArray fmTargets;
+    static const juce::StringArray pmCarriers;
     static const juce::StringArray lfoWaveforms;
     static const juce::StringArray lfoTargets;
     static const juce::StringArray modEnvelopeTargets;
@@ -96,13 +95,8 @@ inline const juce::StringArray FreOscParameters::effectsRouting = {
 };
 
 
-// FM source choices (not used - always Oscillator 3)
-inline const juce::StringArray FreOscParameters::fmSources = {
-    "Oscillator 3" // Always oscillator 3, no choice
-};
-
-// FM target choices - simplified to only target Osc 1, Osc 2, or both
-inline const juce::StringArray FreOscParameters::fmTargets = {
+// PM carrier choices - which oscillators receive phase modulation from OSC3
+inline const juce::StringArray FreOscParameters::pmCarriers = {
     "Oscillator 1", "Oscillator 2", "Both Osc 1 & 2"
 };
 
@@ -118,7 +112,7 @@ inline const juce::StringArray FreOscParameters::lfoTargets = {
 
 // Modulation envelope target choices
 inline const juce::StringArray FreOscParameters::modEnvelopeTargets = {
-    "None", "FM Amount", "FM Ratio", "Filter Cutoff", "Filter2 Cutoff"
+    "None", "PM Index", "PM Ratio", "Filter Cutoff", "Filter2 Cutoff"
 };
 
 //==============================================================================
@@ -162,9 +156,9 @@ inline const std::vector<FreOscParameters::ParameterInfo> FreOscParameters::floa
     {"filter2_resonance", "Filter2 Resonance",  {0.0f, 1.0f, 0.01f}, 0.0f}, // Minimal resonance
     {"filter2_gain",      "Filter2 Gain",       {0.0f, 1.0f, 0.01f}, 0.5f}, // Neutral gain (0dB)
 
-    // FM Synthesis
-    {"fm_amount",        "FM Amount",   {0.0f, 1.0f, 0.01f}, 0.0f},
-    {"fm_ratio",         "FM Ratio",    {0.1f, 8.0f, 0.1f}, 1.0f},
+    // PM Synthesis (Phase Modulation)
+    {"pm_index",         "PM Index",    {0.0f, 10.0f, 0.01f}, 0.0f},
+    {"pm_ratio",         "PM Ratio",    {0.1f, 8.0f, 0.1f}, 1.0f},
 
     // Dynamics removed - now uses fixed internal settings optimized for polyphony
 
@@ -220,9 +214,8 @@ inline const std::vector<std::tuple<juce::String, juce::String, juce::StringArra
     {"filter_routing", "Filter Routing", filterRouting, 0}, // Off
     {"effects_routing", "Effects Routing", effectsRouting, 0}, // Series Reverb to Delay
 
-    // FM - Source is always Oscillator 3, only target is selectable
-    {"fm_source", "FM Source", fmSources, 0}, // Always Oscillator 3 (fixed)
-    {"fm_target", "FM Target", fmTargets, 0}, // Oscillator 1
+    // PM - OSC3 is always the message signal, user selects carrier(s)
+    {"pm_carrier", "PM Carrier", pmCarriers, 0}, // Oscillator 1
 
     // LFO
     {"lfo_waveform", "LFO Waveform", lfoWaveforms, 0}, // Sine

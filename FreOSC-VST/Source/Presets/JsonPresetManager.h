@@ -77,7 +77,6 @@ private:
 
     // Value conversion helpers
     float normalizeOscillatorWaveform(const juce::String& waveform);
-    float normalizeOscillatorOctave(int octave);
     float normalizeDetune(float cents);
     float normalizePan(float pan);
     float normalizeNoiseType(const juce::String& noiseType);
@@ -91,11 +90,11 @@ private:
     float normalizeLfoRate(float hz);
     float normalizeLfoTarget(const juce::String& target);
     float normalizeModEnvTarget(const juce::String& target);
+    float normalizePmCarrier(const juce::String& carrier);
     float normalizeTime(float seconds);
 
     // Reverse conversion for saving
     juce::String denormalizeOscillatorWaveform(float normalized);
-    int denormalizeOscillatorOctave(float normalized);
     float denormalizeDetune(float normalized);
     float denormalizePan(float normalized);
     juce::String denormalizeNoiseType(float normalized);
@@ -109,6 +108,7 @@ private:
     float denormalizeLfoRate(float normalized);
     juce::String denormalizeLfoTarget(float normalized);
     juce::String denormalizeModEnvTarget(float normalized);
+    juce::String denormalizePmCarrier(float normalized);
     float denormalizeTime(float normalized);
 
     //==============================================================================

@@ -32,6 +32,10 @@ FreOscVoice::FreOscVoice()
     oscillator3.setLevel(params.osc3Level.load());
     oscillator3.setWaveform(FreOscOscillator::Waveform::Sine);
 
+    // Initialize PM modulator (will be synced with OSC3 when needed)
+    pmModulator.setLevel(1.0f);
+    pmModulator.setWaveform(FreOscOscillator::Waveform::Sine);
+
     // Initialize noise generator
     noiseGenerator.setLevel(params.noiseLevel.load());
 }
@@ -78,11 +82,7 @@ void FreOscVoice::startNote(int midiNoteNumber, float velocity, juce::Synthesise
     oscillator1.reset();
     oscillator2.reset();
     oscillator3.reset();
-
-    // Initialize FM oscillator with sine wave (standard for FM synthesis)
-    fmOscillator.setWaveform(FreOscOscillator::Waveform::Sine);
-    fmOscillator.setLevel(1.0f);
-    fmOscillator.reset(); // Reset FM oscillator phase too
+    pmModulator.reset();
 
     // Start envelope
     envelope.noteOn();
@@ -244,8 +244,8 @@ void FreOscVoice::renderNextBlock(juce::AudioBuffer<float>& outputBuffer, int st
         }
 
         // Apply modulation envelope modulation to parameters
-        float modulatedFMAmount = params.fmAmount;
-        float modulatedFMRatio = params.fmRatio;
+        float modulatedPMIndex = params.pmIndex;
+        float modulatedPMRatio = params.pmRatio;
         float modulatedFilterCutoff = params.filterCutoff;
         float modulatedFilter2Cutoff = params.filter2Cutoff;
         
@@ -254,8 +254,8 @@ void FreOscVoice::renderNextBlock(juce::AudioBuffer<float>& outputBuffer, int st
         {
             switch (params.modEnv1Target.load())
             {
-                case 1: modulatedFMAmount = juce::jlimit(0.0f, 1.0f, modulatedFMAmount + (modEnv1Mod * 0.5f)); break; // FM Amount
-                case 2: modulatedFMRatio = juce::jlimit(0.1f, 8.0f, modulatedFMRatio + (modEnv1Mod * 4.0f)); break; // FM Ratio
+                case 1: modulatedPMIndex = juce::jlimit(0.0f, 10.0f, modulatedPMIndex + (modEnv1Mod * 5.0f)); break; // PM Index
+                case 2: modulatedPMRatio = juce::jlimit(0.1f, 8.0f, modulatedPMRatio + (modEnv1Mod * 4.0f)); break; // PM Ratio
                 case 3: modulatedFilterCutoff = juce::jlimit(0.0f, 1.0f, modulatedFilterCutoff + modEnv1Mod); break; // Filter Cutoff
                 case 4: modulatedFilter2Cutoff = juce::jlimit(0.0f, 1.0f, modulatedFilter2Cutoff + modEnv1Mod); break; // Filter2 Cutoff
             }
@@ -266,19 +266,11 @@ void FreOscVoice::renderNextBlock(juce::AudioBuffer<float>& outputBuffer, int st
         {
             switch (params.modEnv2Target.load())
             {
-                case 1: modulatedFMAmount = juce::jlimit(0.0f, 1.0f, modulatedFMAmount + (modEnv2Mod * 0.5f)); break; // FM Amount
-                case 2: modulatedFMRatio = juce::jlimit(0.1f, 8.0f, modulatedFMRatio + (modEnv2Mod * 4.0f)); break; // FM Ratio
+                case 1: modulatedPMIndex = juce::jlimit(0.0f, 10.0f, modulatedPMIndex + (modEnv2Mod * 5.0f)); break; // PM Index
+                case 2: modulatedPMRatio = juce::jlimit(0.1f, 8.0f, modulatedPMRatio + (modEnv2Mod * 4.0f)); break; // PM Ratio
                 case 3: modulatedFilterCutoff = juce::jlimit(0.0f, 1.0f, modulatedFilterCutoff + modEnv2Mod); break; // Filter Cutoff
                 case 4: modulatedFilter2Cutoff = juce::jlimit(0.0f, 1.0f, modulatedFilter2Cutoff + modEnv2Mod); break; // Filter2 Cutoff
             }
-        }
-
-        // Get FM modulation signal if active - always uses Oscillator 3 as source
-        // Note: FM works independently of Osc3's audio level
-        float fmSignal = 0.0f;
-        if (modulatedFMAmount > 0.0f) // Use modulated FM amount
-        {
-            fmSignal = getFMModulationSignal();
         }
 
         // Apply pitch modulation from LFO if active (10% of fundamental frequency)
@@ -288,52 +280,81 @@ void FreOscVoice::renderNextBlock(juce::AudioBuffer<float>& outputBuffer, int st
         {
             pitchModulation = lfoValue * 0.1f; // lfoValue already includes amount scaling
         }
-
-        // Generate samples from active oscillators with proper FM routing
-        if (params.osc1Level > 0.0f && oscillator1.getCurrentLevel() > 0.0f)
+        
+        // Generate PM modulation signal using dedicated PM modulator
+        float pmSignal = 0.0f;
+        bool hasPM = (modulatedPMIndex > 0.0f);
+        
+        if (hasPM)
         {
-            // Apply LFO pitch modulation only if active
+            // Sync PM modulator with OSC3's waveform settings
+            syncPMModulatorWithOSC3();
+            
+            // Set PM modulator frequency to note * ratio (independent of OSC3's frequency)
+            float modulatorFreq = currentNoteFrequency * modulatedPMRatio;
+            pmModulator.setFrequency(modulatorFreq);
+            
+            // Apply LFO pitch modulation to PM modulator if active
             if (hasPitchModulation)
-                oscillator1.setFrequencyModulation(pitchModulation);
+                pmModulator.setFrequencyModulation(pitchModulation);
             else
-                oscillator1.setFrequencyModulation(0.0f);
-
-            // Apply FM modulation if this oscillator is a target (use modulated FM amount for scaling)
-            float fmAmount = 0.0f;
-            if (shouldReceiveFM(1) && params.fmAmount.load() > 0.0f)
-            {
-                fmAmount = fmSignal * modulatedFMAmount / params.fmAmount.load();
-            }
-            osc1Sample = oscillator1.processSample(fmAmount);
+                pmModulator.setFrequencyModulation(0.0f);
+                
+            // Generate PM modulation signal (uses OSC3's waveform but separate processing)
+            float pmModulatorOutput = pmModulator.processRawSample(0.0f);
+            pmSignal = pmModulatorOutput * modulatedPMIndex * 0.3f; // PM intensity controlled by Index only
         }
-
-        if (params.osc2Level > 0.0f && oscillator2.getCurrentLevel() > 0.0f)
-        {
-            if (hasPitchModulation)
-                oscillator2.setFrequencyModulation(pitchModulation);
-            else
-                oscillator2.setFrequencyModulation(0.0f);
-            float fmAmount = 0.0f;
-            if (shouldReceiveFM(2) && params.fmAmount.load() > 0.0f)
-            {
-                fmAmount = fmSignal * modulatedFMAmount / params.fmAmount.load();
-            }
-            osc2Sample = oscillator2.processSample(fmAmount);
-        }
-
+        
+        // Process OSC3 normally for audio output (unaffected by PM)
         if (params.osc3Level > 0.0f && oscillator3.getCurrentLevel() > 0.0f)
         {
+            // Apply LFO pitch modulation to OSC3 if active
             if (hasPitchModulation)
                 oscillator3.setFrequencyModulation(pitchModulation);
             else
                 oscillator3.setFrequencyModulation(0.0f);
-            float fmAmount = 0.0f;
-            if (shouldReceiveFM(3) && params.fmAmount.load() > 0.0f)
-            {
-                fmAmount = fmSignal * modulatedFMAmount / params.fmAmount.load();
-            }
-            osc3Sample = oscillator3.processSample(fmAmount);
+                
+            // OSC3 audio uses normal processing at its own frequency settings
+            osc3Sample = oscillator3.processSample(0.0f);
         }
+
+        // Generate samples from active oscillators with proper FM routing
+        if (params.osc1Level > 0.0f && oscillator1.getCurrentLevel() > 0.0f)
+        {
+            // Apply LFO pitch modulation if active
+            if (hasPitchModulation)
+                oscillator1.setFrequencyModulation(pitchModulation);
+            else
+                oscillator1.setFrequencyModulation(0.0f);
+                
+            // Apply PM modulation if this oscillator is a carrier
+            float pmInput = 0.0f;
+            if (shouldReceivePM(1) && pmSignal != 0.0f)
+            {
+                pmInput = pmSignal;
+            }
+            
+            osc1Sample = oscillator1.processSample(pmInput);
+        }
+
+        if (params.osc2Level > 0.0f && oscillator2.getCurrentLevel() > 0.0f)
+        {
+            // Apply LFO pitch modulation if active
+            if (hasPitchModulation)
+                oscillator2.setFrequencyModulation(pitchModulation);
+            else
+                oscillator2.setFrequencyModulation(0.0f);
+                
+            // Apply PM modulation if this oscillator is a carrier
+            float pmInput = 0.0f;
+            if (shouldReceivePM(2) && pmSignal != 0.0f)
+            {
+                pmInput = pmSignal;
+            }
+            osc2Sample = oscillator2.processSample(pmInput);
+        }
+
+        // OSC3 was processed above independently of PM
 
         // Generate noise if active
         if (params.noiseLevel > 0.0f)
@@ -527,7 +548,7 @@ void FreOscVoice::setCurrentPlaybackSampleRate(double sampleRate)
     oscillator1.prepare(spec);
     oscillator2.prepare(spec);
     oscillator3.prepare(spec);
-    fmOscillator.prepare(spec);  // Initialize FM oscillator
+    pmModulator.prepare(spec);
     noiseGenerator.prepare(sampleRate);
     lfo.prepare(sampleRate);
 
@@ -610,13 +631,12 @@ void FreOscVoice::updateEnvelopeParameters(float attack, float decay, float sust
     envelope.setParameters(envelopeParameters);
 }
 
-void FreOscVoice::updateFMParameters(float fmAmount, int fmSource, int fmTarget, float fmRatio)
+void FreOscVoice::updatePMParameters(float pmIndex, int pmCarrier, float pmRatio)
 {
-    params.fmAmount = fmAmount;
-    params.fmSource = fmSource; // Still store it for compatibility, but ignore in processing
-    params.fmTarget = fmTarget;
-    params.fmRatio = fmRatio;
-    // Note: Implementation always uses Oscillator 3 as source regardless of fmSource parameter
+    params.pmIndex = pmIndex;
+    params.pmCarrier = pmCarrier;
+    params.pmRatio = pmRatio;
+    // Note: OSC3 is always the message signal source
 }
 
 void FreOscVoice::updateLFOParameters(int lfoWaveform, float lfoRate, int lfoTarget, float lfoAmount)
@@ -708,36 +728,29 @@ void FreOscVoice::calculateNoteFrequency(int midiNote, int octaveOffset, float d
     juce::ignoreUnused(baseFreq, octaveMultiplier, detuneRatio);
 }
 
-float FreOscVoice::getFMModulationSignal()
+float FreOscVoice::getPMModulationSignal()
 {
-    // Generate FM modulation using Oscillator 3 as the fixed source
-    // FM modulation works independently of Oscillator 3's audio output level
-
-    if (params.fmAmount <= 0.0f)
-        return 0.0f;
-
-    // Always use Oscillator 3's frequency as the FM source reference
-    // This works even when Osc3's audio level is zero
-    float sourceFreq = oscillator3.getCurrentFrequency();
-
-    // Calculate and set the FM frequency based on the ratio
-    float fmFrequency = sourceFreq * params.fmRatio;
-    fmOscillator.setFrequency(fmFrequency);
-
-    // Generate the FM modulation signal with proper scaling for phase modulation
-    // In phase modulation, the modulation depth is directly the phase deviation in radians
-    float modulator = fmOscillator.processSample();
-    float phaseDeviation = params.fmAmount * 100.0f; // Scale 0-1 range to reasonable phase modulation range (0-100)
-    return modulator * phaseDeviation;
+    // PM processing is now handled inline in renderNextBlock() for better coordination
+    // This method is kept for compatibility but not used
+    return 0.0f;
 }
 
-bool FreOscVoice::shouldReceiveFM(int oscillatorIndex)
+void FreOscVoice::syncPMModulatorWithOSC3()
 {
-    // Check if the specified oscillator should receive FM modulation
-    // Updated for new FM routing: Osc3 is always source, targets are Osc1, Osc2, or Both
-    int fmTarget = params.fmTarget.load();
+    // Copy OSC3's waveform and settings to PM modulator for consistent character
+    pmModulator.setWaveform(oscillator3.getCurrentWaveform());
+    pmModulator.setOctave(0); // PM modulator uses base octave, frequency set separately 
+    pmModulator.setDetune(0.0f); // PM modulator uses base detune, frequency set separately
+    pmModulator.setLevel(1.0f); // PM modulator always at full level for raw waveform
+}
 
-    switch (fmTarget)
+bool FreOscVoice::shouldReceivePM(int oscillatorIndex)
+{
+    // Check if the specified oscillator should receive PM modulation
+    // OSC3 is always the message signal source, carriers are Osc1, Osc2, or Both
+    int pmCarrier = params.pmCarrier.load();
+
+    switch (pmCarrier)
     {
         case 0: // Oscillator 1 only
             return oscillatorIndex == 1;

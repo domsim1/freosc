@@ -97,6 +97,35 @@ float FreOscOscillator::processSample(float fmInput)
     return sample * level;
 }
 
+float FreOscOscillator::processRawSample(float fmInput)
+{
+    // Same processing as processSample() but returns raw waveform without level scaling
+    // This is used for PM modulation where we want the waveform character but not the level
+    
+    // Always process even if level is 0 - PM needs the raw waveform
+    // Calculate current phase increment including frequency modulation
+    float currentPhaseInc = phaseIncrement * (1.0f + frequencyModulation);
+    
+    // Advance phase
+    phase += currentPhaseInc;
+    
+    // Wrap main phase to prevent overflow
+    while (phase >= 2.0f * juce::MathConstants<float>::pi)
+        phase -= 2.0f * juce::MathConstants<float>::pi;
+        
+    // Apply phase modulation (FM input)
+    float modulatedPhase = phase + fmInput;
+    
+    // Wrap phase to [0, 2*pi] range
+    while (modulatedPhase >= 2.0f * juce::MathConstants<float>::pi)
+        modulatedPhase -= 2.0f * juce::MathConstants<float>::pi;
+    while (modulatedPhase < 0.0f)
+        modulatedPhase += 2.0f * juce::MathConstants<float>::pi;
+        
+    // Generate and return raw waveform sample (no level scaling)
+    return generateWaveformSample(modulatedPhase);
+}
+
 void FreOscOscillator::processBlock(juce::AudioBuffer<float>& buffer, int startSample, int numSamples, float fmInput)
 {
     if (level <= 0.0f)

@@ -284,12 +284,12 @@ private:
     juce::Label filter2TypeLabel, cutoff2Label, resonance2Label, filterGain2Label;
     juce::Label cutoff2Value, resonance2Value, filterGain2Value;
 
-    // FM synthesis section
-    juce::GroupComponent fmGroup;
-    juce::Slider fmAmountSlider, fmRatioSlider;
-    juce::ComboBox fmTargetCombo;
-    juce::Label fmAmountLabel, fmRatioLabel, fmTargetLabel;
-    juce::Label fmAmountValue, fmRatioValue;
+    // PM synthesis section
+    juce::GroupComponent pmGroup;
+    juce::Slider pmIndexSlider, pmRatioSlider;
+    juce::ComboBox pmCarrierCombo;
+    juce::Label pmIndexLabel, pmRatioLabel, pmCarrierLabel;
+    juce::Label pmIndexValue, pmRatioValue;
 
     // Dynamics section removed - now uses fixed internal settings
 
@@ -357,7 +357,7 @@ private:
     juce::String formatFrequencyValue(float normalizedValue);
     juce::String formatResonanceValue(float normalizedValue);
     juce::String formatFilterGainValue(float normalizedValue);
-    juce::String formatFMRatioValue(float ratioValue);
+    juce::String formatPMRatioValue(float ratioValue);
     juce::String formatMasterVolumeValue(float normalizedValue);
 
     // Parameter update callbacks
@@ -379,7 +379,7 @@ private:
     // layoutFilterSection() removed - now using GroupComponent layouts in tabs
     void layoutEnvelopeSection();
     void layoutMasterSection();
-    void layoutFMSection();
+    void layoutPMSection();
     void layoutReverbSection();
     void layoutDelaySection();
     void layoutLFOSection();

@@ -269,7 +269,7 @@ public:
         
         // Choose color based on group text
         juce::Colour groupColour;
-        if (text == "LFO" || text == "FM" || text == "Tape Delay")
+        if (text == "LFO" || text == "PM" || text == "Tape Delay")
         {
             groupColour = juce::Colour(0xff7A9A5A); // Green color matching image for LFO, FM, and delay groups
         }
@@ -2079,27 +2079,27 @@ void FreOscEditor::layoutMasterSection()
     masterVolumeValue.setBounds(bounds);
 }
 
-void FreOscEditor::layoutFMSection()
+void FreOscEditor::layoutPMSection()
 {
-    auto bounds = fmGroup.getBounds().reduced(10);
+    auto bounds = pmGroup.getBounds().reduced(10);
     auto rowHeight = bounds.getHeight() / 4; // Updated to 4 rows since we removed source
 
     // Amount
     auto row = bounds.removeFromTop(rowHeight);
-    fmAmountLabel.setBounds(row.removeFromTop(15));
-    fmAmountSlider.setBounds(row.removeFromTop(row.getHeight() - 15));
-    fmAmountValue.setBounds(row);
+    pmIndexLabel.setBounds(row.removeFromTop(15));
+    pmIndexSlider.setBounds(row.removeFromTop(row.getHeight() - 15));
+    pmIndexValue.setBounds(row);
 
     // Ratio
     row = bounds.removeFromTop(rowHeight);
-    fmRatioLabel.setBounds(row.removeFromTop(15));
-    fmRatioSlider.setBounds(row.removeFromTop(row.getHeight() - 15));
-    fmRatioValue.setBounds(row);
+    pmRatioLabel.setBounds(row.removeFromTop(15));
+    pmRatioSlider.setBounds(row.removeFromTop(row.getHeight() - 15));
+    pmRatioValue.setBounds(row);
 
-    // Target (Source is always Oscillator 3)
+    // Carrier (Message signal is always Oscillator 3)
     row = bounds.removeFromTop(rowHeight);
-    fmTargetLabel.setBounds(row.removeFromLeft(60));
-    fmTargetCombo.setBounds(row);
+    pmCarrierLabel.setBounds(row.removeFromLeft(60));
+    pmCarrierCombo.setBounds(row);
 }
 
 
@@ -2173,9 +2173,9 @@ void FreOscEditor::setupComboBoxOptions()
     // FM source is always Oscillator 3 - no combo box needed
 
     // FM target options - updated for new routing
-    fmTargetCombo.addItem("Oscillator 1", 1);
-    fmTargetCombo.addItem("Oscillator 2", 2);
-    fmTargetCombo.addItem("Both Osc 1 & 2", 3);
+    pmCarrierCombo.addItem("Oscillator 1", 1);
+    pmCarrierCombo.addItem("Oscillator 2", 2);
+    pmCarrierCombo.addItem("Both Osc 1 & 2", 3);
 
     // LFO waveform selector uses custom component - no setup needed
 
@@ -2189,14 +2189,14 @@ void FreOscEditor::setupComboBoxOptions()
 
     // Modulation Envelope target options
     modEnv1TargetCombo.addItem("None", 1);
-    modEnv1TargetCombo.addItem("FM Amount", 2);
-    modEnv1TargetCombo.addItem("FM Ratio", 3);
+    modEnv1TargetCombo.addItem("PM Index", 2);
+    modEnv1TargetCombo.addItem("PM Ratio", 3);
     modEnv1TargetCombo.addItem("Filter Cutoff", 4);
     modEnv1TargetCombo.addItem("Filter2 Cutoff", 5);
 
     modEnv2TargetCombo.addItem("None", 1);
-    modEnv2TargetCombo.addItem("FM Amount", 2);
-    modEnv2TargetCombo.addItem("FM Ratio", 3);
+    modEnv2TargetCombo.addItem("PM Index", 2);
+    modEnv2TargetCombo.addItem("PM Ratio", 3);
     modEnv2TargetCombo.addItem("Filter Cutoff", 4);
     modEnv2TargetCombo.addItem("Filter2 Cutoff", 5);
 
@@ -2256,8 +2256,8 @@ void FreOscEditor::createParameterAttachments()
     sliderAttachments.push_back(std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(valueTreeState, "filter2_resonance", resonance2Slider));
     sliderAttachments.push_back(std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(valueTreeState, "filter2_gain", filterGain2Slider));
 
-    sliderAttachments.push_back(std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(valueTreeState, "fm_amount", fmAmountSlider));
-    sliderAttachments.push_back(std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(valueTreeState, "fm_ratio", fmRatioSlider));
+    sliderAttachments.push_back(std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(valueTreeState, "pm_index", pmIndexSlider));
+    sliderAttachments.push_back(std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(valueTreeState, "pm_ratio", pmRatioSlider));
 
     sliderAttachments.push_back(std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(valueTreeState, "lfo_rate", lfoRateSlider));
     sliderAttachments.push_back(std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(valueTreeState, "lfo_amount", lfoAmountSlider));
@@ -2313,7 +2313,7 @@ void FreOscEditor::createParameterAttachments()
     comboAttachments.push_back(std::make_unique<juce::AudioProcessorValueTreeState::ComboBoxAttachment>(valueTreeState, "effects_routing", effectsRoutingCombo));
 
     // FM source is always Osc3 - no parameter attachment needed
-    comboAttachments.push_back(std::make_unique<juce::AudioProcessorValueTreeState::ComboBoxAttachment>(valueTreeState, "fm_target", fmTargetCombo));
+    comboAttachments.push_back(std::make_unique<juce::AudioProcessorValueTreeState::ComboBoxAttachment>(valueTreeState, "pm_carrier", pmCarrierCombo));
 
     lfoWaveformAttachments.push_back(std::make_unique<LFOWaveformSelectorAttachment>(valueTreeState, "lfo_waveform", lfoWaveformSelector));
     comboAttachments.push_back(std::make_unique<juce::AudioProcessorValueTreeState::ComboBoxAttachment>(valueTreeState, "lfo_target", lfoTargetCombo));
@@ -2361,8 +2361,8 @@ void FreOscEditor::updateValueLabels()
     resonance2Value.setText(formatResonanceValue(static_cast<float>(resonance2Slider.getValue())), juce::dontSendNotification);
     filterGain2Value.setText(formatFilterGainValue(static_cast<float>(filterGain2Slider.getValue())), juce::dontSendNotification);
 
-    fmAmountValue.setText(juce::String(static_cast<int>(fmAmountSlider.getValue() * 100)) + "%", juce::dontSendNotification);
-    fmRatioValue.setText(formatFMRatioValue(static_cast<float>(fmRatioSlider.getValue())), juce::dontSendNotification);
+    pmIndexValue.setText(juce::String(pmIndexSlider.getValue(), 1), juce::dontSendNotification);
+    pmRatioValue.setText(formatPMRatioValue(static_cast<float>(pmRatioSlider.getValue())), juce::dontSendNotification);
 
     // Dynamics removed from user control - values updated automatically with fixed settings
 
@@ -2440,7 +2440,7 @@ juce::String FreOscEditor::formatFilterGainValue(float normalizedValue)
     return juce::String(gainDb, 1) + "dB";
 }
 
-juce::String FreOscEditor::formatFMRatioValue(float ratioValue)
+juce::String FreOscEditor::formatPMRatioValue(float ratioValue)
 {
     // Convert decimal ratio to fraction format (e.g., 1.5 -> "3:2", 2.0 -> "2:1")
     
@@ -3820,7 +3820,7 @@ std::unique_ptr<juce::Component> FreOscEditor::createModulationTab()
         {
             // GROUP LAYOUT: Setup LFO, FM, and Modulation Envelope components with GroupComponent
             setupGroupLFO();
-            setupGroupFM();
+            setupGroupPM();
             setupGroupModEnv1();
             setupGroupModEnv2();
         }
@@ -3887,51 +3887,51 @@ std::unique_ptr<juce::Component> FreOscEditor::createModulationTab()
             setLookAndFeel(owner.customLookAndFeel.get());
         }
 
-        void setupGroupFM()
+        void setupGroupPM()
         {
             // GROUP SETUP: Add FM components to GroupComponent
-            owner.applyComponentStyling(owner.fmGroup);
-            owner.fmGroup.setText("FM");
+            owner.applyComponentStyling(owner.pmGroup);
+            owner.pmGroup.setText("PM");
 
             // Setup components with proper styling
-            owner.applyComponentStyling(owner.fmTargetCombo);
-            owner.applyComponentStyling(owner.fmAmountSlider);
-            owner.applyComponentStyling(owner.fmRatioSlider);
+            owner.applyComponentStyling(owner.pmCarrierCombo);
+            owner.applyComponentStyling(owner.pmIndexSlider);
+            owner.applyComponentStyling(owner.pmRatioSlider);
 
-            owner.applyComponentStyling(owner.fmTargetLabel);
-            owner.applyComponentStyling(owner.fmAmountLabel);
-            owner.applyComponentStyling(owner.fmRatioLabel);
-            owner.applyComponentStyling(owner.fmAmountValue);
-            owner.applyComponentStyling(owner.fmRatioValue);
+            owner.applyComponentStyling(owner.pmCarrierLabel);
+            owner.applyComponentStyling(owner.pmIndexLabel);
+            owner.applyComponentStyling(owner.pmRatioLabel);
+            owner.applyComponentStyling(owner.pmIndexValue);
+            owner.applyComponentStyling(owner.pmRatioValue);
 
-            // Set value label styling for FM controls (white text)
-            owner.fmAmountValue.setFont(juce::Font(juce::FontOptions().withHeight(11.0f)));
-            owner.fmAmountValue.setJustificationType(juce::Justification::centred);
-            owner.fmAmountValue.setColour(juce::Label::textColourId, juce::Colours::white);
-            owner.fmAmountValue.setColour(juce::Label::backgroundColourId, juce::Colours::transparentBlack);
+            // Set value label styling for PM controls (white text)
+            owner.pmIndexValue.setFont(juce::Font(juce::FontOptions().withHeight(11.0f)));
+            owner.pmIndexValue.setJustificationType(juce::Justification::centred);
+            owner.pmIndexValue.setColour(juce::Label::textColourId, juce::Colours::white);
+            owner.pmIndexValue.setColour(juce::Label::backgroundColourId, juce::Colours::transparentBlack);
 
-            owner.fmRatioValue.setFont(juce::Font(juce::FontOptions().withHeight(11.0f)));
-            owner.fmRatioValue.setJustificationType(juce::Justification::centred);
-            owner.fmRatioValue.setColour(juce::Label::textColourId, juce::Colours::white);
-            owner.fmRatioValue.setColour(juce::Label::backgroundColourId, juce::Colours::transparentBlack);
+            owner.pmRatioValue.setFont(juce::Font(juce::FontOptions().withHeight(11.0f)));
+            owner.pmRatioValue.setJustificationType(juce::Justification::centred);
+            owner.pmRatioValue.setColour(juce::Label::textColourId, juce::Colours::white);
+            owner.pmRatioValue.setColour(juce::Label::backgroundColourId, juce::Colours::transparentBlack);
 
             // Set labels
-            owner.fmTargetLabel.setText("Target", juce::dontSendNotification);
-            owner.fmAmountLabel.setText("Amount", juce::dontSendNotification);
-            owner.fmRatioLabel.setText("Ratio", juce::dontSendNotification);
+            owner.pmCarrierLabel.setText("Carrier", juce::dontSendNotification);
+            owner.pmIndexLabel.setText("Index", juce::dontSendNotification);
+            owner.pmRatioLabel.setText("Ratio", juce::dontSendNotification);
 
             // Add components to the group
-            owner.fmGroup.addAndMakeVisible(owner.fmTargetLabel);
-            owner.fmGroup.addAndMakeVisible(owner.fmTargetCombo);
-            owner.fmGroup.addAndMakeVisible(owner.fmAmountLabel);
-            owner.fmGroup.addAndMakeVisible(owner.fmAmountSlider);
-            owner.fmGroup.addAndMakeVisible(owner.fmAmountValue);
-            owner.fmGroup.addAndMakeVisible(owner.fmRatioLabel);
-            owner.fmGroup.addAndMakeVisible(owner.fmRatioSlider);
-            owner.fmGroup.addAndMakeVisible(owner.fmRatioValue);
+            owner.pmGroup.addAndMakeVisible(owner.pmCarrierLabel);
+            owner.pmGroup.addAndMakeVisible(owner.pmCarrierCombo);
+            owner.pmGroup.addAndMakeVisible(owner.pmIndexLabel);
+            owner.pmGroup.addAndMakeVisible(owner.pmIndexSlider);
+            owner.pmGroup.addAndMakeVisible(owner.pmIndexValue);
+            owner.pmGroup.addAndMakeVisible(owner.pmRatioLabel);
+            owner.pmGroup.addAndMakeVisible(owner.pmRatioSlider);
+            owner.pmGroup.addAndMakeVisible(owner.pmRatioValue);
 
             // Add the group to the tab
-            addAndMakeVisible(owner.fmGroup);
+            addAndMakeVisible(owner.pmGroup);
         }
 
         void setupGroupModEnv1()
@@ -4136,13 +4136,13 @@ std::unique_ptr<juce::Component> FreOscEditor::createModulationTab()
         }
         
 
-        void layoutGroupFM(juce::Rectangle<int> area)
+        void layoutGroupPM(juce::Rectangle<int> area)
         {
-            // Layout FM using GroupComponent
-            owner.fmGroup.setBounds(area);
+            // Layout PM using GroupComponent
+            owner.pmGroup.setBounds(area);
             
             // Layout components within the group - account for bottom band
-            auto bounds = owner.fmGroup.getLocalBounds().reduced(8);
+            auto bounds = owner.pmGroup.getLocalBounds().reduced(8);
             
             // Reserve space for the bottom colored band (text height + padding)
             juce::Font f(juce::FontOptions(14.0f).withStyle("Bold"));
@@ -4157,8 +4157,8 @@ std::unique_ptr<juce::Component> FreOscEditor::createModulationTab()
             
             // Top row: Target dropdown (full width)
             auto targetArea = topRow.reduced(2);
-            owner.fmTargetLabel.setBounds(targetArea.removeFromTop(15));
-            owner.fmTargetCombo.setBounds(targetArea);
+            owner.pmCarrierLabel.setBounds(targetArea.removeFromTop(15));
+            owner.pmCarrierCombo.setBounds(targetArea);
             
             // Bottom row: Amount and Ratio knobs horizontally
             auto knobWidth = bottomRow.getWidth() / 2;
@@ -4169,27 +4169,27 @@ std::unique_ptr<juce::Component> FreOscEditor::createModulationTab()
             
             // Amount knob (left)
             auto amountArea = bottomRow.removeFromLeft(knobWidth).reduced(3);
-            owner.fmAmountLabel.setBounds(amountArea.removeFromTop(minLabelHeight));
+            owner.pmIndexLabel.setBounds(amountArea.removeFromTop(minLabelHeight));
             auto amountValueArea = amountArea.removeFromBottom(minValueHeight);
             auto amountKnobArea = amountArea.reduced(0, 2);
             auto amountKnobBounds = amountKnobArea.withSizeKeepingCentre(
                 juce::jlimit(minKnobSize, knobWidth - 8, amountKnobArea.getWidth()),
                 juce::jlimit(minKnobSize, amountKnobArea.getHeight(), amountKnobArea.getHeight())
             );
-            owner.fmAmountSlider.setBounds(amountKnobBounds);
-            owner.fmAmountValue.setBounds(amountValueArea);
+            owner.pmIndexSlider.setBounds(amountKnobBounds);
+            owner.pmIndexValue.setBounds(amountValueArea);
             
             // Ratio knob (right)
             auto ratioArea = bottomRow.reduced(3);
-            owner.fmRatioLabel.setBounds(ratioArea.removeFromTop(minLabelHeight));
+            owner.pmRatioLabel.setBounds(ratioArea.removeFromTop(minLabelHeight));
             auto ratioValueArea = ratioArea.removeFromBottom(minValueHeight);
             auto ratioKnobArea = ratioArea.reduced(0, 2);
             auto ratioKnobBounds = ratioKnobArea.withSizeKeepingCentre(
                 juce::jlimit(minKnobSize, knobWidth - 8, ratioKnobArea.getWidth()),
                 juce::jlimit(minKnobSize, ratioKnobArea.getHeight(), ratioKnobArea.getHeight())
             );
-            owner.fmRatioSlider.setBounds(ratioKnobBounds);
-            owner.fmRatioValue.setBounds(ratioValueArea);
+            owner.pmRatioSlider.setBounds(ratioKnobBounds);
+            owner.pmRatioValue.setBounds(ratioValueArea);
         }
 
         void layoutGroupModEnv1(juce::Rectangle<int> area)
@@ -4390,14 +4390,14 @@ std::unique_ptr<juce::Component> FreOscEditor::createModulationTab()
             auto bottomRow = bounds.reduced(3);
             
             auto lfoArea = topRow.removeFromLeft(halfWidth).reduced(3);
-            auto fmArea = topRow.reduced(3);  // Remaining right half of top row
+            auto pmArea = topRow.reduced(3);  // Remaining right half of top row
             
             auto modEnv1Area = bottomRow.removeFromLeft(halfWidth).reduced(3);
             auto modEnv2Area = bottomRow.reduced(3);  // Remaining right half of bottom row
 
             // Layout components using GroupComponent positioning
             layoutGroupLFO(lfoArea);
-            layoutGroupFM(fmArea);
+            layoutGroupPM(pmArea);
             layoutGroupModEnv1(modEnv1Area);
             layoutGroupModEnv2(modEnv2Area);
         }
