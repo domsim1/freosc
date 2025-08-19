@@ -82,7 +82,7 @@ inline const juce::StringArray FreOscParameters::noiseTypes = {
 
 // Filter type choices
 inline const juce::StringArray FreOscParameters::filterTypes = {
-    "Low Pass", "High Pass", "Band Pass"
+    "Low Pass", "High Pass", "Band Pass", "Notch"
 };
 
 // Filter routing choices

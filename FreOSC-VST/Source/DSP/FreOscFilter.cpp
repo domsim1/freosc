@@ -127,6 +127,9 @@ juce::dsp::IIR::Coefficients<float>::Ptr FreOscFilter::createFilterCoefficients(
         case Bandpass:
             return juce::dsp::IIR::Coefficients<float>::makeBandPass(sampleRate, freq, q);
 
+        case Notch:
+            return juce::dsp::IIR::Coefficients<float>::makeNotch(sampleRate, freq, q);
+
         default:
             return juce::dsp::IIR::Coefficients<float>::makeLowPass(sampleRate, freq, q);
     }

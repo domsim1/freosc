@@ -14,6 +14,7 @@
     0 - Lowpass: Standard low-pass filter
     1 - Highpass: Standard high-pass filter
     2 - Bandpass: Standard band-pass filter
+    3 - Notch: Standard notch filter (band-stop)
 */
 class FreOscFilter
 {
@@ -23,7 +24,8 @@ public:
     {
         Lowpass = 0,
         Highpass,
-        Bandpass
+        Bandpass,
+        Notch
     };
 
     //==============================================================================

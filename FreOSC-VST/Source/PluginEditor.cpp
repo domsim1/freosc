@@ -2164,11 +2164,13 @@ void FreOscEditor::setupComboBoxOptions()
     filterTypeCombo.addItem("Low Pass", 1);
     filterTypeCombo.addItem("High Pass", 2);
     filterTypeCombo.addItem("Band Pass", 3);
+    filterTypeCombo.addItem("Notch", 4);
 
     // Filter 2 type options (same as Filter 1)
     filter2TypeCombo.addItem("Low Pass", 1);
     filter2TypeCombo.addItem("High Pass", 2);
     filter2TypeCombo.addItem("Band Pass", 3);
+    filter2TypeCombo.addItem("Notch", 4);
 
 
     // FM source is always Oscillator 3 - no combo box needed

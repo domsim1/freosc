@@ -773,9 +773,10 @@ float JsonPresetManager::normalizeNoiseType(const juce::String& noiseType)
 
 float JsonPresetManager::normalizeFilterType(const juce::String& filterType)
 {
-    if (filterType == "lowpass") return 0.0f / 2.0f;
-    if (filterType == "highpass") return 1.0f / 2.0f;
-    if (filterType == "bandpass") return 2.0f / 2.0f;
+    if (filterType == "lowpass") return 0.0f / 3.0f;
+    if (filterType == "highpass") return 1.0f / 3.0f;
+    if (filterType == "bandpass") return 2.0f / 3.0f;
+    if (filterType == "notch") return 3.0f / 3.0f;
     return 0.0f; // Default to lowpass
 }
 
@@ -917,12 +918,13 @@ juce::String JsonPresetManager::denormalizeNoiseType(float normalized)
 
 juce::String JsonPresetManager::denormalizeFilterType(float normalized)
 {
-    int index = static_cast<int>(normalized * 2.0f + 0.5f);
+    int index = static_cast<int>(normalized * 3.0f + 0.5f);
     switch (index)
     {
         case 0: return "lowpass";
         case 1: return "highpass";
         case 2: return "bandpass";
+        case 3: return "notch";
         default: return "lowpass";
     }
 }
