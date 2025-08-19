@@ -57,6 +57,8 @@ public:
     float getCurrentLevel() const { return level; }
     float getCurrentFrequency() const { return finalFrequency; }
     Waveform getCurrentWaveform() const { return currentWaveform; }
+    int getCurrentOctave() const { return octaveOffset; }
+    float getCurrentDetune() const { return detuneAmount; }
 
 private:
     //==============================================================================

@@ -739,8 +739,12 @@ void FreOscVoice::syncPMModulatorWithOSC3()
 {
     // Copy OSC3's waveform and settings to PM modulator for consistent character
     pmModulator.setWaveform(oscillator3.getCurrentWaveform());
-    pmModulator.setOctave(0); // PM modulator uses base octave, frequency set separately 
-    pmModulator.setDetune(0.0f); // PM modulator uses base detune, frequency set separately
+    
+    // Copy OSC3's octave and detune settings so PM character matches OSC3
+    // This ensures when user changes OSC3 octave/detune, PM modulator reflects the changes
+    pmModulator.setOctave(oscillator3.getCurrentOctave());
+    pmModulator.setDetune(oscillator3.getCurrentDetune());
+    
     pmModulator.setLevel(1.0f); // PM modulator always at full level for raw waveform
 }
 
