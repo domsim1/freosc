@@ -68,6 +68,8 @@ public:
     void updatePMParameters(float pmIndex, int pmCarrier, float pmRatio);
 
     void updateLFOParameters(int lfoWaveform, float lfoRate, int lfoTarget, float lfoAmount);
+    void updateLFO2Parameters(int lfo2Waveform, float lfo2Rate, int lfo2Target, float lfo2Amount);
+    void updateLFO3Parameters(int lfo3Waveform, float lfo3Rate, int lfo3Target, float lfo3Amount);
 
     void updateFilterParameters(int filterType, float cutoff, float resonance, float gain);
     
@@ -85,7 +87,7 @@ private:
     FreOscOscillator oscillator1, oscillator2, oscillator3;
     FreOscOscillator pmModulator; // Dedicated PM modulator (copies OSC3 settings)
     FreOscNoiseGenerator noiseGenerator;
-    FreOscLFO lfo;
+    FreOscLFO lfo, lfo2, lfo3;
 
     // Envelope
     juce::ADSR envelope;
@@ -158,6 +160,14 @@ private:
         // LFO parameters
         std::atomic<float> lfoRate{2.0f}, lfoAmount{0.0f};
         std::atomic<int> lfoWaveform{0}, lfoTarget{0}; // 0=sine/none
+        
+        // LFO 2 parameters
+        std::atomic<float> lfo2Rate{2.0f}, lfo2Amount{0.0f};
+        std::atomic<int> lfo2Waveform{0}, lfo2Target{0}; // 0=sine/none
+        
+        // LFO 3 parameters
+        std::atomic<float> lfo3Rate{2.0f}, lfo3Amount{0.0f};
+        std::atomic<int> lfo3Waveform{0}, lfo3Target{0}; // 0=sine/none
 
         // Filter parameters
         std::atomic<float> filterCutoff{0.5f}, filterResonance{0.1f}, filterGain{0.5f};

@@ -325,13 +325,15 @@ private:
     juce::Label wavefolderDriveValue, wavefolderThresholdValue, wavefolderSymmetryValue;
     juce::Label wavefolderMixValue, wavefolderOutputValue;
 
-    // LFO section
-    juce::GroupComponent lfoGroup;
-    LFOWaveformSelector lfoWaveformSelector;
-    juce::ComboBox lfoTargetCombo;
-    juce::Slider lfoRateSlider, lfoAmountSlider;
+    // LFO sections
+    juce::GroupComponent lfoGroup, lfo2Group, lfo3Group;
+    LFOWaveformSelector lfoWaveformSelector, lfo2WaveformSelector, lfo3WaveformSelector;
+    juce::ComboBox lfoTargetCombo, lfo2TargetCombo, lfo3TargetCombo;
+    juce::Slider lfoRateSlider, lfoAmountSlider, lfo2RateSlider, lfo2AmountSlider, lfo3RateSlider, lfo3AmountSlider;
     juce::Label lfoWaveformLabel, lfoTargetLabel, lfoRateLabel, lfoAmountLabel;
-    juce::Label lfoRateValue, lfoAmountValue;
+    juce::Label lfo2WaveformLabel, lfo2TargetLabel, lfo2RateLabel, lfo2AmountLabel;
+    juce::Label lfo3WaveformLabel, lfo3TargetLabel, lfo3RateLabel, lfo3AmountLabel;
+    juce::Label lfoRateValue, lfoAmountValue, lfo2RateValue, lfo2AmountValue, lfo3RateValue, lfo3AmountValue;
 
     // Modulation Envelope sections
     juce::GroupComponent modEnv1Group, modEnv2Group;

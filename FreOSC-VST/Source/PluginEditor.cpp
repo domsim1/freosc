@@ -269,13 +269,13 @@ public:
         
         // Choose color based on group text
         juce::Colour groupColour;
-        if (text == "LFO" || text == "PM" || text == "Tape Delay")
+        if (text == "LFO 1" || text == "LFO 2" || text == "LFO 3" || text == "Tape Delay")
         {
-            groupColour = juce::Colour(0xff7A9A5A); // Green color matching image for LFO, FM, and delay groups
+            groupColour = juce::Colour(0xff7A9A5A); // Green color for LFO groups and delay
         }
-        else if (text == "Noise Generator" || text == "Filter 1" || text == "Filter 2" || text == "Plate Reverb")
+        else if (text == "PM" || text == "Noise Generator" || text == "Filter 1" || text == "Filter 2" || text == "Plate Reverb")
         {
-            groupColour = juce::Colour(0xff9bb3c7); // Light blue color for noise generator, filter groups, and reverb
+            groupColour = juce::Colour(0xff9bb3c7); // Light blue color for PM, noise generator, filter groups, and reverb
         }
         else if (text == "Envelope" || text == "Routing" || text == "Mod Env 1" || text == "Mod Env 2")
         {
@@ -2182,13 +2182,17 @@ void FreOscEditor::setupComboBoxOptions()
 
     // LFO waveform selector uses custom component - no setup needed
 
-    // LFO target options
-    lfoTargetCombo.addItem("None", 1);
-    lfoTargetCombo.addItem("Pitch", 2);
-    lfoTargetCombo.addItem("Filter Cutoff", 3);
-    lfoTargetCombo.addItem("Filter2 Cutoff", 4);
-    lfoTargetCombo.addItem("Volume", 5);
-    lfoTargetCombo.addItem("Pan", 6);
+    // LFO target options - use 0-based indexing to match parameter system
+    juce::StringArray lfoTargetOptions = {"None", "Pitch", "Filter Cutoff", "Filter2 Cutoff", "Volume", "Pan", "PM Index", "PM Ratio"};
+    
+    // LFO 1 target options
+    lfoTargetCombo.addItemList(lfoTargetOptions, 1); // Base ID 1 for 0-based indexing
+
+    // LFO 2 target options (same as LFO 1)
+    lfo2TargetCombo.addItemList(lfoTargetOptions, 1); // Base ID 1 for 0-based indexing
+
+    // LFO 3 target options (same as LFO 1)
+    lfo3TargetCombo.addItemList(lfoTargetOptions, 1); // Base ID 1 for 0-based indexing
 
     // Modulation Envelope target options (use addItemList for proper 0-based indexing)
     juce::StringArray modEnvTargetOptions = {"None", "PM Index", "PM Ratio", "Filter Cutoff", "Filter2 Cutoff"};
@@ -2262,6 +2266,14 @@ void FreOscEditor::createParameterAttachments()
     sliderAttachments.push_back(std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(valueTreeState, "lfo_rate", lfoRateSlider));
     sliderAttachments.push_back(std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(valueTreeState, "lfo_amount", lfoAmountSlider));
 
+    // LFO 2 attachments
+    sliderAttachments.push_back(std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(valueTreeState, "lfo2_rate", lfo2RateSlider));
+    sliderAttachments.push_back(std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(valueTreeState, "lfo2_amount", lfo2AmountSlider));
+
+    // LFO 3 attachments
+    sliderAttachments.push_back(std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(valueTreeState, "lfo3_rate", lfo3RateSlider));
+    sliderAttachments.push_back(std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(valueTreeState, "lfo3_amount", lfo3AmountSlider));
+
     // Modulation Envelope 1 attachments
     sliderAttachments.push_back(std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(valueTreeState, "mod_env1_attack", modEnv1AttackSlider));
     sliderAttachments.push_back(std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(valueTreeState, "mod_env1_decay", modEnv1DecaySlider));
@@ -2326,6 +2338,14 @@ void FreOscEditor::createParameterAttachments()
 
     lfoWaveformAttachments.push_back(std::make_unique<LFOWaveformSelectorAttachment>(valueTreeState, "lfo_waveform", lfoWaveformSelector));
     comboAttachments.push_back(std::make_unique<juce::AudioProcessorValueTreeState::ComboBoxAttachment>(valueTreeState, "lfo_target", lfoTargetCombo));
+
+    // LFO 2 attachments
+    lfoWaveformAttachments.push_back(std::make_unique<LFOWaveformSelectorAttachment>(valueTreeState, "lfo2_waveform", lfo2WaveformSelector));
+    comboAttachments.push_back(std::make_unique<juce::AudioProcessorValueTreeState::ComboBoxAttachment>(valueTreeState, "lfo2_target", lfo2TargetCombo));
+
+    // LFO 3 attachments
+    lfoWaveformAttachments.push_back(std::make_unique<LFOWaveformSelectorAttachment>(valueTreeState, "lfo3_waveform", lfo3WaveformSelector));
+    comboAttachments.push_back(std::make_unique<juce::AudioProcessorValueTreeState::ComboBoxAttachment>(valueTreeState, "lfo3_target", lfo3TargetCombo));
 
     // Modulation Envelope target attachments
     comboAttachments.push_back(std::make_unique<juce::AudioProcessorValueTreeState::ComboBoxAttachment>(valueTreeState, "mod_env1_target", modEnv1TargetCombo));
@@ -2400,6 +2420,14 @@ void FreOscEditor::updateValueLabels()
 
     lfoRateValue.setText(juce::String(lfoRateSlider.getValue(), 2) + " Hz", juce::dontSendNotification);
     lfoAmountValue.setText(juce::String(static_cast<int>(lfoAmountSlider.getValue() * 100)) + "%", juce::dontSendNotification);
+
+    // LFO 2 value labels
+    lfo2RateValue.setText(juce::String(lfo2RateSlider.getValue(), 2) + " Hz", juce::dontSendNotification);
+    lfo2AmountValue.setText(juce::String(static_cast<int>(lfo2AmountSlider.getValue() * 100)) + "%", juce::dontSendNotification);
+
+    // LFO 3 value labels
+    lfo3RateValue.setText(juce::String(lfo3RateSlider.getValue(), 2) + " Hz", juce::dontSendNotification);
+    lfo3AmountValue.setText(juce::String(static_cast<int>(lfo3AmountSlider.getValue() * 100)) + "%", juce::dontSendNotification);
 
     // Modulation Envelope 1 value labels
     modEnv1AttackValue.setText(formatTimeValue(static_cast<float>(modEnv1AttackSlider.getValue())), juce::dontSendNotification);
@@ -3841,6 +3869,8 @@ std::unique_ptr<juce::Component> FreOscEditor::createModulationTab()
         {
             // GROUP LAYOUT: Setup LFO, FM, and Modulation Envelope components with GroupComponent
             setupGroupLFO();
+            setupGroupLFO2();
+            setupGroupLFO3();
             setupGroupPM();
             setupGroupModEnv1();
             setupGroupModEnv2();
@@ -3850,7 +3880,7 @@ std::unique_ptr<juce::Component> FreOscEditor::createModulationTab()
         {
             // GROUP SETUP: Add LFO components to GroupComponent
             // Set text FIRST so applyComponentStyling can detect it's the LFO group
-            owner.lfoGroup.setText("LFO");
+            owner.lfoGroup.setText("LFO 1");
             owner.applyComponentStyling(owner.lfoGroup);
             
             // LFO color now handled by LookAndFeel - no manual color setting needed
@@ -3903,6 +3933,124 @@ std::unique_ptr<juce::Component> FreOscEditor::createModulationTab()
 
             // Add the group to the tab
             addAndMakeVisible(owner.lfoGroup);
+            
+            // Ensure custom LookAndFeel is applied to this tab component
+            setLookAndFeel(owner.customLookAndFeel.get());
+        }
+
+        void setupGroupLFO2()
+        {
+            // GROUP SETUP: Add LFO 2 components to GroupComponent
+            // Set text FIRST so applyComponentStyling can detect it's the LFO group
+            owner.lfo2Group.setText("LFO 2");
+            owner.applyComponentStyling(owner.lfo2Group);
+            
+            // Setup components with proper styling
+            owner.applyComponentStyling(owner.lfo2TargetCombo);
+            
+            // Setup LFO 2 sliders as vertical sliders with LEDs (like oscillator sliders)
+            owner.lfo2RateSlider.setName("LFO2_rate");
+            owner.lfo2AmountSlider.setName("LFO2_amount");
+            owner.applyComponentStyling(owner.lfo2RateSlider);
+            owner.applyComponentStyling(owner.lfo2AmountSlider);
+
+            owner.applyComponentStyling(owner.lfo2WaveformLabel);
+            owner.applyComponentStyling(owner.lfo2TargetLabel);
+            owner.applyComponentStyling(owner.lfo2RateLabel);
+            owner.applyComponentStyling(owner.lfo2AmountLabel);
+            owner.applyComponentStyling(owner.lfo2RateValue);
+            owner.applyComponentStyling(owner.lfo2AmountValue);
+
+            // Set value label styling for LFO 2 controls (white like other value labels)
+            owner.lfo2RateValue.setFont(juce::Font(juce::FontOptions().withHeight(11.0f)));
+            owner.lfo2RateValue.setJustificationType(juce::Justification::centred);
+            owner.lfo2RateValue.setColour(juce::Label::textColourId, juce::Colours::white);
+            owner.lfo2RateValue.setColour(juce::Label::backgroundColourId, juce::Colours::transparentBlack);
+            
+            owner.lfo2AmountValue.setFont(juce::Font(juce::FontOptions().withHeight(11.0f)));
+            owner.lfo2AmountValue.setJustificationType(juce::Justification::centred);
+            owner.lfo2AmountValue.setColour(juce::Label::textColourId, juce::Colours::white);
+            owner.lfo2AmountValue.setColour(juce::Label::backgroundColourId, juce::Colours::transparentBlack);
+
+            // Set label text
+            owner.lfo2WaveformLabel.setText("Waveform", juce::dontSendNotification);
+            owner.lfo2TargetLabel.setText("Target", juce::dontSendNotification);
+            owner.lfo2RateLabel.setText("Rate", juce::dontSendNotification);
+            owner.lfo2AmountLabel.setText("Amount", juce::dontSendNotification);
+
+            // Add components to the group
+            owner.lfo2Group.addAndMakeVisible(owner.lfo2WaveformLabel);
+            owner.lfo2Group.addAndMakeVisible(owner.lfo2WaveformSelector);
+            owner.lfo2Group.addAndMakeVisible(owner.lfo2TargetLabel);
+            owner.lfo2Group.addAndMakeVisible(owner.lfo2TargetCombo);
+            owner.lfo2Group.addAndMakeVisible(owner.lfo2RateLabel);
+            owner.lfo2Group.addAndMakeVisible(owner.lfo2RateSlider);
+            owner.lfo2Group.addAndMakeVisible(owner.lfo2RateValue);
+            owner.lfo2Group.addAndMakeVisible(owner.lfo2AmountLabel);
+            owner.lfo2Group.addAndMakeVisible(owner.lfo2AmountSlider);
+            owner.lfo2Group.addAndMakeVisible(owner.lfo2AmountValue);
+
+            // Add the group to the tab
+            addAndMakeVisible(owner.lfo2Group);
+            
+            // Ensure custom LookAndFeel is applied to this tab component
+            setLookAndFeel(owner.customLookAndFeel.get());
+        }
+
+        void setupGroupLFO3()
+        {
+            // GROUP SETUP: Add LFO 3 components to GroupComponent
+            // Set text FIRST so applyComponentStyling can detect it's the LFO group
+            owner.lfo3Group.setText("LFO 3");
+            owner.applyComponentStyling(owner.lfo3Group);
+            
+            // Setup components with proper styling
+            owner.applyComponentStyling(owner.lfo3TargetCombo);
+            
+            // Setup LFO 3 sliders as vertical sliders with LEDs (like oscillator sliders)
+            owner.lfo3RateSlider.setName("LFO3_rate");
+            owner.lfo3AmountSlider.setName("LFO3_amount");
+            owner.applyComponentStyling(owner.lfo3RateSlider);
+            owner.applyComponentStyling(owner.lfo3AmountSlider);
+
+            owner.applyComponentStyling(owner.lfo3WaveformLabel);
+            owner.applyComponentStyling(owner.lfo3TargetLabel);
+            owner.applyComponentStyling(owner.lfo3RateLabel);
+            owner.applyComponentStyling(owner.lfo3AmountLabel);
+            owner.applyComponentStyling(owner.lfo3RateValue);
+            owner.applyComponentStyling(owner.lfo3AmountValue);
+
+            // Set value label styling for LFO 3 controls (white like other value labels)
+            owner.lfo3RateValue.setFont(juce::Font(juce::FontOptions().withHeight(11.0f)));
+            owner.lfo3RateValue.setJustificationType(juce::Justification::centred);
+            owner.lfo3RateValue.setColour(juce::Label::textColourId, juce::Colours::white);
+            owner.lfo3RateValue.setColour(juce::Label::backgroundColourId, juce::Colours::transparentBlack);
+            
+            owner.lfo3AmountValue.setFont(juce::Font(juce::FontOptions().withHeight(11.0f)));
+            owner.lfo3AmountValue.setJustificationType(juce::Justification::centred);
+            owner.lfo3AmountValue.setColour(juce::Label::textColourId, juce::Colours::white);
+            owner.lfo3AmountValue.setColour(juce::Label::backgroundColourId, juce::Colours::transparentBlack);
+
+            // Set label text
+            owner.lfo3WaveformLabel.setText("Waveform", juce::dontSendNotification);
+            owner.lfo3TargetLabel.setText("Target", juce::dontSendNotification);
+            owner.lfo3RateLabel.setText("Rate", juce::dontSendNotification);
+            owner.lfo3AmountLabel.setText("Amount", juce::dontSendNotification);
+
+            // Add components to the group
+            owner.lfo3Group.addAndMakeVisible(owner.lfo3WaveformLabel);
+            owner.lfo3Group.addAndMakeVisible(owner.lfo3WaveformSelector);
+            owner.lfo3Group.addAndMakeVisible(owner.lfo3TargetLabel);
+            owner.lfo3Group.addAndMakeVisible(owner.lfo3TargetCombo);
+            owner.lfo3Group.addAndMakeVisible(owner.lfo3RateLabel);
+            owner.lfo3Group.addAndMakeVisible(owner.lfo3RateSlider);
+            owner.lfo3Group.addAndMakeVisible(owner.lfo3RateValue);
+            owner.lfo3Group.addAndMakeVisible(owner.lfo3AmountLabel);
+            owner.lfo3Group.addAndMakeVisible(owner.lfo3AmountSlider);
+            owner.lfo3Group.addAndMakeVisible(owner.lfo3AmountValue);
+
+            // Add the group to the tab
+            addAndMakeVisible(owner.lfo3Group);
             
             // Ensure custom LookAndFeel is applied to this tab component
             setLookAndFeel(owner.customLookAndFeel.get());
@@ -4180,6 +4328,120 @@ std::unique_ptr<juce::Component> FreOscEditor::createModulationTab()
             // Give full area to slider (like oscillator sliders) so LEDs have space
             owner.lfoAmountSlider.setBounds(amountSliderArea);
             owner.lfoAmountValue.setBounds(amountValueArea);
+        }
+
+        void layoutGroupLFO2(juce::Rectangle<int> area)
+        {
+            // Layout LFO 2 using GroupComponent (identical to LFO 1)
+            owner.lfo2Group.setBounds(area);
+            
+            // Layout components within the group - account for bottom band
+            auto bounds = owner.lfo2Group.getLocalBounds().reduced(8);
+            
+            // Reserve space for the bottom colored band (text height + padding)
+            juce::Font f(juce::FontOptions(14.0f).withStyle("Bold"));
+            auto textH = f.getHeight();
+            auto bottomBandHeight = textH + 8.0f;
+            bounds.removeFromBottom(static_cast<int>(bottomBandHeight));
+            
+            // Two-row layout: Dropdowns on top, knobs underneath
+            auto topRowHeight = 40;
+            auto topRow = bounds.removeFromTop(topRowHeight);
+            auto bottomRow = bounds;
+            
+            // Top row: Waveform and Target dropdowns side by side
+            auto dropdownWidth = topRow.getWidth() / 2;
+            
+            // Waveform (left half)
+            auto waveformArea = topRow.removeFromLeft(dropdownWidth).reduced(2);
+            owner.lfo2WaveformLabel.setBounds(waveformArea.removeFromTop(15));
+            owner.lfo2WaveformSelector.setBounds(waveformArea);
+
+            // Target (right half)
+            auto targetArea = topRow.reduced(2);
+            owner.lfo2TargetLabel.setBounds(targetArea.removeFromTop(15));
+            owner.lfo2TargetCombo.setBounds(targetArea);
+            
+            // Bottom row: Rate and Amount vertical sliders horizontally
+            auto sliderWidth = bottomRow.getWidth() / 2;
+            
+            const int minLabelHeight = 12;
+            const int minValueHeight = 12;
+            
+            // Rate slider (left)
+            auto rateArea = bottomRow.removeFromLeft(sliderWidth).reduced(3);
+            owner.lfo2RateLabel.setBounds(rateArea.removeFromTop(minLabelHeight));
+            auto rateValueArea = rateArea.removeFromBottom(minValueHeight);
+            auto rateSliderArea = rateArea.reduced(2);
+            
+            owner.lfo2RateSlider.setBounds(rateSliderArea);
+            owner.lfo2RateValue.setBounds(rateValueArea);
+            
+            // Amount slider (right)
+            auto amountArea = bottomRow.reduced(3);
+            owner.lfo2AmountLabel.setBounds(amountArea.removeFromTop(minLabelHeight));
+            auto amountValueArea = amountArea.removeFromBottom(minValueHeight);
+            auto amountSliderArea = amountArea.reduced(2);
+            
+            owner.lfo2AmountSlider.setBounds(amountSliderArea);
+            owner.lfo2AmountValue.setBounds(amountValueArea);
+        }
+
+        void layoutGroupLFO3(juce::Rectangle<int> area)
+        {
+            // Layout LFO 3 using GroupComponent (identical to LFO 1)
+            owner.lfo3Group.setBounds(area);
+            
+            // Layout components within the group - account for bottom band
+            auto bounds = owner.lfo3Group.getLocalBounds().reduced(8);
+            
+            // Reserve space for the bottom colored band (text height + padding)
+            juce::Font f(juce::FontOptions(14.0f).withStyle("Bold"));
+            auto textH = f.getHeight();
+            auto bottomBandHeight = textH + 8.0f;
+            bounds.removeFromBottom(static_cast<int>(bottomBandHeight));
+            
+            // Two-row layout: Dropdowns on top, knobs underneath
+            auto topRowHeight = 40;
+            auto topRow = bounds.removeFromTop(topRowHeight);
+            auto bottomRow = bounds;
+            
+            // Top row: Waveform and Target dropdowns side by side
+            auto dropdownWidth = topRow.getWidth() / 2;
+            
+            // Waveform (left half)
+            auto waveformArea = topRow.removeFromLeft(dropdownWidth).reduced(2);
+            owner.lfo3WaveformLabel.setBounds(waveformArea.removeFromTop(15));
+            owner.lfo3WaveformSelector.setBounds(waveformArea);
+
+            // Target (right half)
+            auto targetArea = topRow.reduced(2);
+            owner.lfo3TargetLabel.setBounds(targetArea.removeFromTop(15));
+            owner.lfo3TargetCombo.setBounds(targetArea);
+            
+            // Bottom row: Rate and Amount vertical sliders horizontally
+            auto sliderWidth = bottomRow.getWidth() / 2;
+            
+            const int minLabelHeight = 12;
+            const int minValueHeight = 12;
+            
+            // Rate slider (left)
+            auto rateArea = bottomRow.removeFromLeft(sliderWidth).reduced(3);
+            owner.lfo3RateLabel.setBounds(rateArea.removeFromTop(minLabelHeight));
+            auto rateValueArea = rateArea.removeFromBottom(minValueHeight);
+            auto rateSliderArea = rateArea.reduced(2);
+            
+            owner.lfo3RateSlider.setBounds(rateSliderArea);
+            owner.lfo3RateValue.setBounds(rateValueArea);
+            
+            // Amount slider (right)
+            auto amountArea = bottomRow.reduced(3);
+            owner.lfo3AmountLabel.setBounds(amountArea.removeFromTop(minLabelHeight));
+            auto amountValueArea = amountArea.removeFromBottom(minValueHeight);
+            auto amountSliderArea = amountArea.reduced(2);
+            
+            owner.lfo3AmountSlider.setBounds(amountSliderArea);
+            owner.lfo3AmountValue.setBounds(amountValueArea);
         }
         
 
@@ -4471,21 +4733,27 @@ std::unique_ptr<juce::Component> FreOscEditor::createModulationTab()
         {
             auto bounds = getLocalBounds().reduced(5);
 
-            // Split into 2x2 grid: LFO, FM (top row), ModEnv1, ModEnv2 (bottom row)
-            auto halfWidth = bounds.getWidth() / 2;
-            auto halfHeight = bounds.getHeight() / 2;
-            
-            auto topRow = bounds.removeFromTop(halfHeight).reduced(3);
+            // Updated layout for 3 LFOs: Top row has 3 LFO sections, Bottom row has PM + 2 ModEnvs
+            auto topRowHeight = bounds.getHeight() * 0.5f; // Give top row 50% of height
+            auto topRow = bounds.removeFromTop(static_cast<int>(topRowHeight)).reduced(3);
             auto bottomRow = bounds.reduced(3);
             
-            auto lfoArea = topRow.removeFromLeft(halfWidth).reduced(3);
-            auto pmArea = topRow.reduced(3);  // Remaining right half of top row
+            // Top row: 3 LFOs arranged horizontally
+            auto lfoWidth = topRow.getWidth() / 3;
+            auto lfo1Area = topRow.removeFromLeft(lfoWidth).reduced(3);
+            auto lfo2Area = topRow.removeFromLeft(lfoWidth).reduced(3);
+            auto lfo3Area = topRow.reduced(3);  // Remaining third of top row
             
-            auto modEnv1Area = bottomRow.removeFromLeft(halfWidth).reduced(3);
-            auto modEnv2Area = bottomRow.reduced(3);  // Remaining right half of bottom row
+            // Bottom row: PM, ModEnv1, ModEnv2 arranged horizontally
+            auto bottomWidth = bottomRow.getWidth() / 3;
+            auto pmArea = bottomRow.removeFromLeft(bottomWidth).reduced(3);
+            auto modEnv1Area = bottomRow.removeFromLeft(bottomWidth).reduced(3);
+            auto modEnv2Area = bottomRow.reduced(3);  // Remaining third of bottom row
 
-            // Layout components using GroupComponent positioning
-            layoutGroupLFO(lfoArea);
+            // Layout all 6 components using GroupComponent positioning
+            layoutGroupLFO(lfo1Area);
+            layoutGroupLFO2(lfo2Area);
+            layoutGroupLFO3(lfo3Area);
             layoutGroupPM(pmArea);
             layoutGroupModEnv1(modEnv1Area);
             layoutGroupModEnv2(modEnv2Area);

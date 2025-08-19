@@ -449,7 +449,7 @@ void FreOscVoice::renderNextBlock(juce::AudioBuffer<float>& outputBuffer, int st
         float osc1Sample = 0.0f, osc2Sample = 0.0f, osc3Sample = 0.0f;
         float noiseSample = 0.0f;
 
-        // Get LFO value for this sample if LFO is active
+        // Get LFO values for this sample if LFOs are active
         float lfoValue = 0.0f;
         if (params.lfoAmount > 0.0f && params.lfoTarget > 0) // Check both amount and target are set (target > 0 means not "None")
         {
@@ -464,6 +464,40 @@ void FreOscVoice::renderNextBlock(juce::AudioBuffer<float>& outputBuffer, int st
             );
             // LFO value is raw oscillator signal (-1 to +1), apply amount scaling
             lfoValue *= params.lfoAmount;
+        }
+
+        // Get LFO 2 value for this sample if LFO 2 is active
+        float lfo2Value = 0.0f;
+        if (params.lfo2Amount > 0.0f && params.lfo2Target > 0) // Check both amount and target are set (target > 0 means not "None")
+        {
+            // Set LFO 2 amount (required for internal activity check)
+            lfo2.setAmount(params.lfo2Amount);
+            
+            // Get the raw LFO 2 signal and apply amount scaling
+            lfo2Value = lfo2.getNextSample(
+                static_cast<FreOscLFO::Waveform>(params.lfo2Waveform.load()),
+                params.lfo2Rate,
+                static_cast<FreOscLFO::Target>(params.lfo2Target.load())
+            );
+            // LFO value is raw oscillator signal (-1 to +1), apply amount scaling
+            lfo2Value *= params.lfo2Amount;
+        }
+
+        // Get LFO 3 value for this sample if LFO 3 is active
+        float lfo3Value = 0.0f;
+        if (params.lfo3Amount > 0.0f && params.lfo3Target > 0) // Check both amount and target are set (target > 0 means not "None")
+        {
+            // Set LFO 3 amount (required for internal activity check)
+            lfo3.setAmount(params.lfo3Amount);
+            
+            // Get the raw LFO 3 signal and apply amount scaling
+            lfo3Value = lfo3.getNextSample(
+                static_cast<FreOscLFO::Waveform>(params.lfo3Waveform.load()),
+                params.lfo3Rate,
+                static_cast<FreOscLFO::Target>(params.lfo3Target.load())
+            );
+            // LFO value is raw oscillator signal (-1 to +1), apply amount scaling
+            lfo3Value *= params.lfo3Amount;
         }
 
         // Apply modulation envelope modulation to parameters
@@ -496,12 +530,55 @@ void FreOscVoice::renderNextBlock(juce::AudioBuffer<float>& outputBuffer, int st
             }
         }
 
-        // Apply pitch modulation from LFO if active (10% of fundamental frequency)
+        // Apply LFO modulation to PM parameters (additive from all active LFOs)
+        float pmIndexModulation = 0.0f;
+        float pmRatioModulation = 0.0f;
+        
+        // LFO 1 modulation
+        if (params.lfoAmount > 0.0f && params.lfoTarget == 6) // PM Index target
+            pmIndexModulation += lfoValue * 5.0f;
+        if (params.lfoAmount > 0.0f && params.lfoTarget == 7) // PM Ratio target
+            pmRatioModulation += lfoValue * 4.0f;
+            
+        // LFO 2 modulation
+        if (params.lfo2Amount > 0.0f && params.lfo2Target == 6) // PM Index target
+            pmIndexModulation += lfo2Value * 5.0f;
+        if (params.lfo2Amount > 0.0f && params.lfo2Target == 7) // PM Ratio target
+            pmRatioModulation += lfo2Value * 4.0f;
+            
+        // LFO 3 modulation
+        if (params.lfo3Amount > 0.0f && params.lfo3Target == 6) // PM Index target
+            pmIndexModulation += lfo3Value * 5.0f;
+        if (params.lfo3Amount > 0.0f && params.lfo3Target == 7) // PM Ratio target
+            pmRatioModulation += lfo3Value * 4.0f;
+            
+        // Apply modulation with limits
+        modulatedPMIndex = juce::jlimit(0.0f, 10.0f, modulatedPMIndex + pmIndexModulation);
+        modulatedPMRatio = juce::jlimit(0.1f, 8.0f, modulatedPMRatio + pmRatioModulation);
+
+        // Apply pitch modulation from all active LFOs (10% of fundamental frequency)
         float pitchModulation = 0.0f;
-        bool hasPitchModulation = (params.lfoAmount > 0.0f && params.lfoTarget == 1); // Pitch target
-        if (hasPitchModulation)
+        bool hasPitchModulation = false;
+        
+        // Check LFO 1 pitch modulation
+        if (params.lfoAmount > 0.0f && params.lfoTarget == 1) // Pitch target
         {
-            pitchModulation = lfoValue * 0.1f; // lfoValue already includes amount scaling
+            pitchModulation += lfoValue * 0.1f; // lfoValue already includes amount scaling
+            hasPitchModulation = true;
+        }
+        
+        // Check LFO 2 pitch modulation
+        if (params.lfo2Amount > 0.0f && params.lfo2Target == 1) // Pitch target
+        {
+            pitchModulation += lfo2Value * 0.1f; // lfo2Value already includes amount scaling
+            hasPitchModulation = true;
+        }
+        
+        // Check LFO 3 pitch modulation
+        if (params.lfo3Amount > 0.0f && params.lfo3Target == 1) // Pitch target
+        {
+            pitchModulation += lfo3Value * 0.1f; // lfo3Value already includes amount scaling
+            hasPitchModulation = true;
         }
         
         // Generate PM modulation signal using dedicated PM modulator
@@ -585,13 +662,28 @@ void FreOscVoice::renderNextBlock(juce::AudioBuffer<float>& outputBuffer, int st
             noiseSample = noiseGenerator.processSample();
         }
 
-        // Apply volume modulation from LFO if active
+        // Apply volume modulation from all active LFOs
         float volumeModulation = 1.0f;
+        
+        // Check LFO 1 volume modulation
         if (params.lfoAmount > 0.0f && params.lfoTarget == 4) // Volume target
         {
-            volumeModulation = 1.0f + (lfoValue * 0.5f); // lfoValue already includes amount scaling
-            volumeModulation = juce::jmax(0.0f, volumeModulation); // Prevent negative volume
+            volumeModulation *= 1.0f + (lfoValue * 0.5f); // lfoValue already includes amount scaling
         }
+        
+        // Check LFO 2 volume modulation
+        if (params.lfo2Amount > 0.0f && params.lfo2Target == 4) // Volume target
+        {
+            volumeModulation *= 1.0f + (lfo2Value * 0.5f); // lfo2Value already includes amount scaling
+        }
+        
+        // Check LFO 3 volume modulation
+        if (params.lfo3Amount > 0.0f && params.lfo3Target == 4) // Volume target
+        {
+            volumeModulation *= 1.0f + (lfo3Value * 0.5f); // lfo3Value already includes amount scaling
+        }
+        
+        volumeModulation = juce::jmax(0.0f, volumeModulation); // Prevent negative volume
 
         // Mix all sources
         float mixedSample = (osc1Sample + osc2Sample + osc3Sample + noiseSample) * volumeModulation;
@@ -613,22 +705,50 @@ void FreOscVoice::renderNextBlock(juce::AudioBuffer<float>& outputBuffer, int st
         mixedSample *= envelopeLevel * currentVelocity * ccVolumeModulation * amplitudeRampValue;
 
         // Apply per-voice filtering (after envelope, before panning)
-        // Check for LFO filter modulation
+        // Check for LFO filter modulation from all active LFOs
         float filterModulation = 0.0f;
+        
+        // Check LFO 1 filter modulation
         if (params.lfoAmount > 0.0f && params.lfoTarget == 2) // Filter target
         {
-            filterModulation = lfoValue * 0.3f; // ±30% modulation range
+            filterModulation += lfoValue * 0.3f; // ±30% modulation range
+        }
+        
+        // Check LFO 2 filter modulation
+        if (params.lfo2Amount > 0.0f && params.lfo2Target == 2) // Filter target
+        {
+            filterModulation += lfo2Value * 0.3f; // ±30% modulation range
+        }
+        
+        // Check LFO 3 filter modulation
+        if (params.lfo3Amount > 0.0f && params.lfo3Target == 2) // Filter target
+        {
+            filterModulation += lfo3Value * 0.3f; // ±30% modulation range
         }
 
         // Apply filter modulation to cutoff (starting from mod envelope modulated value)
         float finalModulatedCutoff = modulatedFilterCutoff + filterModulation;
         finalModulatedCutoff = juce::jlimit(0.0f, 1.0f, finalModulatedCutoff);
 
-        // Check for LFO filter 2 modulation
+        // Check for LFO filter 2 modulation from all active LFOs
         float filter2Modulation = 0.0f;
+        
+        // Check LFO 1 filter2 modulation
         if (params.lfoAmount > 0.0f && params.lfoTarget == 3) // Filter2 target
         {
-            filter2Modulation = lfoValue * 0.3f; // ±30% modulation range
+            filter2Modulation += lfoValue * 0.3f; // ±30% modulation range
+        }
+        
+        // Check LFO 2 filter2 modulation
+        if (params.lfo2Amount > 0.0f && params.lfo2Target == 3) // Filter2 target
+        {
+            filter2Modulation += lfo2Value * 0.3f; // ±30% modulation range
+        }
+        
+        // Check LFO 3 filter2 modulation
+        if (params.lfo3Amount > 0.0f && params.lfo3Target == 3) // Filter2 target
+        {
+            filter2Modulation += lfo3Value * 0.3f; // ±30% modulation range
         }
 
         // Apply filter2 modulation to cutoff (starting from mod envelope modulated value)
@@ -732,12 +852,26 @@ void FreOscVoice::renderNextBlock(juce::AudioBuffer<float>& outputBuffer, int st
                      params.osc3Pan * params.osc3Level) / totalLevelForPan;
         }
 
-        // Apply LFO pan modulation if active
+        // Apply LFO pan modulation from all active LFOs
+        // Check LFO 1 pan modulation
         if (params.lfoAmount > 0.0f && params.lfoTarget == 5) // Pan target
         {
             avgPan += lfoValue; // lfoValue already includes amount scaling
-            avgPan = juce::jlimit(-1.0f, 1.0f, avgPan); // Clamp to valid range
         }
+        
+        // Check LFO 2 pan modulation  
+        if (params.lfo2Amount > 0.0f && params.lfo2Target == 5) // Pan target
+        {
+            avgPan += lfo2Value; // lfo2Value already includes amount scaling
+        }
+        
+        // Check LFO 3 pan modulation
+        if (params.lfo3Amount > 0.0f && params.lfo3Target == 5) // Pan target
+        {
+            avgPan += lfo3Value; // lfo3Value already includes amount scaling
+        }
+        
+        avgPan = juce::jlimit(-1.0f, 1.0f, avgPan); // Clamp to valid range
 
         // Apply constant power panning (corrected algorithm)
         // Pan value: -1.0 = full left, 0.0 = center, +1.0 = full right
@@ -868,6 +1002,22 @@ void FreOscVoice::updateLFOParameters(int lfoWaveform, float lfoRate, int lfoTar
     params.lfoRate = lfoRate;
     params.lfoTarget = lfoTarget;
     params.lfoAmount = lfoAmount;
+}
+
+void FreOscVoice::updateLFO2Parameters(int lfo2Waveform, float lfo2Rate, int lfo2Target, float lfo2Amount)
+{
+    params.lfo2Waveform = lfo2Waveform;
+    params.lfo2Rate = lfo2Rate;
+    params.lfo2Target = lfo2Target;
+    params.lfo2Amount = lfo2Amount;
+}
+
+void FreOscVoice::updateLFO3Parameters(int lfo3Waveform, float lfo3Rate, int lfo3Target, float lfo3Amount)
+{
+    params.lfo3Waveform = lfo3Waveform;
+    params.lfo3Rate = lfo3Rate;
+    params.lfo3Target = lfo3Target;
+    params.lfo3Amount = lfo3Amount;
 }
 
 void FreOscVoice::updateFilterParameters(int filterType, float cutoff, float resonance, float gain)

@@ -835,12 +835,14 @@ float JsonPresetManager::normalizeLfoRate(float hz)
 
 float JsonPresetManager::normalizeLfoTarget(const juce::String& target)
 {
-    if (target == "none") return 0.0f / 5.0f;
-    if (target == "pitch") return 1.0f / 5.0f;
-    if (target == "filter") return 2.0f / 5.0f;
-    if (target == "filter2") return 3.0f / 5.0f;
-    if (target == "volume") return 4.0f / 5.0f;
-    if (target == "pan") return 5.0f / 5.0f;
+    if (target == "none") return 0.0f / 7.0f;
+    if (target == "pitch") return 1.0f / 7.0f;
+    if (target == "filter") return 2.0f / 7.0f;
+    if (target == "filter2") return 3.0f / 7.0f;
+    if (target == "volume") return 4.0f / 7.0f;
+    if (target == "pan") return 5.0f / 7.0f;
+    if (target == "pm_index") return 6.0f / 7.0f;
+    if (target == "pm_ratio") return 7.0f / 7.0f;
     return 0.0f; // Default to none
 }
 
@@ -967,7 +969,7 @@ float JsonPresetManager::denormalizeLfoRate(float normalized)
 
 juce::String JsonPresetManager::denormalizeLfoTarget(float normalized)
 {
-    int index = static_cast<int>(normalized * 5.0f + 0.5f);
+    int index = static_cast<int>(normalized * 7.0f + 0.5f);
     switch (index)
     {
         case 0: return "none";
@@ -976,6 +978,8 @@ juce::String JsonPresetManager::denormalizeLfoTarget(float normalized)
         case 3: return "filter2";
         case 4: return "volume";
         case 5: return "pan";
+        case 6: return "pm_index";
+        case 7: return "pm_ratio";
         default: return "none";
     }
 }

@@ -108,7 +108,7 @@ inline const juce::StringArray FreOscParameters::lfoWaveforms = {
 
 // LFO target choices
 inline const juce::StringArray FreOscParameters::lfoTargets = {
-    "None", "Pitch", "Filter Cutoff", "Filter2 Cutoff", "Volume", "Pan"
+    "None", "Pitch", "Filter Cutoff", "Filter2 Cutoff", "Volume", "Pan", "PM Index", "PM Ratio"
 };
 
 // Modulation envelope target choices
@@ -147,10 +147,10 @@ inline const std::vector<FreOscParameters::ParameterInfo> FreOscParameters::floa
     {"master_volume",  "Master Volume",  {0.0f, 1.0f, 0.01f}, 0.5f},
 
     // Envelope - Simple organ-style envelope
-    {"envelope_attack",  "Attack",   {0.0f, 2.0f, 0.01f}, 0.0f, " s"},
-    {"envelope_decay",   "Decay",    {0.0f, 2.0f, 0.01f}, 0.0f, " s"},
+    {"envelope_attack",  "Attack",   {0.0f, 2.0f, 0.01f, 0.3f}, 0.0f, " s"},
+    {"envelope_decay",   "Decay",    {0.0f, 2.0f, 0.01f, 0.3f}, 0.0f, " s"},
     {"envelope_sustain", "Sustain",  {0.0f, 1.0f, 0.01f}, 1.0f},
-    {"envelope_release", "Release",  {0.0f, 3.0f, 0.01f}, 0.1f, " s"},
+    {"envelope_release", "Release",  {0.0f, 3.0f, 0.01f, 0.3f}, 0.1f, " s"},
 
     // Filter - Wide open for clean sound
     {"filter_cutoff",    "Cutoff",     {0.0f, 1.0f, 0.01f}, 1.0f}, // Wide open (20kHz)
@@ -184,25 +184,33 @@ inline const std::vector<FreOscParameters::ParameterInfo> FreOscParameters::floa
     {"tape_wet_level",   "Tape Wet",       {0.0f, 1.0f, 0.01f}, 0.0f},
     {"tape_width",       "Tape Width",     {0.0f, 1.0f, 0.01f}, 0.5f},
 
-    // LFO
-    {"lfo_rate",         "LFO Rate",       {0.01f, 20.0f, 0.01f}, 2.0f, " Hz"},
+    // LFO 1
+    {"lfo_rate",         "LFO Rate",       {0.01f, 20.0f, 0.01f, 0.3f}, 2.0f, " Hz"},
     {"lfo_amount",       "LFO Amount",     {0.0f, 1.0f, 0.01f}, 0.0f},
 
+    // LFO 2
+    {"lfo2_rate",        "LFO2 Rate",      {0.01f, 20.0f, 0.01f, 0.3f}, 2.0f, " Hz"},
+    {"lfo2_amount",      "LFO2 Amount",    {0.0f, 1.0f, 0.01f}, 0.0f},
+
+    // LFO 3
+    {"lfo3_rate",        "LFO3 Rate",      {0.01f, 20.0f, 0.01f, 0.3f}, 2.0f, " Hz"},
+    {"lfo3_amount",      "LFO3 Amount",    {0.0f, 1.0f, 0.01f}, 0.0f},
+
     // Modulation Envelope 1
-    {"mod_env1_attack",  "ModEnv1 Attack",  {0.0f, 2.0f, 0.01f}, 0.01f, " s"},
-    {"mod_env1_decay",   "ModEnv1 Decay",   {0.0f, 2.0f, 0.01f}, 0.2f, " s"},
+    {"mod_env1_attack",  "ModEnv1 Attack",  {0.0f, 2.0f, 0.01f, 0.3f}, 0.01f, " s"},
+    {"mod_env1_decay",   "ModEnv1 Decay",   {0.0f, 2.0f, 0.01f, 0.3f}, 0.2f, " s"},
     {"mod_env1_sustain", "ModEnv1 Sustain", {0.0f, 1.0f, 0.01f}, 0.8f},
-    {"mod_env1_release", "ModEnv1 Release", {0.0f, 3.0f, 0.01f}, 0.3f, " s"},
+    {"mod_env1_release", "ModEnv1 Release", {0.0f, 3.0f, 0.01f, 0.3f}, 0.3f, " s"},
     {"mod_env1_amount",  "ModEnv1 Amount",  {0.0f, 1.0f, 0.01f}, 0.0f},
-    {"mod_env1_rate",    "ModEnv1 Rate",    {0.1f, 10.0f, 0.1f}, 1.0f, " Hz"},
+    {"mod_env1_rate",    "ModEnv1 Rate",    {0.1f, 10.0f, 0.1f, 0.3f}, 1.0f, " Hz"},
 
     // Modulation Envelope 2
-    {"mod_env2_attack",  "ModEnv2 Attack",  {0.0f, 2.0f, 0.01f}, 0.01f, " s"},
-    {"mod_env2_decay",   "ModEnv2 Decay",   {0.0f, 2.0f, 0.01f}, 0.2f, " s"},
+    {"mod_env2_attack",  "ModEnv2 Attack",  {0.0f, 2.0f, 0.01f, 0.3f}, 0.01f, " s"},
+    {"mod_env2_decay",   "ModEnv2 Decay",   {0.0f, 2.0f, 0.01f, 0.3f}, 0.2f, " s"},
     {"mod_env2_sustain", "ModEnv2 Sustain", {0.0f, 1.0f, 0.01f}, 0.8f},
-    {"mod_env2_release", "ModEnv2 Release", {0.0f, 3.0f, 0.01f}, 0.3f, " s"},
+    {"mod_env2_release", "ModEnv2 Release", {0.0f, 3.0f, 0.01f, 0.3f}, 0.3f, " s"},
     {"mod_env2_amount",  "ModEnv2 Amount",  {0.0f, 1.0f, 0.01f}, 0.0f},
-    {"mod_env2_rate",    "ModEnv2 Rate",    {0.1f, 10.0f, 0.1f}, 1.0f, " Hz"},
+    {"mod_env2_rate",    "ModEnv2 Rate",    {0.1f, 10.0f, 0.1f, 0.3f}, 1.0f, " Hz"},
 
     // Wavefolder Distortion - Off by default
     {"wavefolder_drive",     "Wavefolder Drive",     {0.0f, 1.0f, 0.01f}, 0.0f},
@@ -232,9 +240,17 @@ inline const std::vector<std::tuple<juce::String, juce::String, juce::StringArra
     // PM - OSC3 is always the message signal, user selects carrier(s)
     {"pm_carrier", "PM Carrier", pmCarriers, 0}, // Oscillator 1
 
-    // LFO
+    // LFO 1
     {"lfo_waveform", "LFO Waveform", lfoWaveforms, 0}, // Sine
     {"lfo_target", "LFO Target", lfoTargets, 0}, // None
+
+    // LFO 2
+    {"lfo2_waveform", "LFO2 Waveform", lfoWaveforms, 0}, // Sine
+    {"lfo2_target", "LFO2 Target", lfoTargets, 0}, // None
+
+    // LFO 3
+    {"lfo3_waveform", "LFO3 Waveform", lfoWaveforms, 0}, // Sine
+    {"lfo3_target", "LFO3 Target", lfoTargets, 0}, // None
 
     // Modulation Envelopes
     {"mod_env1_target", "ModEnv1 Target", modEnvelopeTargets, 0}, // None

@@ -351,6 +351,16 @@ void FreOscProcessor::updateVoiceParameters()
     auto lfoTarget = static_cast<int>(parameters.getRawParameterValue("lfo_target")->load());
     auto lfoAmount = parameters.getRawParameterValue("lfo_amount")->load();
 
+    auto lfo2Waveform = static_cast<int>(parameters.getRawParameterValue("lfo2_waveform")->load());
+    auto lfo2Rate = parameters.getRawParameterValue("lfo2_rate")->load();
+    auto lfo2Target = static_cast<int>(parameters.getRawParameterValue("lfo2_target")->load());
+    auto lfo2Amount = parameters.getRawParameterValue("lfo2_amount")->load();
+
+    auto lfo3Waveform = static_cast<int>(parameters.getRawParameterValue("lfo3_waveform")->load());
+    auto lfo3Rate = parameters.getRawParameterValue("lfo3_rate")->load();
+    auto lfo3Target = static_cast<int>(parameters.getRawParameterValue("lfo3_target")->load());
+    auto lfo3Amount = parameters.getRawParameterValue("lfo3_amount")->load();
+
     auto filterType = static_cast<int>(parameters.getRawParameterValue("filter_type")->load());
     auto filterCutoff = parameters.getRawParameterValue("filter_cutoff")->load();
     auto filterResonance = parameters.getRawParameterValue("filter_resonance")->load();
@@ -397,6 +407,8 @@ void FreOscProcessor::updateVoiceParameters()
             voice->updateEnvelopeParameters(attack, decay, sustain, release);
             voice->updatePMParameters(pmIndex, pmCarrier, pmRatio);
             voice->updateLFOParameters(lfoWaveform, lfoRate, lfoTarget, lfoAmount);
+            voice->updateLFO2Parameters(lfo2Waveform, lfo2Rate, lfo2Target, lfo2Amount);
+            voice->updateLFO3Parameters(lfo3Waveform, lfo3Rate, lfo3Target, lfo3Amount);
             voice->updateFilterParameters(filterType, filterCutoff, filterResonance, filterGain);
             voice->updateFilter2Parameters(filter2Type, filter2Cutoff, filter2Resonance, filter2Gain);
             voice->updateFilterRouting(filterRouting);
