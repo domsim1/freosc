@@ -277,9 +277,9 @@ public:
         {
             groupColour = juce::Colour(0xff9bb3c7); // Light blue color for PM, noise generator, filter groups, and reverb
         }
-        else if (text == "Envelope" || text == "Routing" || text == "Mod Env 1" || text == "Mod Env 2")
+        else if (text == "Envelope" || text == "Routing" || text == "Mod Env 1" || text == "Mod Env 2" || text == "Patch Management")
         {
-            groupColour = juce::Colour(0xffc5c2a3); // Tan/beige color for envelope, routing, and modulation envelopes
+            groupColour = juce::Colour(0xffc5c2a3); // Tan/beige color for envelope, routing, modulation envelopes, and patch management
         }
         else if (text.contains("Oscillator") || text == "Wavefolder Distortion")
         {
@@ -615,6 +615,99 @@ public:
         auto textArea = area.reduced(8, 0); // Padding from sides
         g.drawText(text, textArea, juce::Justification::centredLeft);
     }
+    
+    void drawButtonBackground(juce::Graphics& g, juce::Button& button, const juce::Colour& backgroundColour,
+                             bool shouldDrawButtonAsHighlighted, bool shouldDrawButtonAsDown) override
+    {
+        juce::ignoreUnused(backgroundColour);
+        auto bounds = button.getLocalBounds().toFloat();
+        
+        // Apply tab button styling for preset management buttons - black plastic look with 3D effect
+        if (shouldDrawButtonAsDown)
+        {
+            // PUSHED DOWN button (clicked state) - matching tab selected state
+            // Dark recessed background
+            g.setColour(juce::Colour(0xff1a1a1a)); // Very dark background
+            g.fillRoundedRectangle(bounds, 1.0f);
+            
+            // Dark shadow on top and left (inset look)
+            g.setColour(juce::Colour(0xff0d0d0d)); // Even darker shadow
+            g.drawLine(bounds.getX(), bounds.getY(), 
+                      bounds.getRight(), bounds.getY(), 1.0f); // Top shadow
+            g.drawLine(bounds.getX(), bounds.getY(), 
+                      bounds.getX(), bounds.getBottom(), 1.0f); // Left shadow
+            
+            // Subtle highlight on bottom and right (for depth)
+            g.setColour(juce::Colour(0xff404040));
+            g.drawLine(bounds.getX(), bounds.getBottom() - 1, 
+                      bounds.getRight(), bounds.getBottom() - 1, 1.0f); // Bottom highlight
+            g.drawLine(bounds.getRight() - 1, bounds.getY(), 
+                      bounds.getRight() - 1, bounds.getBottom(), 1.0f); // Right highlight
+        }
+        else
+        {
+            // RAISED button (normal state) - matching tab unselected state
+            // Black plastic background with subtle variation for hover
+            auto bgColor = shouldDrawButtonAsHighlighted ? 
+                          juce::Colour(0xff383838) : juce::Colour(0xff2a2a2a);
+            
+            g.setColour(bgColor);
+            g.fillRoundedRectangle(bounds, 1.0f);
+            
+            // Bright highlight on top and left (raised black plastic look)
+            g.setColour(juce::Colour(0xff707070)); // Medium grey highlight for black plastic
+            g.drawLine(bounds.getX(), bounds.getY(), 
+                      bounds.getRight(), bounds.getY(), 1.0f); // Top highlight
+            g.drawLine(bounds.getX(), bounds.getY(), 
+                      bounds.getX(), bounds.getBottom(), 1.0f); // Left highlight
+            
+            // Dark shadow on bottom and right (for 3D depth)
+            g.setColour(juce::Colour(0xff0a0a0a)); // Very dark shadow for black plastic
+            g.drawLine(bounds.getX(), bounds.getBottom() - 1, 
+                      bounds.getRight(), bounds.getBottom() - 1, 1.0f); // Bottom shadow
+            g.drawLine(bounds.getRight() - 1, bounds.getY(), 
+                      bounds.getRight() - 1, bounds.getBottom(), 1.0f); // Right shadow
+        }
+    }
+    
+    void drawButtonText(juce::Graphics& g, juce::TextButton& button, bool shouldDrawButtonAsHighlighted, bool shouldDrawButtonAsDown) override
+    {
+        juce::ignoreUnused(shouldDrawButtonAsHighlighted);
+        auto bounds = button.getLocalBounds().toFloat();
+        
+        // Set font to match tab buttons
+        g.setFont(juce::Font(juce::FontOptions().withHeight(11.0f)));
+        
+        // Text color based on button state - matching tab button text styling
+        auto textColor = shouldDrawButtonAsDown ? juce::Colours::white : juce::Colour(0xffa0a0a0);
+        g.setColour(textColor);
+        
+        // Draw the button text centered
+        g.drawText(button.getButtonText(), bounds, juce::Justification::centred, true);
+    }
+    
+    void drawAlertBox(juce::Graphics& g, juce::AlertWindow& alert,
+                     const juce::Rectangle<int>& textArea, juce::TextLayout& textLayout) override
+    {
+        auto cornerSize = 4.0f;
+        
+        // Fill background with dark color over the entire alert bounds
+        g.setColour(alert.findColour(juce::AlertWindow::backgroundColourId));
+        g.fillRoundedRectangle(alert.getLocalBounds().toFloat(), cornerSize);
+
+        // Skip icon drawing - no icon displayed
+
+        // Draw text without icon offset
+        g.setColour(alert.findColour(juce::AlertWindow::textColourId));
+        juce::Rectangle<int> alertBounds(textArea.getX() + 20, 30,
+                                        textArea.getWidth() - 40,
+                                        textArea.getHeight() - 40);
+
+        textLayout.draw(g, alertBounds.toFloat());
+
+        // Explicitly do not draw any outline or border
+    }
+    
 };
 
 //==============================================================================
@@ -1678,9 +1771,6 @@ FreOscEditor::FreOscEditor (FreOscProcessor& p)
     titleLabel.setFont(juce::Font(juce::FontOptions().withHeight(24.0f).withStyle("Bold")));  // Fixed larger size, bold
     titleLabel.setJustificationType(juce::Justification::centred);
     titleLabel.setColour(juce::Label::textColourId, juce::Colours::white);
-
-    setupComponent(presetSelector);
-    presetSelector.addListener(this); // Auto-load presets on selection
     
     // Setup master volume components for header
     setupSlider(masterVolumeSlider, masterVolumeLabel, masterVolumeValue, "Master", "master_volume");
@@ -1695,12 +1785,16 @@ FreOscEditor::FreOscEditor (FreOscProcessor& p)
 
     // Add header components to content component instead of main editor
     contentComponent.addAndMakeVisible(titleLabel);
-    contentComponent.addAndMakeVisible(presetSelector);
     
     // Add master volume components to header (no label, but add value label to the right)
     // contentComponent.addAndMakeVisible(masterVolumeLabel); - removed, no label shown
     contentComponent.addAndMakeVisible(masterVolumeSlider);
     contentComponent.addAndMakeVisible(masterVolumeValue); // Show value to the right of knob
+    
+    // Setup patch management components but don't add here (they're added by the tab)
+    setupComponent(patchFilterLabel);
+    setupComponent(patchFilterEditor);
+    setupComponent(patchListBox);
 
     // DO NOT setup components in main constructor - let tabs handle this
     // This avoids the component parent conflict issue
@@ -1779,17 +1873,15 @@ void FreOscEditor::resized()
     // Header section - taller to accommodate larger master volume knob
     auto headerBounds = contentBounds.removeFromTop(70);
     
-    // Reserve more space for master volume first (right side) - wider area for knob + value label
-    auto masterArea = headerBounds.removeFromRight(160).reduced(5);
+    // Calculate layout without patch name display
+    const int titleWidth = 200;
+    const int masterAreaWidth = 160;
     
-    // Layout remaining header components with fixed title size and proper preset selector height
-    titleLabel.setBounds(headerBounds.removeFromLeft(200).reduced(5)); // Smaller fixed width for title
+    // Title on the left
+    titleLabel.setBounds(headerBounds.removeFromLeft(titleWidth).reduced(5));
     
-    // Preset selector with proper height (center it vertically in the header)
-    auto presetBounds = headerBounds.reduced(5);
-    auto presetHeight = 25; // Fixed height for dropdown
-    auto presetY = presetBounds.getY() + (presetBounds.getHeight() - presetHeight) / 2; // Center vertically
-    presetSelector.setBounds(presetBounds.getX(), presetY, presetBounds.getWidth(), presetHeight);
+    // Master volume area on the right
+    auto masterArea = headerBounds.removeFromRight(masterAreaWidth).reduced(5);
     
     // Layout master volume knob in reserved area - knob on left, value on right
     // masterVolumeLabel.setBounds() - removed, no title
@@ -1817,27 +1909,452 @@ void FreOscEditor::resized()
 void FreOscEditor::timerCallback()
 {
     updateValueLabels();
+    updateCurrentPresetDisplay();
 }
 
 void FreOscEditor::buttonClicked(juce::Button* button)
 {
-    // No buttons currently handled - load preset button removed
-    juce::ignoreUnused(button);
+    if (button == &savePresetButton)
+    {
+        handleSavePreset();
+    }
+    else if (button == &deletePresetButton)
+    {
+        handleDeletePreset();
+    }
 }
 
-void FreOscEditor::comboBoxChanged(juce::ComboBox* comboBoxThatHasChanged)
+//==============================================================================
+// Preset Management Handlers
+
+void FreOscEditor::handleSavePreset()
 {
-    if (comboBoxThatHasChanged == &presetSelector)
+    juce::String patchName = presetNameEditor.getText().trim();
+    
+    // Validate patch name
+    if (patchName.isEmpty())
     {
-        // Auto-load preset when selected from dropdown
-        int selectedIndex = presetSelector.getSelectedItemIndex();
-        if (selectedIndex > 0) // Index 0 is "Custom", start from 1
+        showThemedErrorMessage("Invalid Name",
+                               "Please enter a patch name.");
+        return;
+    }
+    
+    // Check if patch name already exists
+    if (audioProcessor.presetExists(patchName))
+    {
+        // Check if it's a factory preset (cannot be overwritten)
+        for (int i = 0; i < audioProcessor.getPresets().getNumPresets(); ++i)
         {
-            // Load the preset (selectedIndex - 1 because index 0 is "Custom", so preset 0 is at index 1)
-            audioProcessor.loadPreset(selectedIndex - 1);
+            if (audioProcessor.getPresets().getPresetName(i) == patchName && 
+                audioProcessor.getPresets().isFactoryPreset(i))
+            {
+                showThemedErrorMessage("Cannot Overwrite Factory Patch",
+                                       "'" + patchName + "' is a factory patch and cannot be overwritten. Please choose a different name.");
+                return;
+            }
+        }
+        
+        // It's a user patch - confirm overwrite
+        showThemedConfirmDialog("Update Existing Patch",
+                                "A patch named '" + patchName + "' already exists. Do you want to update it with the current settings?",
+                                "Update", "Cancel",
+                                [this, patchName](bool confirmed)
+                                {
+                                    if (confirmed)
+                                    {
+                                        savePresetWithName(patchName);
+                                    }
+                                });
+        return;
+    }
+    
+    // Save as new patch
+    savePresetWithName(patchName);
+}
+
+
+void FreOscEditor::handleDeletePreset()
+{
+    int currentPresetIndex = audioProcessor.getPresets().getCurrentPresetIndex();
+    
+    if (currentPresetIndex < 0)
+    {
+        showThemedErrorMessage("No Preset Selected",
+                               "Please select a preset to delete.");
+        return;
+    }
+    
+    // Check if it's a factory preset
+    if (audioProcessor.getPresets().isFactoryPreset(currentPresetIndex))
+    {
+        showThemedErrorMessage("Cannot Delete Factory Preset",
+                               "Factory presets cannot be deleted.");
+        return;
+    }
+    
+    juce::String presetName = audioProcessor.getPresets().getPresetName(currentPresetIndex);
+    
+    // Confirm deletion with themed dialog
+    showThemedConfirmDialog("Delete Preset",
+                            "Are you sure you want to delete preset '" + presetName + "'? This cannot be undone.",
+                            "Delete", "Cancel",
+                            [this, currentPresetIndex, presetName](bool confirmed)
+                            {
+                                if (confirmed)
+                                {
+                                    if (audioProcessor.deletePreset(currentPresetIndex))
+                                    {
+                                        refreshPatchList();
+                                        updateCurrentPresetDisplay();
+                                        showThemedSuccessMessage("Preset Deleted",
+                                                                 "Preset '" + presetName + "' has been deleted successfully.");
+                                    }
+                                    else
+                                    {
+                                        showThemedErrorMessage("Delete Failed",
+                                                               "Failed to delete preset '" + presetName + "'.");
+                                    }
+                                }
+                            });
+}
+
+void FreOscEditor::refreshPatchList()
+{
+    // Clear and rebuild patch lists
+    allPatches.clear();
+    
+    // Get preset names from the JSON preset manager
+    auto presetNames = audioProcessor.getPresets().getPresetNames();
+    for (int i = 0; i < presetNames.size(); ++i)
+    {
+        PatchListItem item;
+        item.name = presetNames[i];
+        item.originalIndex = i;
+        item.isFactory = audioProcessor.getPresets().isFactoryPreset(i);
+        allPatches.push_back(item);
+    }
+    
+    // Filter the patch list
+    filterPatchList();
+    
+    // Update the list box content
+    patchListBox.updateContent();
+    
+    // Update current patch display
+    updateCurrentPresetDisplay();
+}
+
+void FreOscEditor::filterPatchList()
+{
+    filteredPatches.clear();
+    
+    juce::String filterText = patchFilterEditor.getText().toLowerCase().trim();
+    
+    for (const auto& patch : allPatches)
+    {
+        if (filterText.isEmpty() || patch.name.toLowerCase().contains(filterText))
+        {
+            filteredPatches.push_back(patch);
         }
     }
-    // Rate controls are now always visible - no mode-based hiding
+    
+    // Sort patches - factory first, then alphabetically
+    std::sort(filteredPatches.begin(), filteredPatches.end(), [](const PatchListItem& a, const PatchListItem& b) {
+        if (a.isFactory != b.isFactory)
+            return a.isFactory > b.isFactory; // Factory presets first
+        return a.name < b.name; // Then alphabetically
+    });
+}
+
+void FreOscEditor::updateCurrentPresetDisplay()
+{
+    juce::String currentPresetName = audioProcessor.getCurrentPresetName();
+    int currentIndex = audioProcessor.getPresets().getCurrentPresetIndex();
+    
+    // Update the current preset name label
+    currentPresetNameLabel.setText(currentPresetName, juce::dontSendNotification);
+    
+    // Header patch display removed
+    
+    // Set flag to prevent automatic preset loading during GUI update
+    isUpdatingGUI = true;
+    
+    // Update list box selection
+    if (currentIndex >= 0)
+    {
+        // Find the patch in the filtered list
+        for (int i = 0; i < static_cast<int>(filteredPatches.size()); ++i)
+        {
+            if (filteredPatches[i].originalIndex == currentIndex)
+            {
+                patchListBox.selectRow(i + 1); // +1 because "Default" is row 0
+                break;
+            }
+        }
+    }
+    else
+    {
+        patchListBox.selectRow(0); // Default
+    }
+    
+    // Clear the flag after GUI update is complete
+    isUpdatingGUI = false;
+    
+    // Enable/disable delete button based on current preset
+    bool isValidUserPreset = (currentIndex >= 0) && !audioProcessor.getPresets().isFactoryPreset(currentIndex);
+    deletePresetButton.setEnabled(isValidUserPreset);
+}
+
+void FreOscEditor::savePresetWithName(const juce::String& presetName)
+{
+    if (audioProcessor.saveUserPreset(presetName, ""))
+    {
+        refreshPatchList();
+        
+        // Set current preset to the newly saved one
+        audioProcessor.getPresets().setCurrentPreset(presetName);
+        updateCurrentPresetDisplay();
+        
+        showThemedSuccessMessage("Preset Saved",
+                                 "Preset '" + presetName + "' has been saved successfully.");
+    }
+    else
+    {
+        showThemedErrorMessage("Save Failed",
+                               "Failed to save preset '" + presetName + "'.");
+    }
+}
+
+// Removed comboBoxChanged - now using ListBox for patch selection
+
+// ListBoxModel implementation
+int FreOscEditor::getNumRows()
+{
+    return static_cast<int>(filteredPatches.size()) + 1; // +1 for "Default"
+}
+
+void FreOscEditor::paintListBoxItem(int rowNumber, juce::Graphics& g, int width, int height, bool rowIsSelected)
+{
+    if (rowIsSelected)
+    {
+        // Use the same dark recessed background as selected tabs/buttons
+        g.setColour(juce::Colour(0xff1a1a1a)); // Very dark background like selected tabs
+        g.fillRect(0, 0, width, height);
+        
+        // Add subtle LED red accent border on the left to indicate selection
+        g.setColour(juce::Colour(0xffff2222)); // LED red color matching other UI elements
+        g.fillRect(0, 0, 3, height); // 3px red left border
+        
+        // Add subtle highlight lines for 3D pressed effect (matching tab styling)
+        g.setColour(juce::Colour(0xff0d0d0d)); // Even darker shadow
+        g.drawLine(3.0f, 0.0f, static_cast<float>(width), 0.0f, 1.0f); // Top shadow
+        
+        g.setColour(juce::Colour(0xff404040)); // Subtle highlight
+        g.drawLine(3.0f, static_cast<float>(height - 1), static_cast<float>(width), static_cast<float>(height - 1), 1.0f); // Bottom highlight
+    }
+    
+    g.setColour(rowIsSelected ? juce::Colours::white : juce::Colour(0xffa0a0a0));
+    g.setFont(juce::Font(juce::FontOptions().withHeight(13.0f)));
+    
+    juce::String itemText;
+    if (rowNumber == 0)
+    {
+        itemText = "Default";
+    }
+    else if (rowNumber - 1 < static_cast<int>(filteredPatches.size()))
+    {
+        const auto& patch = filteredPatches[rowNumber - 1];
+        itemText = patch.isFactory ? "[Factory] " + patch.name : patch.name;
+    }
+    
+    // Adjust text position to account for blue border on selected items
+    int textX = rowIsSelected ? 8 : 5; // Slightly more padding when selected
+    g.drawText(itemText, textX, 0, width - textX - 5, height, juce::Justification::centredLeft);
+}
+
+void FreOscEditor::selectedRowsChanged(int lastRowSelected)
+{
+    // Skip preset loading if we're just updating the GUI
+    if (isUpdatingGUI)
+        return;
+        
+    if (lastRowSelected == 0)
+    {
+        // "Default" selected - reset all parameters to their default values
+        auto& valueTreeState = audioProcessor.getValueTreeState();
+        
+        // Reset each parameter to its default value
+        for (auto* param : valueTreeState.processor.getParameters())
+        {
+            if (auto* rangedParam = dynamic_cast<juce::AudioProcessorParameterWithID*>(param))
+            {
+                param->setValueNotifyingHost(param->getDefaultValue());
+            }
+        }
+        
+        audioProcessor.clearCurrentPreset();
+        
+        // Update preset name editor to show "Default"
+        presetNameEditor.setText("Default", juce::dontSendNotification);
+    }
+    else if (lastRowSelected > 0 && lastRowSelected - 1 < static_cast<int>(filteredPatches.size()))
+    {
+        // Patch selected
+        const auto& patch = filteredPatches[lastRowSelected - 1];
+        audioProcessor.loadPreset(patch.originalIndex);
+        audioProcessor.getPresets().setCurrentPreset(patch.originalIndex);
+        
+        // Update preset name editor to show the selected patch name
+        presetNameEditor.setText(patch.name, juce::dontSendNotification);
+    }
+    
+    updateCurrentPresetDisplay();
+}
+
+void FreOscEditor::textEditorTextChanged(juce::TextEditor& editor)
+{
+    if (&editor == &patchFilterEditor)
+    {
+        filterPatchList();
+        patchListBox.updateContent();
+        patchListBox.repaint();
+    }
+}
+
+void FreOscEditor::textEditorReturnKeyPressed(juce::TextEditor& editor)
+{
+    if (&editor == &patchFilterEditor)
+    {
+        // Filter is already updated via textEditorTextChanged, just ensure focus moves away
+        editor.unfocusAllComponents();
+    }
+}
+
+void FreOscEditor::textEditorEscapeKeyPressed(juce::TextEditor& editor)
+{
+    if (&editor == &patchFilterEditor)
+    {
+        // Clear the filter and unfocus
+        editor.setText("", juce::dontSendNotification);
+        filterPatchList();
+        patchListBox.updateContent();
+        patchListBox.repaint();
+        editor.unfocusAllComponents();
+    }
+}
+
+void FreOscEditor::textEditorFocusLost(juce::TextEditor& editor)
+{
+    if (&editor == &patchFilterEditor)
+    {
+        // Ensure filter is applied when focus is lost
+        filterPatchList();
+        patchListBox.updateContent();
+        patchListBox.repaint();
+    }
+}
+
+//==============================================================================
+// Custom Themed Dialog Methods
+
+void FreOscEditor::showThemedSuccessMessage(const juce::String& title, const juce::String& message)
+{
+    auto alertWindow = std::make_unique<juce::AlertWindow>(title, message, juce::AlertWindow::InfoIcon);
+    
+    // Apply FreOSC dark theme colors to match VST background
+    alertWindow->setColour(juce::AlertWindow::backgroundColourId, juce::Colour(0xff1a1a1a)); // Match VST dark background
+    alertWindow->setColour(juce::AlertWindow::textColourId, juce::Colours::white);
+    alertWindow->setColour(juce::AlertWindow::outlineColourId, juce::Colours::transparentBlack); // Remove white border
+    alertWindow->setColour(juce::DocumentWindow::backgroundColourId, juce::Colour(0xff1a1a1a)); // Remove document border
+    alertWindow->setColour(juce::ResizableWindow::backgroundColourId, juce::Colour(0xff1a1a1a)); // Remove window border
+    
+    // Style the button with theme colors
+    alertWindow->addButton("OK", 1, juce::KeyPress(juce::KeyPress::returnKey));
+    alertWindow->setLookAndFeel(customLookAndFeel.get());
+    
+    // Position relative to this editor
+    alertWindow->centreAroundComponent(this, alertWindow->getWidth(), alertWindow->getHeight());
+    
+    // Show the dialog
+    alertWindow->enterModalState(true, juce::ModalCallbackFunction::create([alertWindow = std::move(alertWindow)](int) mutable {
+        alertWindow.reset(); // Clean up when dismissed
+    }));
+}
+
+void FreOscEditor::showThemedErrorMessage(const juce::String& title, const juce::String& message)
+{
+    auto alertWindow = std::make_unique<juce::AlertWindow>(title, message, juce::AlertWindow::WarningIcon);
+    
+    // Apply FreOSC dark theme colors with slightly red tint for errors
+    alertWindow->setColour(juce::AlertWindow::backgroundColourId, juce::Colour(0xff1a1a1a)); // Match VST dark background
+    alertWindow->setColour(juce::AlertWindow::textColourId, juce::Colours::white);
+    alertWindow->setColour(juce::AlertWindow::outlineColourId, juce::Colours::transparentBlack); // Remove white border
+    alertWindow->setColour(juce::DocumentWindow::backgroundColourId, juce::Colour(0xff1a1a1a)); // Remove document border
+    alertWindow->setColour(juce::ResizableWindow::backgroundColourId, juce::Colour(0xff1a1a1a)); // Remove window border
+    
+    // Style the button with theme colors
+    alertWindow->addButton("OK", 1, juce::KeyPress(juce::KeyPress::returnKey));
+    alertWindow->setLookAndFeel(customLookAndFeel.get());
+    
+    // Position relative to this editor
+    alertWindow->centreAroundComponent(this, alertWindow->getWidth(), alertWindow->getHeight());
+    
+    // Show the dialog
+    alertWindow->enterModalState(true, juce::ModalCallbackFunction::create([alertWindow = std::move(alertWindow)](int) mutable {
+        alertWindow.reset(); // Clean up when dismissed
+    }));
+}
+
+void FreOscEditor::showThemedInfoMessage(const juce::String& title, const juce::String& message)
+{
+    auto alertWindow = std::make_unique<juce::AlertWindow>(title, message, juce::AlertWindow::InfoIcon);
+    
+    // Apply FreOSC dark theme colors to match VST background
+    alertWindow->setColour(juce::AlertWindow::backgroundColourId, juce::Colour(0xff1a1a1a)); // Match VST dark background
+    alertWindow->setColour(juce::AlertWindow::textColourId, juce::Colours::white);
+    alertWindow->setColour(juce::AlertWindow::outlineColourId, juce::Colours::transparentBlack); // Remove white border
+    alertWindow->setColour(juce::DocumentWindow::backgroundColourId, juce::Colour(0xff1a1a1a)); // Remove document border
+    alertWindow->setColour(juce::ResizableWindow::backgroundColourId, juce::Colour(0xff1a1a1a)); // Remove window border
+    
+    // Style the button with theme colors
+    alertWindow->addButton("OK", 1, juce::KeyPress(juce::KeyPress::returnKey));
+    alertWindow->setLookAndFeel(customLookAndFeel.get());
+    
+    // Position relative to this editor
+    alertWindow->centreAroundComponent(this, alertWindow->getWidth(), alertWindow->getHeight());
+    
+    // Show the dialog
+    alertWindow->enterModalState(true, juce::ModalCallbackFunction::create([alertWindow = std::move(alertWindow)](int) mutable {
+        alertWindow.reset(); // Clean up when dismissed
+    }));
+}
+
+void FreOscEditor::showThemedConfirmDialog(const juce::String& title, const juce::String& message,
+                                          const juce::String& confirmButtonText, const juce::String& cancelButtonText,
+                                          std::function<void(bool confirmed)> callback)
+{
+    auto alertWindow = std::make_unique<juce::AlertWindow>(title, message, juce::AlertWindow::QuestionIcon);
+    
+    // Apply FreOSC dark theme colors to match VST background
+    alertWindow->setColour(juce::AlertWindow::backgroundColourId, juce::Colour(0xff1a1a1a)); // Match VST dark background
+    alertWindow->setColour(juce::AlertWindow::textColourId, juce::Colours::white);
+    alertWindow->setColour(juce::AlertWindow::outlineColourId, juce::Colours::transparentBlack); // Remove white border
+    alertWindow->setColour(juce::DocumentWindow::backgroundColourId, juce::Colour(0xff1a1a1a)); // Remove document border
+    alertWindow->setColour(juce::ResizableWindow::backgroundColourId, juce::Colour(0xff1a1a1a)); // Remove window border
+    
+    // Add confirm and cancel buttons with custom text
+    alertWindow->addButton(confirmButtonText, 1, juce::KeyPress(juce::KeyPress::returnKey));
+    alertWindow->addButton(cancelButtonText, 0, juce::KeyPress(juce::KeyPress::escapeKey));
+    alertWindow->setLookAndFeel(customLookAndFeel.get());
+    
+    // Position relative to this editor
+    alertWindow->centreAroundComponent(this, alertWindow->getWidth(), alertWindow->getHeight());
+    
+    // Show the dialog with callback
+    alertWindow->enterModalState(true, juce::ModalCallbackFunction::create([alertWindow = std::move(alertWindow), callback](int result) mutable {
+        callback(result == 1); // true if confirmed (button 1), false if cancelled (button 0)
+        alertWindow.reset(); // Clean up when dismissed
+    }));
 }
 
 //==============================================================================
@@ -2071,14 +2588,6 @@ void FreOscEditor::layoutEnvelopeSection()
     releaseValue.setBounds(section);
 }
 
-void FreOscEditor::layoutMasterSection()
-{
-    auto bounds = masterGroup.getBounds().reduced(10);
-
-    masterVolumeLabel.setBounds(bounds.removeFromTop(20));
-    masterVolumeSlider.setBounds(bounds.removeFromTop(bounds.getHeight() - 20));
-    masterVolumeValue.setBounds(bounds);
-}
 
 void FreOscEditor::layoutPMSection()
 {
@@ -2204,25 +2713,8 @@ void FreOscEditor::setupComboBoxOptions()
     modEnv1ModeCombo.addItemList(envelopeModeOptions, 1);  // Base ID 1 for 0-based indexing
     modEnv2ModeCombo.addItemList(envelopeModeOptions, 1);
 
-    // Preset options - get from JSON preset manager
-    presetSelector.addItem("Custom", 1); // Always have "Custom" as first option
-
-    // Get preset names from the new JSON preset manager
-    auto presetNames = audioProcessor.getPresets().getPresetNames();
-    for (int i = 0; i < presetNames.size(); ++i)
-    {
-        juce::String displayName = presetNames[i];
-        // Remove "Factory_" prefix for cleaner display
-        if (displayName.startsWith("Factory_"))
-            displayName = displayName.substring(8);
-        // Replace underscores with spaces
-        displayName = displayName.replace("_", " ");
-
-        presetSelector.addItem(displayName, i + 2); // Start from ID 2 (after "Custom")
-    }
-
-    // Set default selection to "Custom"
-    presetSelector.setSelectedId(1, juce::dontSendNotification);
+    // Setup presets using the new patch list refresh method
+    refreshPatchList();
 }
 
 void FreOscEditor::createParameterAttachments()
@@ -2591,6 +3083,7 @@ void FreOscEditor::createTabbedInterface()
     filterEnvelopeTab = createFilterEnvelopeTab();
     modulationTab = createModulationTab();
     effectsTab = createEffectsTab();
+    masterTab = createMasterTab();
     
     // All GroupComponent colors now handled by LookAndFeel
 
@@ -2600,6 +3093,7 @@ void FreOscEditor::createTabbedInterface()
     tabbedComponent.addTab("FILTER", groupComponentBg, filterEnvelopeTab.get(), false);
     tabbedComponent.addTab("MOD", groupComponentBg, modulationTab.get(), false);
     tabbedComponent.addTab("EFFECTS", groupComponentBg, effectsTab.get(), false);
+    tabbedComponent.addTab("PATCH", groupComponentBg, masterTab.get(), false);
 
     // Make visible and add to content component (not main editor)
     contentComponent.addAndMakeVisible(tabbedComponent);
@@ -5388,6 +5882,200 @@ std::unique_ptr<juce::Component> FreOscEditor::createEffectsTab()
     return std::make_unique<EffectsTabComponent>(*this);
 }
 
+std::unique_ptr<juce::Component> FreOscEditor::createMasterTab()
+{
+    class MasterTabComponent : public juce::Component
+    {
+    public:
+        MasterTabComponent(FreOscEditor& editor) : owner(editor)
+        {
+            setupPresetManagementGroup();
+        }
+        
+        void resized() override
+        {
+            auto bounds = getLocalBounds().reduced(10);
+            
+            // Only layout preset management group (master volume moved to header)
+            owner.presetManagementGroup.setBounds(bounds);
+            
+            // Layout components within the preset management group
+            layoutPresetManagementGroup();
+        }
+        
+    private:
+        FreOscEditor& owner;
+        
+        void setupPresetManagementGroup()
+        {
+            // Setup preset management group
+            owner.presetManagementGroup.setText("Patch Management");
+            owner.applyComponentStyling(owner.presetManagementGroup);
+            addAndMakeVisible(owner.presetManagementGroup);
+            
+            // Setup preset management components
+            setupPresetButtons();
+            setupPresetNameEditor();
+            setupCurrentPresetDisplay();
+            setupPatchFilter();
+            setupPatchList();
+            
+            // Add components to the group
+            owner.presetManagementGroup.addAndMakeVisible(owner.savePresetButton);
+            owner.presetManagementGroup.addAndMakeVisible(owner.deletePresetButton);
+            owner.presetManagementGroup.addAndMakeVisible(owner.presetNameEditor);
+            owner.presetManagementGroup.addAndMakeVisible(owner.presetNameLabel);
+            owner.presetManagementGroup.addAndMakeVisible(owner.currentPresetLabel);
+            owner.presetManagementGroup.addAndMakeVisible(owner.currentPresetNameLabel);
+            owner.presetManagementGroup.addAndMakeVisible(owner.patchFilterLabel);
+            owner.presetManagementGroup.addAndMakeVisible(owner.patchFilterEditor);
+            owner.presetManagementGroup.addAndMakeVisible(owner.patchListBox);
+        }
+        
+        void layoutPresetManagementGroup()
+        {
+            // Use local bounds of the group component, not global bounds
+            auto contentBounds = owner.presetManagementGroup.getLocalBounds().reduced(10);
+            
+            // Reserve space for the bottom colored band (text height + padding) - from LookAndFeel
+            juce::Font f(juce::FontOptions(14.0f).withStyle("Bold"));
+            auto textH = f.getHeight();
+            auto bottomBandHeight = textH + 8.0f;
+            contentBounds.removeFromBottom(static_cast<int>(bottomBandHeight)); // Remove space for bottom band
+            
+            // Current preset display at top
+            auto currentPresetRow = contentBounds.removeFromTop(25);
+            owner.currentPresetLabel.setBounds(currentPresetRow.removeFromLeft(100));
+            owner.currentPresetNameLabel.setBounds(currentPresetRow);
+            
+            contentBounds.removeFromTop(10); // Gap
+            
+            // Preset name input
+            auto nameRow = contentBounds.removeFromTop(25);
+            owner.presetNameLabel.setBounds(nameRow.removeFromLeft(100));
+            owner.presetNameEditor.setBounds(nameRow.removeFromLeft(160)); // Limit width to 160px instead of full width
+            
+            contentBounds.removeFromTop(10); // Gap
+            
+            // Button row - now with only Save and Delete buttons
+            auto buttonRow = contentBounds.removeFromTop(30);
+            const int buttonWidth = 120; // Wider buttons with only two buttons
+            const int buttonGap = 15;
+            
+            owner.savePresetButton.setBounds(buttonRow.removeFromLeft(buttonWidth));
+            buttonRow.removeFromLeft(buttonGap);
+            owner.deletePresetButton.setBounds(buttonRow.removeFromLeft(buttonWidth));
+            
+            contentBounds.removeFromTop(15); // Larger gap before patch selection
+            
+            // Patch filter row
+            auto filterRow = contentBounds.removeFromTop(25);
+            owner.patchFilterLabel.setBounds(filterRow.removeFromLeft(100));
+            owner.patchFilterEditor.setBounds(filterRow.removeFromLeft(200)); // Match patch name editor width
+            
+            contentBounds.removeFromTop(10); // Gap
+            
+            // Patch list box - use remaining space but ensure it's properly constrained
+            // Reduce the area slightly to ensure it doesn't overlap with the group border
+            auto listBounds = contentBounds.reduced(2); // Small margin from group edges
+            owner.patchListBox.setBounds(listBounds);
+        }
+        
+        void setupPresetButtons()
+        {
+            // Save preset button - styled like tab buttons (handles both save and update)
+            owner.savePresetButton.setButtonText("Save Patch");
+            styleTabButton(owner.savePresetButton);
+            owner.savePresetButton.addListener(&owner);
+            
+            // Delete preset button - styled like tab buttons
+            owner.deletePresetButton.setButtonText("Delete");
+            styleTabButton(owner.deletePresetButton);
+            owner.deletePresetButton.addListener(&owner);
+        }
+        
+        void styleTabButton(juce::TextButton& button)
+        {
+            // Apply tab button styling - black plastic look with 3D effect
+            button.setColour(juce::TextButton::buttonColourId, juce::Colour(0xff2a2a2a)); // Black plastic background
+            button.setColour(juce::TextButton::buttonOnColourId, juce::Colour(0xff1a1a1a)); // Darker when pressed
+            button.setColour(juce::TextButton::textColourOffId, juce::Colour(0xffa0a0a0)); // Light grey text 
+            button.setColour(juce::TextButton::textColourOnId, juce::Colours::white); // White text when pressed
+            
+            // Use the same custom look and feel as tabs (font is handled by LookAndFeel)
+            button.setLookAndFeel(owner.customLookAndFeel.get());
+        }
+        
+        void setupPresetNameEditor()
+        {
+            // Preset name text editor - styled to match UI theme (black plastic look)
+            owner.presetNameEditor.setMultiLine(false);
+            owner.presetNameEditor.setFont(juce::Font(juce::FontOptions().withHeight(13.0f)));
+            
+            // Black plastic input field styling to match other components
+            owner.presetNameEditor.setColour(juce::TextEditor::backgroundColourId, juce::Colour(0xff1a1a1a)); // Dark background like selected tabs
+            owner.presetNameEditor.setColour(juce::TextEditor::textColourId, juce::Colours::white); // White text
+            owner.presetNameEditor.setColour(juce::TextEditor::highlightColourId, owner.accentColour.withAlpha(0.4f)); // Blue highlight
+            owner.presetNameEditor.setColour(juce::TextEditor::outlineColourId, juce::Colour(0xff404040)); // Grey outline
+            owner.presetNameEditor.setColour(juce::TextEditor::focusedOutlineColourId, juce::Colour(0xffff2222)); // LED red when focused
+            owner.presetNameEditor.setText("My Patch");
+            
+            // Preset name label - white text
+            owner.presetNameLabel.setText("Patch Name:", juce::dontSendNotification);
+            owner.presetNameLabel.setFont(juce::Font(juce::FontOptions().withHeight(13.0f)));
+            owner.presetNameLabel.setColour(juce::Label::textColourId, juce::Colours::white); // White text
+            owner.presetNameLabel.setJustificationType(juce::Justification::centredLeft);
+        }
+        
+        void setupCurrentPresetDisplay()
+        {
+            // Current preset display labels - white text
+            owner.currentPresetLabel.setText("Current Patch:", juce::dontSendNotification);
+            owner.currentPresetLabel.setFont(juce::Font(juce::FontOptions().withHeight(13.0f)));
+            owner.currentPresetLabel.setColour(juce::Label::textColourId, juce::Colours::white); // White text
+            owner.currentPresetLabel.setJustificationType(juce::Justification::centredLeft);
+            
+            owner.currentPresetNameLabel.setText("Default", juce::dontSendNotification);
+            owner.currentPresetNameLabel.setFont(juce::Font(juce::FontOptions().withHeight(13.0f).withStyle("Bold")));
+            owner.currentPresetNameLabel.setColour(juce::Label::textColourId, juce::Colours::white); // White text for patch name
+            owner.currentPresetNameLabel.setJustificationType(juce::Justification::centredLeft);
+        }
+        
+        void setupPatchFilter()
+        {
+            // Patch filter label
+            owner.patchFilterLabel.setText("Filter Patches:", juce::dontSendNotification);
+            owner.patchFilterLabel.setFont(juce::Font(juce::FontOptions().withHeight(13.0f)));
+            owner.patchFilterLabel.setColour(juce::Label::textColourId, juce::Colours::white);
+            owner.patchFilterLabel.setJustificationType(juce::Justification::centredLeft);
+            
+            // Patch filter text editor - styled to match patch name editor
+            owner.patchFilterEditor.setMultiLine(false);
+            owner.patchFilterEditor.setFont(juce::Font(juce::FontOptions().withHeight(13.0f)));
+            owner.patchFilterEditor.setColour(juce::TextEditor::backgroundColourId, juce::Colour(0xff1a1a1a));
+            owner.patchFilterEditor.setColour(juce::TextEditor::textColourId, juce::Colours::white);
+            owner.patchFilterEditor.setColour(juce::TextEditor::highlightColourId, owner.accentColour.withAlpha(0.4f));
+            owner.patchFilterEditor.setColour(juce::TextEditor::outlineColourId, juce::Colour(0xff404040));
+            owner.patchFilterEditor.setColour(juce::TextEditor::focusedOutlineColourId, juce::Colour(0xffff2222));
+            owner.patchFilterEditor.setText(""); // Start empty
+            owner.patchFilterEditor.addListener(&owner); // Listen for text changes
+        }
+        
+        void setupPatchList()
+        {
+            // Setup patch list box
+            owner.patchListBox.setModel(&owner);
+            owner.patchListBox.setRowHeight(20);
+            owner.patchListBox.setColour(juce::ListBox::backgroundColourId, juce::Colour(0xff1a1a1a));
+            owner.patchListBox.setColour(juce::ListBox::outlineColourId, juce::Colour(0xff404040));
+            
+            // Initialize patch list
+            owner.refreshPatchList();
+        }
+    };
+    
+    return std::make_unique<MasterTabComponent>(*this);
+}
 
 //==============================================================================
 // Tab-specific setup methods

@@ -4,7 +4,7 @@
 //==============================================================================
 FreOscVoice::FreOscVoice()
 {
-    // Initialize ADSR with default parameters
+    // Initialize custom envelope with default parameters
     envelopeParameters.attack = 0.1f;
     envelopeParameters.decay = 0.3f;
     envelopeParameters.sustain = 0.6f;
@@ -702,7 +702,9 @@ void FreOscVoice::renderNextBlock(juce::AudioBuffer<float>& outputBuffer, int st
             effectiveLfoAmount += ccModWheel * 0.5f; // Mod wheel can add up to 50% more LFO
         }
 
-        mixedSample *= envelopeLevel * currentVelocity * ccVolumeModulation * amplitudeRampValue;
+        // Apply minimum envelope level to prevent pops when envelope reaches 0
+        float safeEnvelopeLevel = juce::jmax(envelopeLevel, 0.001f);
+        mixedSample *= safeEnvelopeLevel * currentVelocity * ccVolumeModulation * amplitudeRampValue;
 
         // Apply per-voice filtering (after envelope, before panning)
         // Check for LFO filter modulation from all active LFOs

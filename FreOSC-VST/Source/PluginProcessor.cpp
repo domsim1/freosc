@@ -218,7 +218,7 @@ void FreOscProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::Midi
     auto audioBlock = juce::dsp::AudioBlock<float>(buffer);
     juce::dsp::ProcessContextReplacing<float> context(audioBlock);
     
-    // Always apply compressor and limiter first
+    // Always apply clean compressor and limiter first
     auto& compressor = effectsChain.get<0>();
     auto& limiter = effectsChain.get<1>();
     compressor.process(context);
@@ -296,20 +296,26 @@ void FreOscProcessor::initializeSynthesiser()
 
 void FreOscProcessor::setupEffectsChain()
 {
-    // Initialize effects chain components with fixed settings optimized for polyphonic synthesis
-    // Order: Compressor -> Limiter -> Reverb -> Delay (filter now per-voice)
+    // Initialize effects chain components with musical settings
+    // Order: Clean Compressor -> Clean Limiter -> Reverb -> Delay (filter now per-voice)
 
-    // Set up compressor with very gentle settings for polyphonic chords
+    // Set up clean compressor with musical defaults
     auto& compressor = effectsChain.get<0>();
-    compressor.setThreshold(-60.0f);  // Extremely high threshold - essentially disabled
-    compressor.setRatio(1.1f);        // Barely any compression
-    compressor.setAttack(0.1f);       // Slow attack
-    compressor.setRelease(1.0f);      // Slow release
+    compressor.setThreshold(-12.0f);   // Musical threshold
+    compressor.setRatio(4.0f);         // Musical compression ratio
+    compressor.setAttack(1.0f);        // Fast attack
+    compressor.setRelease(100.0f);     // Musical release
+    compressor.setKnee(2.0f);          // Soft knee
+    compressor.setMakeupGain(0.0f);    // No initial makeup gain
+    compressor.setMix(1.0f);           // Full wet
 
-    // Set up limiter with very conservative settings
+    // Set up clean limiter with musical defaults
     auto& limiter = effectsChain.get<1>();
-    limiter.setThreshold(-6.0f);      // Very conservative threshold
-    limiter.setRelease(0.1f);         // Slow release to prevent artifacts
+    limiter.setThreshold(-3.0f);       // Musical threshold
+    limiter.setRelease(50.0f);         // Musical release
+    limiter.setCeiling(-0.1f);         // Safe ceiling
+    limiter.setSaturation(0.3f);       // Musical saturation
+    limiter.setLookahead(2.0f);        // 2ms lookahead
 }
 
 void FreOscProcessor::updateVoiceParameters()
@@ -420,8 +426,21 @@ void FreOscProcessor::updateVoiceParameters()
 
 void FreOscProcessor::updateEffectsParameters()
 {
-    // Dynamics (compressor/limiter) now use fixed settings - no user control
-    // This prevents distortion issues with polyphonic synthesis
+    // Update clean compressor parameters (index 0)
+    auto& compressor = effectsChain.get<0>();
+    compressor.setThreshold(parameters.getRawParameterValue("comp_threshold")->load());
+    compressor.setRatio(parameters.getRawParameterValue("comp_ratio")->load());
+    compressor.setAttack(parameters.getRawParameterValue("comp_attack")->load());
+    compressor.setRelease(parameters.getRawParameterValue("comp_release")->load());
+    compressor.setMakeupGain(parameters.getRawParameterValue("comp_makeup")->load());
+    compressor.setMix(parameters.getRawParameterValue("comp_mix")->load());
+    
+    // Update clean limiter parameters (index 1)
+    auto& limiter = effectsChain.get<1>();
+    limiter.setThreshold(parameters.getRawParameterValue("limiter_threshold")->load());
+    limiter.setRelease(parameters.getRawParameterValue("limiter_release")->load());
+    limiter.setCeiling(parameters.getRawParameterValue("limiter_ceiling")->load());
+    limiter.setSaturation(parameters.getRawParameterValue("limiter_saturation")->load());
 
     // Update plate reverb parameters (now at index 2)
     auto& plateReverb = effectsChain.get<2>();
@@ -459,6 +478,49 @@ void FreOscProcessor::loadPreset(int presetIndex)
 void FreOscProcessor::loadPreset(const juce::String& presetName)
 {
     presets.loadPreset(presetName, parameters);
+}
+
+//==============================================================================
+// Preset saving/updating implementation
+
+bool FreOscProcessor::saveUserPreset(const juce::String& name, const juce::String& description)
+{
+    return presets.saveUserPreset(name, description, parameters);
+}
+
+bool FreOscProcessor::updatePreset(int presetIndex)
+{
+    return presets.updatePreset(presetIndex, parameters);
+}
+
+bool FreOscProcessor::updatePreset(const juce::String& presetName)
+{
+    return presets.updatePreset(presetName, parameters);
+}
+
+bool FreOscProcessor::deletePreset(int presetIndex)
+{
+    return presets.deletePreset(presetIndex);
+}
+
+bool FreOscProcessor::deletePreset(const juce::String& presetName)
+{
+    return presets.deletePreset(presetName);
+}
+
+bool FreOscProcessor::presetExists(const juce::String& presetName)
+{
+    return presets.presetExists(presetName);
+}
+
+juce::String FreOscProcessor::getCurrentPresetName()
+{
+    return presets.getCurrentPresetName();
+}
+
+void FreOscProcessor::clearCurrentPreset()
+{
+    presets.clearCurrentPreset();
 }
 
 //==============================================================================

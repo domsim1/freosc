@@ -1,0 +1,281 @@
+name: Build and Release FreOSC VST
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'  # Triggers on version tags like v1.0.0, v1.2.3, etc.
+
+jobs:
+  build:
+    name: Build VST (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [windows-latest, macos-latest]
+        include:
+          - os: windows-latest
+            artifact_name: FreOSC-Windows
+            vst_path: build/FreOSC-VST_artefacts/Release/VST3/FreOSC.vst3
+            standalone_path: build/FreOSC-VST_artefacts/Release/Standalone/FreOSC.exe
+          - os: macos-latest
+            artifact_name: FreOSC-macOS
+            vst_path: build/FreOSC-VST_artefacts/Release/VST3/FreOSC.vst3
+            au_path: build/FreOSC-VST_artefacts/Release/AU/FreOSC.component
+            standalone_path: build/FreOSC-VST_artefacts/Release/Standalone/FreOSC.app
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Get version from tag
+        id: version
+        shell: bash
+        run: |
+          VERSION=${GITHUB_REF#refs/tags/v}
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "tag=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+
+      # Windows-specific setup
+      - name: Setup MSVC (Windows)
+        if: matrix.os == 'windows-latest'
+        uses: microsoft/setup-msbuild@v1.1
+
+      - name: Setup Visual Studio environment (Windows)
+        if: matrix.os == 'windows-latest'
+        uses: seanmiddleditch/gha-setup-vsdevenv@master
+
+      # macOS-specific setup
+      - name: Setup Xcode (macOS)
+        if: matrix.os == 'macos-latest'
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: latest-stable
+
+      # Setup JUCE for both platforms
+      - name: Cache JUCE
+        id: cache-juce
+        uses: actions/cache@v3
+        with:
+          path: JUCE
+          key: juce-7.0.12-${{ runner.os }}
+
+      - name: Download and setup JUCE
+        if: steps.cache-juce.outputs.cache-hit != 'true'
+        shell: bash
+        run: |
+          if [[ "${{ matrix.os }}" == "windows-latest" ]]; then
+            curl -L -o juce.zip "https://github.com/juce-framework/JUCE/releases/download/7.0.12/juce-7.0.12-windows.zip"
+            unzip juce.zip
+            mv JUCE-7.0.12 JUCE
+          else
+            curl -L -o juce.zip "https://github.com/juce-framework/JUCE/releases/download/7.0.12/juce-7.0.12-osx.zip"
+            unzip juce.zip
+            mv JUCE-7.0.12 JUCE
+          fi
+
+      # Configure and build
+      - name: Configure CMake
+        shell: bash
+        run: |
+          cd FreOSC-VST
+          mkdir -p build
+          cd build
+          if [[ "${{ matrix.os }}" == "windows-latest" ]]; then
+            cmake .. -DJUCE_DIR="../../JUCE" -A x64
+          else
+            cmake .. -DJUCE_DIR="../../JUCE"
+          fi
+
+      - name: Build VST
+        shell: bash
+        run: |
+          cd FreOSC-VST/build
+          if [[ "${{ matrix.os }}" == "windows-latest" ]]; then
+            cmake --build . --config Release --parallel 4
+          else
+            cmake --build . --config Release --parallel 4
+          fi
+
+      # Package artifacts
+      - name: Package Windows artifacts
+        if: matrix.os == 'windows-latest'
+        shell: bash
+        run: |
+          cd FreOSC-VST
+          mkdir -p artifacts
+          # Copy VST3
+          cp -r "${{ matrix.vst_path }}" artifacts/
+          # Copy Standalone
+          cp "${{ matrix.standalone_path }}" artifacts/
+          # Create info file
+          echo "FreOSC VST3 Synthesizer v${{ steps.version.outputs.version }}" > artifacts/README.txt
+          echo "Windows 64-bit Release" >> artifacts/README.txt
+          echo "" >> artifacts/README.txt
+          echo "Contents:" >> artifacts/README.txt
+          echo "- FreOSC.vst3 - VST3 plugin for DAWs" >> artifacts/README.txt
+          echo "- FreOSC.exe - Standalone synthesizer application" >> artifacts/README.txt
+          echo "" >> artifacts/README.txt
+          echo "Installation:" >> artifacts/README.txt
+          echo "Copy FreOSC.vst3 to your VST3 plugins folder" >> artifacts/README.txt
+          echo "Run FreOSC.exe directly for standalone use" >> artifacts/README.txt
+
+      - name: Package macOS artifacts
+        if: matrix.os == 'macos-latest'
+        shell: bash
+        run: |
+          cd FreOSC-VST
+          mkdir -p artifacts
+          # Copy VST3
+          cp -r "${{ matrix.vst_path }}" artifacts/
+          # Copy AU (if exists)
+          if [ -d "${{ matrix.au_path }}" ]; then
+            cp -r "${{ matrix.au_path }}" artifacts/
+          fi
+          # Copy Standalone
+          cp -r "${{ matrix.standalone_path }}" artifacts/
+          # Create info file
+          echo "FreOSC VST3 Synthesizer v${{ steps.version.outputs.version }}" > artifacts/README.txt
+          echo "macOS Release (Universal Binary)" >> artifacts/README.txt
+          echo "" >> artifacts/README.txt
+          echo "Contents:" >> artifacts/README.txt
+          echo "- FreOSC.vst3 - VST3 plugin for DAWs" >> artifacts/README.txt
+          if [ -d "${{ matrix.au_path }}" ]; then
+            echo "- FreOSC.component - Audio Unit plugin" >> artifacts/README.txt
+          fi
+          echo "- FreOSC.app - Standalone synthesizer application" >> artifacts/README.txt
+          echo "" >> artifacts/README.txt
+          echo "Installation:" >> artifacts/README.txt
+          echo "VST3: Copy FreOSC.vst3 to ~/Library/Audio/Plug-Ins/VST3/" >> artifacts/README.txt
+          if [ -d "${{ matrix.au_path }}" ]; then
+            echo "AU: Copy FreOSC.component to ~/Library/Audio/Plug-Ins/Components/" >> artifacts/README.txt
+          fi
+          echo "Standalone: Copy FreOSC.app to /Applications/ or run directly" >> artifacts/README.txt
+
+      # Create ZIP archives
+      - name: Create ZIP archive
+        shell: bash
+        run: |
+          cd FreOSC-VST/artifacts
+          if [[ "${{ matrix.os }}" == "windows-latest" ]]; then
+            7z a "${{ matrix.artifact_name }}-${{ steps.version.outputs.tag }}.zip" *
+          else
+            zip -r "${{ matrix.artifact_name }}-${{ steps.version.outputs.tag }}.zip" *
+          fi
+
+      # Upload artifacts for release
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: ${{ matrix.artifact_name }}-${{ steps.version.outputs.tag }}
+          path: FreOSC-VST/artifacts/${{ matrix.artifact_name }}-${{ steps.version.outputs.tag }}.zip
+
+  release:
+    name: Create Release
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Get version from tag
+        id: version
+        run: |
+          VERSION=${GITHUB_REF#refs/tags/v}
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "tag=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v3
+        with:
+          path: release-assets
+
+      - name: Generate release notes
+        id: release_notes
+        run: |
+          # Get previous tag
+          PREV_TAG=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || echo "")
+          
+          if [ -n "$PREV_TAG" ]; then
+            echo "## What's Changed" > release_notes.md
+            echo "" >> release_notes.md
+            git log --pretty=format:"- %s" $PREV_TAG..HEAD >> release_notes.md
+            echo "" >> release_notes.md
+          else
+            echo "## FreOSC VST3 Synthesizer" > release_notes.md
+            echo "" >> release_notes.md
+            echo "Initial release of FreOSC VST3 synthesizer plugin." >> release_notes.md
+            echo "" >> release_notes.md
+          fi
+          
+          echo "" >> release_notes.md
+          echo "## Downloads" >> release_notes.md
+          echo "" >> release_notes.md
+          echo "- **FreOSC-Windows-${{ steps.version.outputs.tag }}.zip** - Windows VST3 + Standalone" >> release_notes.md
+          echo "- **FreOSC-macOS-${{ steps.version.outputs.tag }}.zip** - macOS VST3 + AU + Standalone" >> release_notes.md
+          echo "" >> release_notes.md
+          echo "## Installation" >> release_notes.md
+          echo "" >> release_notes.md
+          echo "### Windows" >> release_notes.md
+          echo "1. Extract the ZIP file" >> release_notes.md
+          echo "2. Copy `FreOSC.vst3` to your VST3 plugins folder" >> release_notes.md
+          echo "3. Run `FreOSC.exe` for standalone use" >> release_notes.md
+          echo "" >> release_notes.md
+          echo "### macOS" >> release_notes.md
+          echo "1. Extract the ZIP file" >> release_notes.md
+          echo "2. Copy `FreOSC.vst3` to `~/Library/Audio/Plug-Ins/VST3/`" >> release_notes.md
+          echo "3. Copy `FreOSC.component` to `~/Library/Audio/Plug-Ins/Components/` (AU)" >> release_notes.md
+          echo "4. Copy `FreOSC.app` to `/Applications/` for standalone use" >> release_notes.md
+          echo "" >> release_notes.md
+          echo "## System Requirements" >> release_notes.md
+          echo "" >> release_notes.md
+          echo "- **Windows**: Windows 10 or later (64-bit)" >> release_notes.md
+          echo "- **macOS**: macOS 10.13 or later (Intel/Apple Silicon)" >> release_notes.md
+          echo "- **RAM**: 4GB minimum, 8GB recommended" >> release_notes.md
+          echo "- **Compatible DAWs**: Any VST3 or AU compatible host" >> release_notes.md
+
+      - name: Create Release
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ steps.version.outputs.tag }}
+          release_name: FreOSC v${{ steps.version.outputs.version }}
+          body_path: release_notes.md
+          draft: false
+          prerelease: false
+
+      # Upload Windows build
+      - name: Upload Windows Release Asset
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: release-assets/FreOSC-Windows-${{ steps.version.outputs.tag }}/FreOSC-Windows-${{ steps.version.outputs.tag }}.zip
+          asset_name: FreOSC-Windows-${{ steps.version.outputs.tag }}.zip
+          asset_content_type: application/zip
+
+      # Upload macOS build
+      - name: Upload macOS Release Asset
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: release-assets/FreOSC-macOS-${{ steps.version.outputs.tag }}/FreOSC-macOS-${{ steps.version.outputs.tag }}.zip
+          asset_name: FreOSC-macOS-${{ steps.version.outputs.tag }}.zip
+          asset_content_type: application/zip
+
+      - name: Release Summary
+        run: |
+          echo "🎉 Successfully created release: FreOSC v${{ steps.version.outputs.version }}"
+          echo "📦 Release URL: ${{ steps.create_release.outputs.html_url }}"
+          echo ""
+          echo "Assets uploaded:"
+          echo "- FreOSC-Windows-${{ steps.version.outputs.tag }}.zip"
+          echo "- FreOSC-macOS-${{ steps.version.outputs.tag }}.zip"

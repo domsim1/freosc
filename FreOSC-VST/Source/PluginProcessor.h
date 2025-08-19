@@ -5,6 +5,8 @@
 #include "DSP/FreOscVoice.h"
 #include "DSP/FreOscSound.h"
 #include "DSP/FreOscFilter.h"
+#include "DSP/FreOscCompressor.h"
+#include "DSP/FreOscLimiter.h"
 #include "DSP/FreOscPlateReverb.h"
 #include "DSP/FreOscTapeDelay.h"
 #include "DSP/FreOscWavefolder.h"
@@ -71,6 +73,18 @@ public:
     // Preset loading interface
     void loadPreset(int presetIndex);
     void loadPreset(const juce::String& presetName);
+    
+    // Preset saving/updating interface
+    bool saveUserPreset(const juce::String& name, const juce::String& description = "");
+    bool updatePreset(int presetIndex);
+    bool updatePreset(const juce::String& presetName);
+    bool deletePreset(int presetIndex);
+    bool deletePreset(const juce::String& presetName);
+    bool presetExists(const juce::String& presetName);
+    
+    // Current preset state
+    juce::String getCurrentPresetName();
+    void clearCurrentPreset();
 
 private:
     //==============================================================================
@@ -80,10 +94,10 @@ private:
     // Voice management
     juce::Synthesiser synthesiser;
 
-    // Effects chain using JUCE DSP (filter now per-voice)
+    // Effects chain using custom DSP (filter now per-voice)
     juce::dsp::ProcessorChain<
-        juce::dsp::Compressor<float>,      // Compressor
-        juce::dsp::Limiter<float>,         // Limiter
+        FreOscCompressor,                  // Clean Compressor (custom)
+        FreOscLimiter,                     // Clean Limiter (custom)
         FreOscPlateReverb,                 // Plate Reverb (custom)
         FreOscTapeDelay,                   // Tape Delay (custom)
         FreOscWavefolder                   // Wavefolder Distortion (custom)

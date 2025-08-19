@@ -2,6 +2,7 @@
 
 #include <juce_audio_processors/juce_audio_processors.h>
 #include <juce_gui_basics/juce_gui_basics.h>
+#include <functional>
 #include "PluginProcessor.h"
 
 //==============================================================================
@@ -22,7 +23,7 @@
     - LFO and FM synthesis sections
     - Virtual keyboard at bottom
 */
-class FreOscEditor : public juce::AudioProcessorEditor, private juce::Timer, private juce::Button::Listener, private juce::ComboBox::Listener
+class FreOscEditor : public juce::AudioProcessorEditor, private juce::Timer, private juce::Button::Listener, private juce::ListBoxModel, private juce::TextEditor::Listener
 {
 public:
     FreOscEditor (FreOscProcessor&);
@@ -72,8 +73,6 @@ private:
 
     // Header section
     juce::Label titleLabel;
-    juce::ComboBox presetSelector;
-    juce::TextButton loadPresetButton;
 
     // Scrollable content system
     juce::Viewport viewport;
@@ -90,6 +89,7 @@ private:
     std::unique_ptr<juce::Component> filterEnvelopeTab;
     std::unique_ptr<juce::Component> modulationTab;
     std::unique_ptr<juce::Component> effectsTab;
+    std::unique_ptr<juce::Component> masterTab;
 
     // Custom waveform selector component
     class WaveformSelector : public juce::Component
@@ -254,10 +254,35 @@ private:
     juce::Label noiseTypeLabel, noiseLevelLabel, noisePanLabel;
     juce::Label noiseLevelValue, noisePanValue;
 
-    // Master section
-    juce::GroupComponent masterGroup;
+    // Master section (master volume in header, no group needed)
     juce::Slider masterVolumeSlider;
     juce::Label masterVolumeLabel, masterVolumeValue;
+
+    // Preset management section
+    juce::GroupComponent presetManagementGroup;
+    juce::TextButton savePresetButton;
+    juce::TextButton deletePresetButton;
+    juce::TextEditor presetNameEditor;
+    juce::Label presetNameLabel;
+    juce::Label currentPresetLabel;
+    juce::Label currentPresetNameLabel;
+    
+    // Patch selection components
+    juce::Label patchFilterLabel;
+    juce::TextEditor patchFilterEditor;
+    juce::ListBox patchListBox;
+    
+    // Patch data storage
+    struct PatchListItem {
+        juce::String name;
+        int originalIndex;
+        bool isFactory;
+    };
+    std::vector<PatchListItem> allPatches;
+    std::vector<PatchListItem> filteredPatches;
+    
+    // Flag to prevent automatic preset loading during GUI updates
+    bool isUpdatingGUI = false;
 
     // Envelope section
     juce::GroupComponent envelopeGroup;
@@ -377,22 +402,45 @@ private:
     // Parameter update callbacks
     void updateValueLabels();
     void updateScaledFonts();
+    void updateCurrentPresetDisplay();
 
     // Timer callback for real-time updates
     void timerCallback() override;
+    
+    // Preset management handlers
+    void handleSavePreset();
+    void handleDeletePreset();
+    void refreshPatchList();
+    void filterPatchList();
+    void savePresetWithName(const juce::String& presetName);
+    
+    // Custom themed dialogs
+    void showThemedSuccessMessage(const juce::String& title, const juce::String& message);
+    void showThemedErrorMessage(const juce::String& title, const juce::String& message);
+    void showThemedInfoMessage(const juce::String& title, const juce::String& message);
+    void showThemedConfirmDialog(const juce::String& title, const juce::String& message,
+                                 const juce::String& confirmButtonText, const juce::String& cancelButtonText,
+                                 std::function<void(bool confirmed)> callback);
 
     // Button listener callback
     void buttonClicked(juce::Button* button) override;
     
-    // ComboBox listener callback
-    void comboBoxChanged(juce::ComboBox* comboBoxThatHasChanged) override;
+    // ListBoxModel callbacks
+    int getNumRows() override;
+    void paintListBoxItem(int rowNumber, juce::Graphics& g, int width, int height, bool rowIsSelected) override;
+    void selectedRowsChanged(int lastRowSelected) override;
+    
+    // TextEditor listener callbacks
+    void textEditorTextChanged(juce::TextEditor& editor) override;
+    void textEditorReturnKeyPressed(juce::TextEditor& editor) override;
+    void textEditorEscapeKeyPressed(juce::TextEditor& editor) override;
+    void textEditorFocusLost(juce::TextEditor& editor) override;
 
     // Layout methods
     void layoutOscillatorSection(OscillatorSection& section);
     void layoutNoiseSection();
     // layoutFilterSection() removed - now using GroupComponent layouts in tabs
     void layoutEnvelopeSection();
-    void layoutMasterSection();
     void layoutPMSection();
     void layoutReverbSection();
     void layoutDelaySection();
@@ -417,6 +465,7 @@ private:
     std::unique_ptr<juce::Component> createFilterEnvelopeTab();
     std::unique_ptr<juce::Component> createModulationTab();
     std::unique_ptr<juce::Component> createEffectsTab();
+    std::unique_ptr<juce::Component> createMasterTab();
 
     //==============================================================================
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (FreOscEditor)

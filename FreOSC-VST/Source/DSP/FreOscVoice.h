@@ -8,6 +8,7 @@
 #include "FreOscLFO.h"
 #include "FreOscSound.h"
 #include "FreOscFilter.h"
+#include "FreOscEnvelope.h"
 
 //==============================================================================
 /**
@@ -89,13 +90,13 @@ private:
     FreOscNoiseGenerator noiseGenerator;
     FreOscLFO lfo, lfo2, lfo3;
 
-    // Envelope
-    juce::ADSR envelope;
-    juce::ADSR::Parameters envelopeParameters;
+    // Envelope - Custom implementation for proper release behavior
+    FreOscEnvelope envelope;
+    FreOscEnvelope::Parameters envelopeParameters;
 
-    // Modulation envelopes
-    juce::ADSR modEnvelope1, modEnvelope2;
-    juce::ADSR::Parameters modEnv1Parameters, modEnv2Parameters;
+    // Modulation envelopes - Custom implementation for consistency
+    FreOscEnvelope modEnvelope1, modEnvelope2;
+    FreOscEnvelope::Parameters modEnv1Parameters, modEnv2Parameters;
     
     // Envelope mode state tracking (atomic for thread safety)
     std::atomic<bool> modEnv1IsLooping{false}, modEnv2IsLooping{false};

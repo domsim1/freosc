@@ -26,18 +26,51 @@ void JsonPresetManager::scanForPresets()
     presets.clear();
     currentPresetIndex = -1;
 
-    if (!presetFolder.exists())
-        return;
-
-    // Scan for .json files
-    auto presetFiles = presetFolder.findChildFiles(juce::File::findFiles, false, "*.json");
-
-    for (const auto& file : presetFiles)
+    // Collect preset files from multiple locations
+    juce::Array<juce::File> allPresetFiles;
+    
+    // 1. Original preset folder (factory presets)
+    if (presetFolder.exists())
     {
-        juce::String name = file.getFileNameWithoutExtension();
-        bool isFactory = name.startsWith("Factory_");
+        auto factoryFiles = presetFolder.findChildFiles(juce::File::findFiles, false, "*.json");
+        allPresetFiles.addArray(factoryFiles);
+    }
+    
+    // 2. User's Documents/FreOSC/Presets folder
+    auto documentsFolder = juce::File::getSpecialLocation(juce::File::userDocumentsDirectory);
+    auto userPresetFolder = documentsFolder.getChildFile("FreOSC").getChildFile("Presets");
+    if (userPresetFolder.exists())
+    {
+        auto userFiles = userPresetFolder.findChildFiles(juce::File::findFiles, false, "*.json");
+        allPresetFiles.addArray(userFiles);
+    }
+    
+    // 3. Application data folder
+    auto appDataFolder = juce::File::getSpecialLocation(juce::File::userApplicationDataDirectory);
+    auto appPresetFolder = appDataFolder.getChildFile("FreOSC").getChildFile("Presets");
+    if (appPresetFolder.exists())
+    {
+        auto appFiles = appPresetFolder.findChildFiles(juce::File::findFiles, false, "*.json");
+        allPresetFiles.addArray(appFiles);
+    }
 
-        presets.emplace_back(name, file, isFactory);
+    for (const auto& file : allPresetFiles)
+    {
+        juce::String fileName = file.getFileNameWithoutExtension();
+        bool isFactory = fileName.startsWith("Factory_");
+        
+        // For display name, remove Factory_ or User_ prefixes
+        juce::String displayName = fileName;
+        if (isFactory && displayName.startsWith("Factory_"))
+        {
+            displayName = displayName.substring(8); // Remove "Factory_" prefix
+        }
+        else if (displayName.startsWith("User_"))
+        {
+            displayName = displayName.substring(5); // Remove "User_" prefix
+        }
+
+        presets.emplace_back(displayName, file, isFactory);
 
         // Try to load metadata from file
         if (auto jsonText = file.loadFileAsString(); jsonText.isNotEmpty())
@@ -100,6 +133,169 @@ bool JsonPresetManager::saveCurrentAsPreset(const juce::String& name, juce::Audi
 }
 
 //==============================================================================
+// New preset management methods
+
+bool JsonPresetManager::updatePreset(int presetIndex, juce::AudioProcessorValueTreeState& parameters)
+{
+    if (presetIndex < 0 || presetIndex >= static_cast<int>(presets.size()))
+        return false;
+    
+    const auto& preset = presets[presetIndex];
+    
+    // Don't allow updating factory presets
+    if (preset.isFactory)
+        return false;
+    
+    // Update the preset file with current parameters
+    if (savePresetToFile(preset.file, preset.name, preset.description, parameters))
+    {
+        // Refresh the preset data
+        scanForPresets();
+        return true;
+    }
+    
+    return false;
+}
+
+bool JsonPresetManager::updatePreset(const juce::String& presetName, juce::AudioProcessorValueTreeState& parameters)
+{
+    for (size_t i = 0; i < presets.size(); ++i)
+    {
+        if (presets[i].name == presetName)
+        {
+            return updatePreset(static_cast<int>(i), parameters);
+        }
+    }
+    return false;
+}
+
+bool JsonPresetManager::deletePreset(int presetIndex)
+{
+    if (presetIndex < 0 || presetIndex >= static_cast<int>(presets.size()))
+        return false;
+    
+    const auto& preset = presets[presetIndex];
+    
+    // Don't allow deleting factory presets
+    if (preset.isFactory)
+        return false;
+    
+    // Delete the file
+    bool success = preset.file.deleteFile();
+    
+    if (success)
+    {
+        // Clear current preset if we just deleted it
+        if (currentPresetIndex == presetIndex)
+            currentPresetIndex = -1;
+        else if (currentPresetIndex > presetIndex)
+            currentPresetIndex--; // Adjust index after deletion
+        
+        // Refresh the preset list
+        scanForPresets();
+    }
+    
+    return success;
+}
+
+bool JsonPresetManager::deletePreset(const juce::String& presetName)
+{
+    for (size_t i = 0; i < presets.size(); ++i)
+    {
+        if (presets[i].name == presetName)
+        {
+            return deletePreset(static_cast<int>(i));
+        }
+    }
+    return false;
+}
+
+bool JsonPresetManager::saveUserPreset(const juce::String& name, const juce::String& description, juce::AudioProcessorValueTreeState& parameters)
+{
+    // Create user preset filename (prefix with "User_" to distinguish from factory presets)
+    juce::String filename = "User_" + name;
+    
+    // Try multiple locations for saving user presets
+    juce::Array<juce::File> possibleLocations;
+    
+    // 1. Original preset folder (same as factory presets)
+    possibleLocations.add(presetFolder.getChildFile(filename + ".json"));
+    
+    // 2. User's Documents/FreOSC/Presets folder
+    auto documentsFolder = juce::File::getSpecialLocation(juce::File::userDocumentsDirectory);
+    auto userPresetFolder = documentsFolder.getChildFile("FreOSC").getChildFile("Presets");
+    possibleLocations.add(userPresetFolder.getChildFile(filename + ".json"));
+    
+    // 3. Application data folder
+    auto appDataFolder = juce::File::getSpecialLocation(juce::File::userApplicationDataDirectory);
+    auto appPresetFolder = appDataFolder.getChildFile("FreOSC").getChildFile("Presets");
+    possibleLocations.add(appPresetFolder.getChildFile(filename + ".json"));
+    
+    // Try each location until one succeeds
+    for (const auto& presetFile : possibleLocations)
+    {
+        DBG("Trying to save preset to: " + presetFile.getFullPathName());
+        
+        if (savePresetToFile(presetFile, name, description, parameters))
+        {
+            DBG("Successfully saved user preset to: " + presetFile.getFullPathName());
+            // Refresh preset list to include new preset
+            scanForPresets();
+            return true;
+        }
+    }
+    
+    DBG("Failed to save preset to any location");
+    return false;
+}
+
+bool JsonPresetManager::presetExists(const juce::String& presetName) const
+{
+    for (const auto& preset : presets)
+    {
+        if (preset.name == presetName)
+            return true;
+    }
+    return false;
+}
+
+//==============================================================================
+// Current preset state tracking methods
+
+juce::String JsonPresetManager::getCurrentPresetName() const
+{
+    if (currentPresetIndex >= 0 && currentPresetIndex < static_cast<int>(presets.size()))
+        return presets[currentPresetIndex].name;
+    return "Default";
+}
+
+void JsonPresetManager::setCurrentPreset(int index)
+{
+    if (index >= 0 && index < static_cast<int>(presets.size()))
+        currentPresetIndex = index;
+    else
+        currentPresetIndex = -1;
+}
+
+void JsonPresetManager::setCurrentPreset(const juce::String& name)
+{
+    for (size_t i = 0; i < presets.size(); ++i)
+    {
+        if (presets[i].name == name)
+        {
+            currentPresetIndex = static_cast<int>(i);
+            return;
+        }
+    }
+    currentPresetIndex = -1; // Not found, set to default
+}
+
+void JsonPresetManager::clearCurrentPreset()
+{
+    currentPresetIndex = -1; // This will make getCurrentPresetName() return "Default"
+}
+
+//==============================================================================
 juce::StringArray JsonPresetManager::getPresetNames() const
 {
     juce::StringArray names;
@@ -148,151 +344,117 @@ bool JsonPresetManager::loadPresetFromFile(const juce::File& file, juce::AudioPr
 
 bool JsonPresetManager::savePresetToFile(const juce::File& file, const juce::String& name, const juce::String& description, juce::AudioProcessorValueTreeState& parameters)
 {
-    auto json = createPresetJson(name, description, parameters);
+    // Ensure the parent directory exists
+    if (!file.getParentDirectory().exists())
+    {
+        if (!file.getParentDirectory().createDirectory())
+        {
+            DBG("Failed to create preset directory: " + file.getParentDirectory().getFullPathName());
+            return false;
+        }
+    }
+    
+    // Use simple format for compatibility with factory presets and easier loading
+    auto json = createSimplePresetJson(name, description, parameters);
 
     auto jsonText = juce::JSON::toString(json, true);
+    
+    DBG("Attempting to save preset to: " + file.getFullPathName());
+    DBG("JSON content: " + jsonText);
 
-    return file.replaceWithText(jsonText);
+    bool result = file.replaceWithText(jsonText);
+    
+    if (!result)
+    {
+        DBG("Failed to save preset file: " + file.getFullPathName());
+    }
+    else
+    {
+        DBG("Successfully saved preset: " + name);
+    }
+
+    return result;
 }
 
 //==============================================================================
-juce::var JsonPresetManager::createPresetJson(const juce::String& name, const juce::String& description, juce::AudioProcessorValueTreeState& parameters)
+
+juce::var JsonPresetManager::createSimplePresetJson(const juce::String& name, const juce::String& description, juce::AudioProcessorValueTreeState& parameters)
 {
     auto json = juce::DynamicObject::Ptr(new juce::DynamicObject());
-
-    // Metadata
+    
+    // Metadata (same as factory presets)
     json->setProperty("name", name);
     json->setProperty("description", description);
-    json->setProperty("version", "1.0");
-
-    // Oscillators
-    auto oscillators = juce::DynamicObject::Ptr(new juce::DynamicObject());
-
-    for (int i = 1; i <= 3; ++i)
+    
+    // Parameters object containing direct parameter mappings (like factory presets)
+    auto parametersObj = juce::DynamicObject::Ptr(new juce::DynamicObject());
+    
+    // Get all parameter values using the same method as the complex format
+    // Define all parameter IDs that should be saved (based on existing factory presets)
+    juce::StringArray parameterIDs = {
+        // Oscillators
+        "osc1_waveform", "osc1_octave", "osc1_level", "osc1_detune", "osc1_pan",
+        "osc2_waveform", "osc2_octave", "osc2_level", "osc2_detune", "osc2_pan", 
+        "osc3_waveform", "osc3_octave", "osc3_level", "osc3_detune", "osc3_pan",
+        
+        // Noise
+        "noise_type", "noise_level", "noise_pan",
+        
+        // Envelope
+        "envelope_attack", "envelope_decay", "envelope_sustain", "envelope_release",
+        
+        // Filters
+        "filter_routing", "filter_type", "filter_cutoff", "filter_resonance", "filter_gain",
+        "filter2_type", "filter2_cutoff", "filter2_resonance", "filter2_gain",
+        
+        // LFO
+        "lfo_waveform", "lfo_rate", "lfo_target", "lfo_amount",
+        "lfo2_waveform", "lfo2_rate", "lfo2_target", "lfo2_amount",
+        "lfo3_waveform", "lfo3_rate", "lfo3_target", "lfo3_amount",
+        
+        // Modulation Envelopes
+        "mod_env1_attack", "mod_env1_decay", "mod_env1_sustain", "mod_env1_release",
+        "mod_env1_amount", "mod_env1_target", "mod_env1_mode", "mod_env1_rate",
+        "mod_env2_attack", "mod_env2_decay", "mod_env2_sustain", "mod_env2_release", 
+        "mod_env2_amount", "mod_env2_target", "mod_env2_mode", "mod_env2_rate",
+        
+        // PM Synthesis
+        "pm_index", "pm_ratio", "pm_carrier",
+        
+        // Clean Dynamics
+        "comp_threshold", "comp_ratio", "comp_attack", "comp_release", "comp_makeup", "comp_mix",
+        "limiter_threshold", "limiter_release", "limiter_ceiling", "limiter_saturation",
+        
+        // Effects
+        "effects_routing",
+        "plate_predelay", "plate_size", "plate_damping", "plate_diffusion", "plate_wet_level", "plate_width",
+        "tape_time", "tape_feedback", "tape_tone", "tape_flutter", "tape_wet_level", "tape_width",
+        "wavefolder_drive", "wavefolder_threshold", "wavefolder_symmetry", "wavefolder_mix", "wavefolder_output",
+        
+        // Master
+        "master_volume"
+    };
+    
+    // Save each parameter using normalized values (0-1) for consistency with loading
+    int paramCount = 0;
+    for (const auto& paramID : parameterIDs)
     {
-        auto osc = juce::DynamicObject::Ptr(new juce::DynamicObject());
-        juce::String prefix = "osc" + juce::String(i) + "_";
-
-        osc->setProperty("waveform", denormalizeOscillatorWaveform(parameters.getRawParameterValue(prefix + "waveform")->load()));
-        osc->setProperty("octave", static_cast<int>(parameters.getRawParameterValue(prefix + "octave")->load()));
-        osc->setProperty("level", parameters.getRawParameterValue(prefix + "level")->load());
-        osc->setProperty("detune", denormalizeDetune(parameters.getRawParameterValue(prefix + "detune")->load()));
-        osc->setProperty("pan", denormalizePan(parameters.getRawParameterValue(prefix + "pan")->load()));
-
-        oscillators->setProperty("osc" + juce::String(i), osc.get());
+        if (auto* param = parameters.getParameter(paramID))
+        {
+            float normalizedValue = param->getValue(); // Gets normalized 0-1 value
+            parametersObj->setProperty(paramID, normalizedValue);
+            paramCount++;
+        }
+        else
+        {
+            DBG("Parameter not found: " + paramID);
+        }
     }
-    json->setProperty("oscillators", oscillators.get());
-
-    // Noise
-    auto noise = juce::DynamicObject::Ptr(new juce::DynamicObject());
-    noise->setProperty("type", denormalizeNoiseType(parameters.getRawParameterValue("noise_type")->load()));
-    noise->setProperty("level", parameters.getRawParameterValue("noise_level")->load());
-    noise->setProperty("pan", denormalizePan(parameters.getRawParameterValue("noise_pan")->load()));
-    json->setProperty("noise", noise.get());
-
-    // Envelope
-    auto envelope = juce::DynamicObject::Ptr(new juce::DynamicObject());
-    envelope->setProperty("attack", denormalizeTime(parameters.getRawParameterValue("envelope_attack")->load()));
-    envelope->setProperty("decay", denormalizeTime(parameters.getRawParameterValue("envelope_decay")->load()));
-    envelope->setProperty("sustain", parameters.getRawParameterValue("envelope_sustain")->load());
-    envelope->setProperty("release", denormalizeTime(parameters.getRawParameterValue("envelope_release")->load()));
-    json->setProperty("envelope", envelope.get());
-
-    // Filter system
-    auto filterSystem = juce::DynamicObject::Ptr(new juce::DynamicObject());
     
-    // Filter routing
-    filterSystem->setProperty("routing", denormalizeFilterRouting(parameters.getRawParameterValue("filter_routing")->load()));
+    DBG("Saved " + juce::String(paramCount) + " parameters to preset: " + name);
     
-    // Filter 1
-    auto filter1 = juce::DynamicObject::Ptr(new juce::DynamicObject());
-    filter1->setProperty("type", denormalizeFilterType(parameters.getRawParameterValue("filter_type")->load()));
-    filter1->setProperty("cutoff", denormalizeFilterCutoff(parameters.getRawParameterValue("filter_cutoff")->load()));
-    filter1->setProperty("resonance", denormalizeFilterResonance(parameters.getRawParameterValue("filter_resonance")->load()));
-    filter1->setProperty("gain", denormalizeFilterGain(parameters.getRawParameterValue("filter_gain")->load()));
-    filterSystem->setProperty("filter1", filter1.get());
+    json->setProperty("parameters", parametersObj.get());
     
-    // Filter 2
-    auto filter2 = juce::DynamicObject::Ptr(new juce::DynamicObject());
-    filter2->setProperty("type", denormalizeFilterType(parameters.getRawParameterValue("filter2_type")->load()));
-    filter2->setProperty("cutoff", denormalizeFilterCutoff(parameters.getRawParameterValue("filter2_cutoff")->load()));
-    filter2->setProperty("resonance", denormalizeFilterResonance(parameters.getRawParameterValue("filter2_resonance")->load()));
-    filter2->setProperty("gain", denormalizeFilterGain(parameters.getRawParameterValue("filter2_gain")->load()));
-    filterSystem->setProperty("filter2", filter2.get());
-    
-    json->setProperty("filterSystem", filterSystem.get());
-
-    // LFO
-    auto lfo = juce::DynamicObject::Ptr(new juce::DynamicObject());
-    lfo->setProperty("waveform", denormalizeLfoWaveform(parameters.getRawParameterValue("lfo_waveform")->load()));
-    lfo->setProperty("rate", denormalizeLfoRate(parameters.getRawParameterValue("lfo_rate")->load()));
-    lfo->setProperty("target", denormalizeLfoTarget(parameters.getRawParameterValue("lfo_target")->load()));
-    lfo->setProperty("amount", parameters.getRawParameterValue("lfo_amount")->load());
-    json->setProperty("lfo", lfo.get());
-
-    // Modulation Envelopes
-    auto modulation = juce::DynamicObject::Ptr(new juce::DynamicObject());
-    
-    // Modulation Envelope 1
-    auto modEnv1 = juce::DynamicObject::Ptr(new juce::DynamicObject());
-    modEnv1->setProperty("attack", denormalizeTime(parameters.getRawParameterValue("mod_env1_attack")->load()));
-    modEnv1->setProperty("decay", denormalizeTime(parameters.getRawParameterValue("mod_env1_decay")->load()));
-    modEnv1->setProperty("sustain", parameters.getRawParameterValue("mod_env1_sustain")->load());
-    modEnv1->setProperty("release", denormalizeTime(parameters.getRawParameterValue("mod_env1_release")->load()));
-    modEnv1->setProperty("amount", parameters.getRawParameterValue("mod_env1_amount")->load());
-    modEnv1->setProperty("target", denormalizeModEnvTarget(parameters.getRawParameterValue("mod_env1_target")->load()));
-    modulation->setProperty("envelope1", modEnv1.get());
-    
-    // Modulation Envelope 2
-    auto modEnv2 = juce::DynamicObject::Ptr(new juce::DynamicObject());
-    modEnv2->setProperty("attack", denormalizeTime(parameters.getRawParameterValue("mod_env2_attack")->load()));
-    modEnv2->setProperty("decay", denormalizeTime(parameters.getRawParameterValue("mod_env2_decay")->load()));
-    modEnv2->setProperty("sustain", parameters.getRawParameterValue("mod_env2_sustain")->load());
-    modEnv2->setProperty("release", denormalizeTime(parameters.getRawParameterValue("mod_env2_release")->load()));
-    modEnv2->setProperty("amount", parameters.getRawParameterValue("mod_env2_amount")->load());
-    modEnv2->setProperty("target", denormalizeModEnvTarget(parameters.getRawParameterValue("mod_env2_target")->load()));
-    modulation->setProperty("envelope2", modEnv2.get());
-    
-    json->setProperty("modulation", modulation.get());
-
-    // PM Synthesis
-    auto pm = juce::DynamicObject::Ptr(new juce::DynamicObject());
-    pm->setProperty("index", parameters.getRawParameterValue("pm_index")->load());
-    pm->setProperty("ratio", parameters.getRawParameterValue("pm_ratio")->load());
-    pm->setProperty("carrier", denormalizePmCarrier(parameters.getRawParameterValue("pm_carrier")->load()));
-    json->setProperty("pm", pm.get());
-
-    // Effects
-    auto effects = juce::DynamicObject::Ptr(new juce::DynamicObject());
-    
-    // Effects routing
-    effects->setProperty("routing", denormalizeEffectsRouting(parameters.getRawParameterValue("effects_routing")->load()));
-    
-    // Plate Reverb
-    auto plateReverb = juce::DynamicObject::Ptr(new juce::DynamicObject());
-    plateReverb->setProperty("predelay", parameters.getRawParameterValue("plate_predelay")->load());
-    plateReverb->setProperty("size", parameters.getRawParameterValue("plate_size")->load());
-    plateReverb->setProperty("damping", parameters.getRawParameterValue("plate_damping")->load());
-    plateReverb->setProperty("diffusion", parameters.getRawParameterValue("plate_diffusion")->load());
-    plateReverb->setProperty("wetLevel", parameters.getRawParameterValue("plate_wet_level")->load());
-    plateReverb->setProperty("width", parameters.getRawParameterValue("plate_width")->load());
-    effects->setProperty("plateReverb", plateReverb.get());
-    
-    // Tape Delay
-    auto tapeDelay = juce::DynamicObject::Ptr(new juce::DynamicObject());
-    tapeDelay->setProperty("time", parameters.getRawParameterValue("tape_time")->load());
-    tapeDelay->setProperty("feedback", parameters.getRawParameterValue("tape_feedback")->load());
-    tapeDelay->setProperty("tone", parameters.getRawParameterValue("tape_tone")->load());
-    tapeDelay->setProperty("flutter", parameters.getRawParameterValue("tape_flutter")->load());
-    tapeDelay->setProperty("wetLevel", parameters.getRawParameterValue("tape_wet_level")->load());
-    tapeDelay->setProperty("width", parameters.getRawParameterValue("tape_width")->load());
-    effects->setProperty("tapeDelay", tapeDelay.get());
-    
-    json->setProperty("effects", effects.get());
-
-    // Master
-    json->setProperty("master_volume", parameters.getRawParameterValue("master_volume")->load());
-
     return juce::var(json.get());
 }
 
@@ -305,737 +467,45 @@ bool JsonPresetManager::applyPresetJson(const juce::var& presetData, juce::Audio
     if (json == nullptr)
         return false;
 
-    // Apply oscillators
-    if (json->hasProperty("oscillators"))
+    // Check if this is the simple format (has "parameters" object) used by factory presets
+    if (json->hasProperty("parameters"))
     {
-        auto oscillators = json->getProperty("oscillators").getDynamicObject();
-        if (oscillators != nullptr)
-        {
-            for (int i = 1; i <= 3; ++i)
-            {
-                juce::String oscKey = "osc" + juce::String(i);
-                if (oscillators->hasProperty(oscKey))
-                {
-                    auto osc = oscillators->getProperty(oscKey).getDynamicObject();
-                    if (osc != nullptr)
-                    {
-                        juce::String prefix = "osc" + juce::String(i) + "_";
-
-                        if (osc->hasProperty("waveform"))
-                            parameters.getParameter(prefix + "waveform")->setValueNotifyingHost(
-                                normalizeOscillatorWaveform(osc->getProperty("waveform")));
-
-                        if (osc->hasProperty("octave"))
-                            parameters.getParameter(prefix + "octave")->setValueNotifyingHost(
-                                static_cast<float>(static_cast<int>(osc->getProperty("octave"))));
-
-                        if (osc->hasProperty("level"))
-                            parameters.getParameter(prefix + "level")->setValueNotifyingHost(
-                                static_cast<float>(osc->getProperty("level")));
-
-                        if (osc->hasProperty("detune"))
-                            parameters.getParameter(prefix + "detune")->setValueNotifyingHost(
-                                normalizeDetune(static_cast<float>(osc->getProperty("detune"))));
-
-                        if (osc->hasProperty("pan"))
-                            parameters.getParameter(prefix + "pan")->setValueNotifyingHost(
-                                normalizePan(static_cast<float>(osc->getProperty("pan"))));
-                    }
-                }
-            }
-        }
+        return applySimplePresetFormat(json->getProperty("parameters"), parameters);
     }
 
-    // Apply noise
-    if (json->hasProperty("noise"))
+    // Only support simple format - complex format no longer used
+    return false;
+}
+
+//==============================================================================
+// Simple preset format handler (for factory presets and simple user presets)
+
+bool JsonPresetManager::applySimplePresetFormat(const juce::var& parametersData, juce::AudioProcessorValueTreeState& parameters)
+{
+    if (!parametersData.isObject())
+        return false;
+    
+    auto paramObj = parametersData.getDynamicObject();
+    if (paramObj == nullptr)
+        return false;
+    
+    // Apply parameters directly by name - values are normalized (0-1)
+    for (auto it = paramObj->getProperties().begin(); it != paramObj->getProperties().end(); ++it)
     {
-        auto noise = json->getProperty("noise").getDynamicObject();
-        if (noise != nullptr)
+        juce::String paramName = it->name.toString();
+        float paramValue = static_cast<float>(it->value);
+        
+        // Set the normalized parameter value directly
+        if (auto* param = parameters.getParameter(paramName))
         {
-            if (noise->hasProperty("type"))
-                parameters.getParameter("noise_type")->setValueNotifyingHost(
-                    normalizeNoiseType(noise->getProperty("type")));
-
-            if (noise->hasProperty("level"))
-                parameters.getParameter("noise_level")->setValueNotifyingHost(
-                    static_cast<float>(noise->getProperty("level")));
-
-            if (noise->hasProperty("pan"))
-                parameters.getParameter("noise_pan")->setValueNotifyingHost(
-                    normalizePan(static_cast<float>(noise->getProperty("pan"))));
+            param->setValueNotifyingHost(paramValue);
         }
     }
-
-    // Apply envelope
-    if (json->hasProperty("envelope"))
-    {
-        auto envelope = json->getProperty("envelope").getDynamicObject();
-        if (envelope != nullptr)
-        {
-            if (envelope->hasProperty("attack"))
-                parameters.getParameter("envelope_attack")->setValueNotifyingHost(
-                    normalizeTime(static_cast<float>(envelope->getProperty("attack"))));
-
-            if (envelope->hasProperty("decay"))
-                parameters.getParameter("envelope_decay")->setValueNotifyingHost(
-                    normalizeTime(static_cast<float>(envelope->getProperty("decay"))));
-
-            if (envelope->hasProperty("sustain"))
-                parameters.getParameter("envelope_sustain")->setValueNotifyingHost(
-                    static_cast<float>(envelope->getProperty("sustain")));
-
-            if (envelope->hasProperty("release"))
-                parameters.getParameter("envelope_release")->setValueNotifyingHost(
-                    normalizeTime(static_cast<float>(envelope->getProperty("release"))));
-        }
-    }
-
-    // Apply filter system (new format) or legacy filter (old format)
-    if (json->hasProperty("filterSystem"))
-    {
-        auto filterSystem = json->getProperty("filterSystem").getDynamicObject();
-        if (filterSystem != nullptr)
-        {
-            // Apply filter routing
-            if (filterSystem->hasProperty("routing"))
-                parameters.getParameter("filter_routing")->setValueNotifyingHost(
-                    normalizeFilterRouting(filterSystem->getProperty("routing")));
-            
-            // Apply Filter 1
-            if (filterSystem->hasProperty("filter1"))
-            {
-                auto filter1 = filterSystem->getProperty("filter1").getDynamicObject();
-                if (filter1 != nullptr)
-                {
-                    if (filter1->hasProperty("type"))
-                        parameters.getParameter("filter_type")->setValueNotifyingHost(
-                            normalizeFilterType(filter1->getProperty("type")));
-
-                    if (filter1->hasProperty("cutoff"))
-                        parameters.getParameter("filter_cutoff")->setValueNotifyingHost(
-                            normalizeFilterCutoff(static_cast<float>(filter1->getProperty("cutoff"))));
-
-                    if (filter1->hasProperty("resonance"))
-                        parameters.getParameter("filter_resonance")->setValueNotifyingHost(
-                            normalizeFilterResonance(static_cast<float>(filter1->getProperty("resonance"))));
-
-                    if (filter1->hasProperty("gain"))
-                        parameters.getParameter("filter_gain")->setValueNotifyingHost(
-                            normalizeFilterGain(static_cast<float>(filter1->getProperty("gain"))));
-                }
-            }
-            
-            // Apply Filter 2
-            if (filterSystem->hasProperty("filter2"))
-            {
-                auto filter2 = filterSystem->getProperty("filter2").getDynamicObject();
-                if (filter2 != nullptr)
-                {
-                    if (filter2->hasProperty("type"))
-                        parameters.getParameter("filter2_type")->setValueNotifyingHost(
-                            normalizeFilterType(filter2->getProperty("type")));
-
-                    if (filter2->hasProperty("cutoff"))
-                        parameters.getParameter("filter2_cutoff")->setValueNotifyingHost(
-                            normalizeFilterCutoff(static_cast<float>(filter2->getProperty("cutoff"))));
-
-                    if (filter2->hasProperty("resonance"))
-                        parameters.getParameter("filter2_resonance")->setValueNotifyingHost(
-                            normalizeFilterResonance(static_cast<float>(filter2->getProperty("resonance"))));
-
-                    if (filter2->hasProperty("gain"))
-                        parameters.getParameter("filter2_gain")->setValueNotifyingHost(
-                            normalizeFilterGain(static_cast<float>(filter2->getProperty("gain"))));
-                }
-            }
-        }
-    }
-    else if (json->hasProperty("filter"))
-    {
-        // Legacy filter format - load as Filter 1 only
-        auto filter = json->getProperty("filter").getDynamicObject();
-        if (filter != nullptr)
-        {
-            if (filter->hasProperty("type"))
-                parameters.getParameter("filter_type")->setValueNotifyingHost(
-                    normalizeFilterType(filter->getProperty("type")));
-
-            if (filter->hasProperty("cutoff"))
-                parameters.getParameter("filter_cutoff")->setValueNotifyingHost(
-                    normalizeFilterCutoff(static_cast<float>(filter->getProperty("cutoff"))));
-
-            if (filter->hasProperty("resonance"))
-                parameters.getParameter("filter_resonance")->setValueNotifyingHost(
-                    normalizeFilterResonance(static_cast<float>(filter->getProperty("resonance"))));
-
-            if (filter->hasProperty("gain"))
-                parameters.getParameter("filter_gain")->setValueNotifyingHost(
-                    normalizeFilterGain(static_cast<float>(filter->getProperty("gain"))));
-        }
-    }
-
-    // Apply LFO
-    if (json->hasProperty("lfo"))
-    {
-        auto lfo = json->getProperty("lfo").getDynamicObject();
-        if (lfo != nullptr)
-        {
-            if (lfo->hasProperty("waveform"))
-                parameters.getParameter("lfo_waveform")->setValueNotifyingHost(
-                    normalizeLfoWaveform(lfo->getProperty("waveform")));
-
-            if (lfo->hasProperty("rate"))
-                parameters.getParameter("lfo_rate")->setValueNotifyingHost(
-                    normalizeLfoRate(static_cast<float>(lfo->getProperty("rate"))));
-
-            if (lfo->hasProperty("target"))
-                parameters.getParameter("lfo_target")->setValueNotifyingHost(
-                    normalizeLfoTarget(lfo->getProperty("target")));
-
-            if (lfo->hasProperty("amount"))
-                parameters.getParameter("lfo_amount")->setValueNotifyingHost(
-                    static_cast<float>(lfo->getProperty("amount")));
-        }
-    }
-
-    // Apply modulation envelopes
-    if (json->hasProperty("modulation"))
-    {
-        auto modulation = json->getProperty("modulation").getDynamicObject();
-        if (modulation != nullptr)
-        {
-            // Apply Modulation Envelope 1
-            if (modulation->hasProperty("envelope1"))
-            {
-                auto modEnv1 = modulation->getProperty("envelope1").getDynamicObject();
-                if (modEnv1 != nullptr)
-                {
-                    if (modEnv1->hasProperty("attack"))
-                        parameters.getParameter("mod_env1_attack")->setValueNotifyingHost(
-                            normalizeTime(static_cast<float>(modEnv1->getProperty("attack"))));
-
-                    if (modEnv1->hasProperty("decay"))
-                        parameters.getParameter("mod_env1_decay")->setValueNotifyingHost(
-                            normalizeTime(static_cast<float>(modEnv1->getProperty("decay"))));
-
-                    if (modEnv1->hasProperty("sustain"))
-                        parameters.getParameter("mod_env1_sustain")->setValueNotifyingHost(
-                            static_cast<float>(modEnv1->getProperty("sustain")));
-
-                    if (modEnv1->hasProperty("release"))
-                        parameters.getParameter("mod_env1_release")->setValueNotifyingHost(
-                            normalizeTime(static_cast<float>(modEnv1->getProperty("release"))));
-
-                    if (modEnv1->hasProperty("amount"))
-                        parameters.getParameter("mod_env1_amount")->setValueNotifyingHost(
-                            static_cast<float>(modEnv1->getProperty("amount")));
-
-                    if (modEnv1->hasProperty("target"))
-                        parameters.getParameter("mod_env1_target")->setValueNotifyingHost(
-                            normalizeModEnvTarget(modEnv1->getProperty("target")));
-                }
-            }
-
-            // Apply Modulation Envelope 2
-            if (modulation->hasProperty("envelope2"))
-            {
-                auto modEnv2 = modulation->getProperty("envelope2").getDynamicObject();
-                if (modEnv2 != nullptr)
-                {
-                    if (modEnv2->hasProperty("attack"))
-                        parameters.getParameter("mod_env2_attack")->setValueNotifyingHost(
-                            normalizeTime(static_cast<float>(modEnv2->getProperty("attack"))));
-
-                    if (modEnv2->hasProperty("decay"))
-                        parameters.getParameter("mod_env2_decay")->setValueNotifyingHost(
-                            normalizeTime(static_cast<float>(modEnv2->getProperty("decay"))));
-
-                    if (modEnv2->hasProperty("sustain"))
-                        parameters.getParameter("mod_env2_sustain")->setValueNotifyingHost(
-                            static_cast<float>(modEnv2->getProperty("sustain")));
-
-                    if (modEnv2->hasProperty("release"))
-                        parameters.getParameter("mod_env2_release")->setValueNotifyingHost(
-                            normalizeTime(static_cast<float>(modEnv2->getProperty("release"))));
-
-                    if (modEnv2->hasProperty("amount"))
-                        parameters.getParameter("mod_env2_amount")->setValueNotifyingHost(
-                            static_cast<float>(modEnv2->getProperty("amount")));
-
-                    if (modEnv2->hasProperty("target"))
-                        parameters.getParameter("mod_env2_target")->setValueNotifyingHost(
-                            normalizeModEnvTarget(modEnv2->getProperty("target")));
-                }
-            }
-        }
-    }
-
-    // Apply PM synthesis
-    if (json->hasProperty("pm"))
-    {
-        auto pm = json->getProperty("pm").getDynamicObject();
-        if (pm != nullptr)
-        {
-            if (pm->hasProperty("index"))
-                parameters.getParameter("pm_index")->setValueNotifyingHost(
-                    static_cast<float>(pm->getProperty("index")));
-
-            if (pm->hasProperty("ratio"))
-                parameters.getParameter("pm_ratio")->setValueNotifyingHost(
-                    static_cast<float>(pm->getProperty("ratio")));
-
-            if (pm->hasProperty("carrier"))
-                parameters.getParameter("pm_carrier")->setValueNotifyingHost(
-                    normalizePmCarrier(pm->getProperty("carrier")));
-        }
-    }
-    // Backward compatibility: load old FM presets and convert to PM
-    else if (json->hasProperty("fm"))
-    {
-        auto fm = json->getProperty("fm").getDynamicObject();
-        if (fm != nullptr)
-        {
-            // Convert FM amount (0-1) to PM index (0-10)
-            if (fm->hasProperty("amount"))
-            {
-                float fmAmount = static_cast<float>(fm->getProperty("amount"));
-                float pmIndex = fmAmount * 10.0f; // Scale 0-1 to 0-10
-                parameters.getParameter("pm_index")->setValueNotifyingHost(pmIndex);
-            }
-
-            if (fm->hasProperty("ratio"))
-                parameters.getParameter("pm_ratio")->setValueNotifyingHost(
-                    static_cast<float>(fm->getProperty("ratio")));
-
-            // Convert FM target to PM carrier
-            if (fm->hasProperty("target"))
-            {
-                juce::String target = fm->getProperty("target").toString();
-                juce::String carrier = "oscillator1"; // default
-                if (target == "osc1") carrier = "oscillator1";
-                else if (target == "osc2") carrier = "oscillator2";  
-                else if (target == "both") carrier = "both";
-                parameters.getParameter("pm_carrier")->setValueNotifyingHost(
-                    normalizePmCarrier(carrier));
-            }
-        }
-    }
-
-    // Apply effects
-    if (json->hasProperty("effects"))
-    {
-        auto effects = json->getProperty("effects").getDynamicObject();
-        if (effects != nullptr)
-        {
-            // Apply effects routing
-            if (effects->hasProperty("routing"))
-                parameters.getParameter("effects_routing")->setValueNotifyingHost(
-                    normalizeEffectsRouting(effects->getProperty("routing")));
-            
-            // Apply plate reverb
-            if (effects->hasProperty("plateReverb"))
-            {
-                auto plateReverb = effects->getProperty("plateReverb").getDynamicObject();
-                if (plateReverb != nullptr)
-                {
-                    if (plateReverb->hasProperty("predelay"))
-                        parameters.getParameter("plate_predelay")->setValueNotifyingHost(
-                            static_cast<float>(plateReverb->getProperty("predelay")));
-
-                    if (plateReverb->hasProperty("size"))
-                        parameters.getParameter("plate_size")->setValueNotifyingHost(
-                            static_cast<float>(plateReverb->getProperty("size")));
-
-                    if (plateReverb->hasProperty("damping"))
-                        parameters.getParameter("plate_damping")->setValueNotifyingHost(
-                            static_cast<float>(plateReverb->getProperty("damping")));
-
-                    if (plateReverb->hasProperty("diffusion"))
-                        parameters.getParameter("plate_diffusion")->setValueNotifyingHost(
-                            static_cast<float>(plateReverb->getProperty("diffusion")));
-
-                    if (plateReverb->hasProperty("wetLevel"))
-                        parameters.getParameter("plate_wet_level")->setValueNotifyingHost(
-                            static_cast<float>(plateReverb->getProperty("wetLevel")));
-
-                    if (plateReverb->hasProperty("width"))
-                        parameters.getParameter("plate_width")->setValueNotifyingHost(
-                            static_cast<float>(plateReverb->getProperty("width")));
-                }
-            }
-
-            // Apply tape delay (new format)
-            if (effects->hasProperty("tapeDelay"))
-            {
-                auto tapeDelay = effects->getProperty("tapeDelay").getDynamicObject();
-                if (tapeDelay != nullptr)
-                {
-                    if (tapeDelay->hasProperty("time"))
-                        parameters.getParameter("tape_time")->setValueNotifyingHost(
-                            static_cast<float>(tapeDelay->getProperty("time")));
-
-                    if (tapeDelay->hasProperty("feedback"))
-                        parameters.getParameter("tape_feedback")->setValueNotifyingHost(
-                            static_cast<float>(tapeDelay->getProperty("feedback")));
-
-                    if (tapeDelay->hasProperty("tone"))
-                        parameters.getParameter("tape_tone")->setValueNotifyingHost(
-                            static_cast<float>(tapeDelay->getProperty("tone")));
-
-                    if (tapeDelay->hasProperty("flutter"))
-                        parameters.getParameter("tape_flutter")->setValueNotifyingHost(
-                            static_cast<float>(tapeDelay->getProperty("flutter")));
-
-                    if (tapeDelay->hasProperty("wetLevel"))
-                        parameters.getParameter("tape_wet_level")->setValueNotifyingHost(
-                            static_cast<float>(tapeDelay->getProperty("wetLevel")));
-
-                    if (tapeDelay->hasProperty("width"))
-                        parameters.getParameter("tape_width")->setValueNotifyingHost(
-                            static_cast<float>(tapeDelay->getProperty("width")));
-                }
-            }
-            // Apply legacy delay format for backward compatibility
-            else if (effects->hasProperty("delay"))
-            {
-                auto delay = effects->getProperty("delay").getDynamicObject();
-                if (delay != nullptr)
-                {
-                    // Map old delay parameters to new tape delay parameters
-                    if (delay->hasProperty("time"))
-                        parameters.getParameter("tape_time")->setValueNotifyingHost(
-                            static_cast<float>(delay->getProperty("time")));
-
-                    if (delay->hasProperty("feedback"))
-                        parameters.getParameter("tape_feedback")->setValueNotifyingHost(
-                            static_cast<float>(delay->getProperty("feedback")));
-
-                    if (delay->hasProperty("wetLevel"))
-                        parameters.getParameter("tape_wet_level")->setValueNotifyingHost(
-                            static_cast<float>(delay->getProperty("wetLevel")));
-
-                    // Set default values for new tape delay parameters not in old format
-                    parameters.getParameter("tape_tone")->setValueNotifyingHost(0.7f);     // Mid tone
-                    parameters.getParameter("tape_flutter")->setValueNotifyingHost(0.1f);  // Light flutter
-                    parameters.getParameter("tape_width")->setValueNotifyingHost(0.5f);    // Centered width
-                }
-            }
-        }
-    }
-
-    // Apply master volume
-    if (json->hasProperty("master_volume"))
-        parameters.getParameter("master_volume")->setValueNotifyingHost(
-            static_cast<float>(json->getProperty("master_volume")));
-
+    
+    // All parameters are included in new presets - no defaults needed
+    
     return true;
 }
 
-//==============================================================================
-// Normalization helpers (JSON value -> 0-1 parameter value)
-
-float JsonPresetManager::normalizeOscillatorWaveform(const juce::String& waveform)
-{
-    if (waveform == "sine") return 0.0f / 3.0f;
-    if (waveform == "square") return 1.0f / 3.0f;
-    if (waveform == "sawtooth") return 2.0f / 3.0f;
-    if (waveform == "triangle") return 3.0f / 3.0f;
-    return 0.0f; // Default to sine
-}
-
-
-float JsonPresetManager::normalizeDetune(float cents)
-{
-    // Detune range: -50 to +50 cents, normalized to 0-1
-    return (cents + 50.0f) / 100.0f;
-}
-
-float JsonPresetManager::normalizePan(float pan)
-{
-    // Pan range: -1.0 to +1.0, normalized to 0-1
-    return (pan + 1.0f) / 2.0f;
-}
-
-float JsonPresetManager::normalizeNoiseType(const juce::String& noiseType)
-{
-    if (noiseType == "white") return 0.0f / 9.0f;
-    if (noiseType == "pink") return 1.0f / 9.0f;
-    if (noiseType == "brown") return 2.0f / 9.0f;
-    if (noiseType == "blue") return 3.0f / 9.0f;
-    if (noiseType == "violet") return 4.0f / 9.0f;
-    if (noiseType == "grey") return 5.0f / 9.0f;
-    if (noiseType == "crackle") return 6.0f / 9.0f;
-    if (noiseType == "digital") return 7.0f / 9.0f;
-    if (noiseType == "wind") return 8.0f / 9.0f;
-    if (noiseType == "ocean") return 9.0f / 9.0f;
-    return 0.0f; // Default to white
-}
-
-float JsonPresetManager::normalizeFilterType(const juce::String& filterType)
-{
-    if (filterType == "lowpass") return 0.0f / 3.0f;
-    if (filterType == "highpass") return 1.0f / 3.0f;
-    if (filterType == "bandpass") return 2.0f / 3.0f;
-    if (filterType == "notch") return 3.0f / 3.0f;
-    return 0.0f; // Default to lowpass
-}
-
-float JsonPresetManager::normalizeFilterRouting(const juce::String& routing)
-{
-    if (routing == "off") return 0.0f / 2.0f;
-    if (routing == "parallel") return 1.0f / 2.0f;
-    if (routing == "series") return 2.0f / 2.0f;
-    return 0.0f; // Default to off
-}
-
-float JsonPresetManager::normalizeEffectsRouting(const juce::String& routing)
-{
-    if (routing == "series_reverb_delay") return 0.0f / 2.0f;
-    if (routing == "series_delay_reverb") return 1.0f / 2.0f;
-    if (routing == "parallel") return 2.0f / 2.0f;
-    return 0.0f; // Default to series reverb→delay
-}
-
-float JsonPresetManager::normalizeFilterCutoff(float frequency)
-{
-    // Logarithmic scaling: 20Hz to 20kHz -> 0-1
-    frequency = juce::jlimit(20.0f, 20000.0f, frequency);
-    return std::log(frequency / 20.0f) / std::log(1000.0f); // 20 * 1000^x = frequency
-}
-
-float JsonPresetManager::normalizeFilterResonance(float q)
-{
-    // Q range: 0.1 to 5.0, normalized to 0-1
-    return (q - 0.1f) / 4.9f;
-}
-
-float JsonPresetManager::normalizeFilterGain(float gainDb)
-{
-    // Gain range: -24dB to +24dB, normalized to 0-1
-    return (gainDb + 24.0f) / 48.0f;
-}
-
-
-float JsonPresetManager::normalizeLfoWaveform(const juce::String& waveform)
-{
-    if (waveform == "sine") return 0.0f / 4.0f;
-    if (waveform == "triangle") return 1.0f / 4.0f;
-    if (waveform == "sawtooth") return 2.0f / 4.0f;
-    if (waveform == "square") return 3.0f / 4.0f;
-    if (waveform == "random") return 4.0f / 4.0f;
-    return 0.0f; // Default to sine
-}
-
-float JsonPresetManager::normalizeLfoRate(float hz)
-{
-    // LFO rate range: 0.1 to 20 Hz, normalized to 0-1
-    hz = juce::jlimit(0.1f, 20.0f, hz);
-    return (hz - 0.1f) / 19.9f;
-}
-
-float JsonPresetManager::normalizeLfoTarget(const juce::String& target)
-{
-    if (target == "none") return 0.0f / 7.0f;
-    if (target == "pitch") return 1.0f / 7.0f;
-    if (target == "filter") return 2.0f / 7.0f;
-    if (target == "filter2") return 3.0f / 7.0f;
-    if (target == "volume") return 4.0f / 7.0f;
-    if (target == "pan") return 5.0f / 7.0f;
-    if (target == "pm_index") return 6.0f / 7.0f;
-    if (target == "pm_ratio") return 7.0f / 7.0f;
-    return 0.0f; // Default to none
-}
-
-float JsonPresetManager::normalizeModEnvTarget(const juce::String& target)
-{
-    if (target == "none") return 0.0f / 4.0f;
-    if (target == "pm_index") return 1.0f / 4.0f;
-    if (target == "pm_ratio") return 2.0f / 4.0f;
-    if (target == "filter_cutoff") return 3.0f / 4.0f;
-    if (target == "filter2_cutoff") return 4.0f / 4.0f;
-    return 0.0f; // Default to none
-}
-
-float JsonPresetManager::normalizePmCarrier(const juce::String& carrier)
-{
-    if (carrier == "oscillator1" || carrier == "osc1") return 0.0f / 2.0f;
-    if (carrier == "oscillator2" || carrier == "osc2") return 1.0f / 2.0f;
-    if (carrier == "both" || carrier == "Both Osc 1 & 2") return 2.0f / 2.0f;
-    return 0.0f; // Default to oscillator1
-}
-
-
-float JsonPresetManager::normalizeTime(float seconds)
-{
-    // Time range: 0.01 to 5.0 seconds, normalized to 0-1
-    seconds = juce::jlimit(0.01f, 5.0f, seconds);
-    return seconds / 5.0f;
-}
-
-//==============================================================================
-// Denormalization helpers (0-1 parameter value -> JSON value)
-
-juce::String JsonPresetManager::denormalizeOscillatorWaveform(float normalized)
-{
-    int index = static_cast<int>(normalized * 3.0f + 0.5f);
-    switch (index)
-    {
-        case 0: return "sine";
-        case 1: return "square";
-        case 2: return "sawtooth";
-        case 3: return "triangle";
-        default: return "sine";
-    }
-}
-
-
-float JsonPresetManager::denormalizeDetune(float normalized)
-{
-    return (normalized * 100.0f) - 50.0f;
-}
-
-float JsonPresetManager::denormalizePan(float normalized)
-{
-    return (normalized * 2.0f) - 1.0f;
-}
-
-juce::String JsonPresetManager::denormalizeNoiseType(float normalized)
-{
-    int index = static_cast<int>(normalized * 9.0f + 0.5f);
-    switch (index)
-    {
-        case 0: return "white";
-        case 1: return "pink";
-        case 2: return "brown";
-        case 3: return "blue";
-        case 4: return "violet";
-        case 5: return "grey";
-        case 6: return "crackle";
-        case 7: return "digital";
-        case 8: return "wind";
-        case 9: return "ocean";
-        default: return "white";
-    }
-}
-
-juce::String JsonPresetManager::denormalizeFilterType(float normalized)
-{
-    int index = static_cast<int>(normalized * 3.0f + 0.5f);
-    switch (index)
-    {
-        case 0: return "lowpass";
-        case 1: return "highpass";
-        case 2: return "bandpass";
-        case 3: return "notch";
-        default: return "lowpass";
-    }
-}
-
-float JsonPresetManager::denormalizeFilterCutoff(float normalized)
-{
-    // Logarithmic scaling: 0-1 -> 20Hz to 20kHz
-    return 20.0f * std::pow(1000.0f, normalized);
-}
-
-float JsonPresetManager::denormalizeFilterResonance(float normalized)
-{
-    return 0.1f + (normalized * 4.9f);
-}
-
-float JsonPresetManager::denormalizeFilterGain(float normalized)
-{
-    return (normalized * 48.0f) - 24.0f;
-}
-
-
-juce::String JsonPresetManager::denormalizeLfoWaveform(float normalized)
-{
-    int index = static_cast<int>(normalized * 4.0f + 0.5f);
-    switch (index)
-    {
-        case 0: return "sine";
-        case 1: return "triangle";
-        case 2: return "sawtooth";
-        case 3: return "square";
-        case 4: return "random";
-        default: return "sine";
-    }
-}
-
-float JsonPresetManager::denormalizeLfoRate(float normalized)
-{
-    return 0.1f + (normalized * 19.9f);
-}
-
-juce::String JsonPresetManager::denormalizeLfoTarget(float normalized)
-{
-    int index = static_cast<int>(normalized * 7.0f + 0.5f);
-    switch (index)
-    {
-        case 0: return "none";
-        case 1: return "pitch";
-        case 2: return "filter";
-        case 3: return "filter2";
-        case 4: return "volume";
-        case 5: return "pan";
-        case 6: return "pm_index";
-        case 7: return "pm_ratio";
-        default: return "none";
-    }
-}
-
-float JsonPresetManager::denormalizeTime(float normalized)
-{
-    return normalized * 5.0f;
-}
-
-juce::String JsonPresetManager::denormalizeFilterRouting(float normalized)
-{
-    int index = static_cast<int>(normalized * 2.0f + 0.5f);
-    switch (index)
-    {
-        case 0: return "off";
-        case 1: return "parallel";
-        case 2: return "series";
-        default: return "off";
-    }
-}
-
-juce::String JsonPresetManager::denormalizeEffectsRouting(float normalized)
-{
-    int index = static_cast<int>(normalized * 2.0f + 0.5f);
-    switch (index)
-    {
-        case 0: return "series_reverb_delay";
-        case 1: return "series_delay_reverb";
-        case 2: return "parallel";
-        default: return "series_reverb_delay";
-    }
-}
-
-juce::String JsonPresetManager::denormalizeModEnvTarget(float normalized)
-{
-    int index = static_cast<int>(normalized * 4.0f + 0.5f);
-    switch (index)
-    {
-        case 0: return "none";
-        case 1: return "pm_index";
-        case 2: return "pm_ratio";
-        case 3: return "filter_cutoff";
-        case 4: return "filter2_cutoff";
-        default: return "none";
-    }
-}
-
-juce::String JsonPresetManager::denormalizePmCarrier(float normalized)
-{
-    int index = static_cast<int>(normalized * 2.0f + 0.5f);
-    switch (index)
-    {
-        case 0: return "oscillator1";
-        case 1: return "oscillator2";
-        case 2: return "both";
-        default: return "oscillator1";
-    }
-}
+// No conversion helpers needed - using normalized values directly
 

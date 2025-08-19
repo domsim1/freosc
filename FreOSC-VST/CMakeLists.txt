@@ -82,6 +82,12 @@ set(SOURCE_FILES
     Source/DSP/FreOscWavefolder.h
     Source/DSP/FreOscNoiseGenerator.cpp
     Source/DSP/FreOscNoiseGenerator.h
+    Source/DSP/FreOscEnvelope.cpp
+    Source/DSP/FreOscEnvelope.h
+    Source/DSP/FreOscCompressor.cpp
+    Source/DSP/FreOscCompressor.h
+    Source/DSP/FreOscLimiter.cpp
+    Source/DSP/FreOscLimiter.h
     
     # Parameters
     Source/Parameters/FreOscParameters.cpp

@@ -143,14 +143,14 @@ inline const std::vector<FreOscParameters::ParameterInfo> FreOscParameters::floa
     {"noise_level",    "Noise Level",    {0.0f, 1.0f, 0.01f}, 0.0f},
     {"noise_pan",      "Noise Pan",      {-1.0f, 1.0f, 0.01f}, 0.0f},
 
-    // Master - Simple moderate volume
-    {"master_volume",  "Master Volume",  {0.0f, 1.0f, 0.01f}, 0.5f},
+    // Master - Default -6dB (0.675 normalized value)
+    {"master_volume",  "Master Volume",  {0.0f, 1.0f, 0.01f}, 0.675f},
 
     // Envelope - Simple organ-style envelope
-    {"envelope_attack",  "Attack",   {0.0f, 2.0f, 0.01f, 0.3f}, 0.0f, " s"},
-    {"envelope_decay",   "Decay",    {0.0f, 2.0f, 0.01f, 0.3f}, 0.0f, " s"},
+    {"envelope_attack",  "Attack",   {0.0f, 6.0f, 0.01f}, 0.0f, " s"},
+    {"envelope_decay",   "Decay",    {0.0f, 6.0f, 0.01f}, 0.0f, " s"},
     {"envelope_sustain", "Sustain",  {0.0f, 1.0f, 0.01f}, 1.0f},
-    {"envelope_release", "Release",  {0.0f, 3.0f, 0.01f, 0.3f}, 0.1f, " s"},
+    {"envelope_release", "Release",  {0.0f, 6.0f, 0.01f}, 0.1f, " s"},
 
     // Filter - Wide open for clean sound
     {"filter_cutoff",    "Cutoff",     {0.0f, 1.0f, 0.01f}, 1.0f}, // Wide open (20kHz)
@@ -166,10 +166,21 @@ inline const std::vector<FreOscParameters::ParameterInfo> FreOscParameters::floa
     {"pm_index",         "PM Index",    {0.0f, 10.0f, 0.01f}, 0.0f},
     {"pm_ratio",         "PM Ratio",    {0.1f, 8.0f, 0.1f}, 1.0f},
 
-    // Dynamics removed - now uses fixed internal settings optimized for polyphony
+    // Clean Dynamics - Professional compressor and limiter
+    {"comp_threshold",   "Comp Threshold",  {-60.0f, 0.0f, 0.1f}, -12.0f, " dB"},
+    {"comp_ratio",       "Comp Ratio",      {1.0f, 20.0f, 0.1f}, 4.0f, ":1"},
+    {"comp_attack",      "Comp Attack",     {0.1f, 100.0f, 0.1f}, 1.0f, " ms"},
+    {"comp_release",     "Comp Release",    {10.0f, 1000.0f, 1.0f}, 100.0f, " ms"},
+    {"comp_makeup",      "Comp Makeup",     {-20.0f, 20.0f, 0.1f}, 0.0f, " dB"},
+    {"comp_mix",         "Comp Mix",        {0.0f, 1.0f, 0.01f}, 1.0f},
 
-    // Plate Reverb - Off by default
-    {"plate_predelay",   "Pre-Delay",      {0.0f, 1.0f, 0.01f}, 0.0f},
+    {"limiter_threshold", "Limiter Threshold", {-20.0f, 0.0f, 0.1f}, -3.0f, " dB"},
+    {"limiter_release",   "Limiter Release",   {1.0f, 1000.0f, 1.0f}, 50.0f, " ms"},
+    {"limiter_ceiling",   "Limiter Ceiling",   {-1.0f, 0.0f, 0.01f}, -0.1f, " dB"},
+    {"limiter_saturation", "Limiter Saturation", {0.0f, 1.0f, 0.01f}, 0.3f},
+
+    // Plate Reverb - Off by default (minimum 1ms = 0.004 normalized from 0-250ms range)
+    {"plate_predelay",   "Pre-Delay",      {0.004f, 1.0f, 0.01f}, 0.004f},
     {"plate_size",       "Size",           {0.0f, 1.0f, 0.01f}, 0.0f},
     {"plate_damping",    "Damping",        {0.0f, 1.0f, 0.01f}, 0.5f},
     {"plate_diffusion",  "Diffusion",      {0.0f, 1.0f, 0.01f}, 0.5f},
@@ -197,18 +208,18 @@ inline const std::vector<FreOscParameters::ParameterInfo> FreOscParameters::floa
     {"lfo3_amount",      "LFO3 Amount",    {0.0f, 1.0f, 0.01f}, 0.0f},
 
     // Modulation Envelope 1
-    {"mod_env1_attack",  "ModEnv1 Attack",  {0.0f, 2.0f, 0.01f, 0.3f}, 0.01f, " s"},
-    {"mod_env1_decay",   "ModEnv1 Decay",   {0.0f, 2.0f, 0.01f, 0.3f}, 0.2f, " s"},
+    {"mod_env1_attack",  "ModEnv1 Attack",  {0.0f, 6.0f, 0.01f}, 0.01f, " s"},
+    {"mod_env1_decay",   "ModEnv1 Decay",   {0.0f, 6.0f, 0.01f}, 0.2f, " s"},
     {"mod_env1_sustain", "ModEnv1 Sustain", {0.0f, 1.0f, 0.01f}, 0.8f},
-    {"mod_env1_release", "ModEnv1 Release", {0.0f, 3.0f, 0.01f, 0.3f}, 0.3f, " s"},
+    {"mod_env1_release", "ModEnv1 Release", {0.0f, 6.0f, 0.01f}, 0.3f, " s"},
     {"mod_env1_amount",  "ModEnv1 Amount",  {0.0f, 1.0f, 0.01f}, 0.0f},
     {"mod_env1_rate",    "ModEnv1 Rate",    {0.1f, 10.0f, 0.1f, 0.3f}, 1.0f, " Hz"},
 
     // Modulation Envelope 2
-    {"mod_env2_attack",  "ModEnv2 Attack",  {0.0f, 2.0f, 0.01f, 0.3f}, 0.01f, " s"},
-    {"mod_env2_decay",   "ModEnv2 Decay",   {0.0f, 2.0f, 0.01f, 0.3f}, 0.2f, " s"},
+    {"mod_env2_attack",  "ModEnv2 Attack",  {0.0f, 6.0f, 0.01f}, 0.01f, " s"},
+    {"mod_env2_decay",   "ModEnv2 Decay",   {0.0f, 6.0f, 0.01f}, 0.2f, " s"},
     {"mod_env2_sustain", "ModEnv2 Sustain", {0.0f, 1.0f, 0.01f}, 0.8f},
-    {"mod_env2_release", "ModEnv2 Release", {0.0f, 3.0f, 0.01f, 0.3f}, 0.3f, " s"},
+    {"mod_env2_release", "ModEnv2 Release", {0.0f, 6.0f, 0.01f}, 0.3f, " s"},
     {"mod_env2_amount",  "ModEnv2 Amount",  {0.0f, 1.0f, 0.01f}, 0.0f},
     {"mod_env2_rate",    "ModEnv2 Rate",    {0.1f, 10.0f, 0.1f, 0.3f}, 1.0f, " Hz"},
 
