@@ -120,12 +120,21 @@ git push origin v1.0.1
 
 ## Workflow Permissions Required
 
-The workflow uses the default `GITHUB_TOKEN` which needs:
-- `contents: write` - To create releases
-- `actions: read` - To download artifacts
+The workflow uses the default `GITHUB_TOKEN` with GitHub CLI (`gh`) which needs:
+- `contents: write` - To create releases and upload assets
+- `actions: read` - To download artifacts  
 - `packages: read` - For caching
 
 These are typically available by default in GitHub repositories.
+
+## Updated Actions Used
+
+The workflow now uses the latest, non-deprecated GitHub Actions:
+- `actions/checkout@v4` - Latest checkout action
+- `actions/cache@v4` - Latest caching action  
+- `actions/upload-artifact@v4` - Latest artifact upload
+- `actions/download-artifact@v4` - Latest artifact download
+- GitHub CLI (`gh`) - Modern approach for release creation and asset upload
 
 ## Future Enhancements
 

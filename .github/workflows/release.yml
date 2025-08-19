@@ -56,7 +56,7 @@ jobs:
       # Setup JUCE for both platforms
       - name: Cache JUCE
         id: cache-juce
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: JUCE
           key: juce-7.0.12-${{ runner.os }}
@@ -166,7 +166,7 @@ jobs:
 
       # Upload artifacts for release
       - name: Upload build artifacts
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.artifact_name }}-${{ steps.version.outputs.tag }}
           path: FreOSC-VST/artifacts/${{ matrix.artifact_name }}-${{ steps.version.outputs.tag }}.zip
@@ -189,7 +189,7 @@ jobs:
           echo "tag=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
 
       - name: Download all artifacts
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           path: release-assets
 
@@ -237,44 +237,25 @@ jobs:
           echo "- **RAM**: 4GB minimum, 8GB recommended" >> release_notes.md
           echo "- **Compatible DAWs**: Any VST3 or AU compatible host" >> release_notes.md
 
-      - name: Create Release
-        id: create_release
-        uses: actions/create-release@v1
+      - name: Create Release with Assets
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          tag_name: ${{ steps.version.outputs.tag }}
-          release_name: FreOSC v${{ steps.version.outputs.version }}
-          body_path: release_notes.md
-          draft: false
-          prerelease: false
-
-      # Upload Windows build
-      - name: Upload Windows Release Asset
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: release-assets/FreOSC-Windows-${{ steps.version.outputs.tag }}/FreOSC-Windows-${{ steps.version.outputs.tag }}.zip
-          asset_name: FreOSC-Windows-${{ steps.version.outputs.tag }}.zip
-          asset_content_type: application/zip
-
-      # Upload macOS build
-      - name: Upload macOS Release Asset
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: release-assets/FreOSC-macOS-${{ steps.version.outputs.tag }}/FreOSC-macOS-${{ steps.version.outputs.tag }}.zip
-          asset_name: FreOSC-macOS-${{ steps.version.outputs.tag }}.zip
-          asset_content_type: application/zip
+        run: |
+          # Create the release with GitHub CLI
+          gh release create "${{ steps.version.outputs.tag }}" \
+            --title "FreOSC v${{ steps.version.outputs.version }}" \
+            --notes-file release_notes.md \
+            --repo "${{ github.repository }}" \
+            "release-assets/FreOSC-Windows-${{ steps.version.outputs.tag }}/FreOSC-Windows-${{ steps.version.outputs.tag }}.zip#FreOSC-Windows-${{ steps.version.outputs.tag }}.zip" \
+            "release-assets/FreOSC-macOS-${{ steps.version.outputs.tag }}/FreOSC-macOS-${{ steps.version.outputs.tag }}.zip#FreOSC-macOS-${{ steps.version.outputs.tag }}.zip"
 
       - name: Release Summary
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           echo "🎉 Successfully created release: FreOSC v${{ steps.version.outputs.version }}"
-          echo "📦 Release URL: ${{ steps.create_release.outputs.html_url }}"
+          RELEASE_URL=$(gh release view "${{ steps.version.outputs.tag }}" --repo "${{ github.repository }}" --json url --jq .url)
+          echo "📦 Release URL: $RELEASE_URL"
           echo ""
           echo "Assets uploaded:"
           echo "- FreOSC-Windows-${{ steps.version.outputs.tag }}.zip"
