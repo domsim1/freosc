@@ -95,25 +95,42 @@ jobs:
           if [[ "${{ matrix.os }}" == "windows-latest" ]]; then
             echo "Downloading JUCE for Windows..."
             curl -L -o juce.zip "https://github.com/juce-framework/JUCE/releases/download/7.0.12/juce-7.0.12-windows.zip"
-            unzip -o -q juce.zip
           else
             echo "Downloading JUCE for macOS..."
             curl -L -o juce.zip "https://github.com/juce-framework/JUCE/releases/download/7.0.12/juce-7.0.12-osx.zip"
-            unzip -o -q juce.zip
           fi
           
-          # Debug: Check what was extracted
-          echo "Contents after unzip:"
+          # Check zip contents first
+          echo "Checking zip file contents..."
+          unzip -l juce.zip | head -20
+          
+          # Extract to a temporary directory first to avoid conflicts
+          mkdir -p temp_juce
+          cd temp_juce
+          unzip -o -q ../juce.zip
+          
+          # Debug: Check what was extracted in temp directory
+          echo "Contents in temp directory:"
           ls -la
           
-          # Rename the extracted directory to JUCE
+          # Move the extracted content to the parent JUCE directory
           if [ -d "JUCE-7.0.12" ]; then
-            mv JUCE-7.0.12 JUCE
-            echo "Successfully renamed JUCE-7.0.12 to JUCE"
+            cd ..
+            mv temp_juce/JUCE-7.0.12 JUCE
+            rm -rf temp_juce
+            echo "Successfully extracted and moved JUCE"
+          elif [ -d "JUCE" ]; then
+            # Sometimes the zip extracts directly as JUCE
+            cd ..
+            mv temp_juce/JUCE ./JUCE
+            rm -rf temp_juce
+            echo "Successfully extracted JUCE directory"
           else
-            echo "Error: JUCE-7.0.12 directory not found after extraction"
-            echo "Available directories:"
+            echo "Error: Neither JUCE-7.0.12 nor JUCE directory found after extraction"
+            echo "Available directories in temp_juce:"
             ls -la
+            cd ..
+            rm -rf temp_juce
             exit 1
           fi
           
