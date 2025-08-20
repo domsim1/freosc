@@ -258,7 +258,7 @@ void FreOscTapeDelay::TapeDelayLine::setSize(int newSize)
     if (newSize != size)
     {
         size = newSize;
-        buffer.resize(size, 0.0f); // Initialize with zeros
+        buffer.resize(static_cast<size_t>(size), 0.0f); // Initialize with zeros
         clear();
     }
 }
@@ -280,7 +280,7 @@ float FreOscTapeDelay::TapeDelayLine::read(float delaySamples) const
     // Additional bounds check
     readPos = juce::jlimit(0, size - 1, readPos);
     
-    return buffer[readPos];
+    return buffer[static_cast<size_t>(readPos)];
 }
 
 void FreOscTapeDelay::TapeDelayLine::write(float sample)
@@ -293,7 +293,7 @@ void FreOscTapeDelay::TapeDelayLine::write(float sample)
         // Bounds check writePos
         writePos = juce::jlimit(0, size - 1, writePos);
         
-        buffer[writePos] = sample;
+        buffer[static_cast<size_t>(writePos)] = sample;
         writePos = (writePos + 1) % size;
     }
 }
@@ -320,8 +320,8 @@ float FreOscTapeDelay::TapeDelayLine::readInterpolated(float delaySamples) const
     readPos1 = juce::jlimit(0, size - 1, readPos1);
     readPos2 = juce::jlimit(0, size - 1, readPos2);
     
-    float sample1 = buffer[readPos1];
-    float sample2 = buffer[readPos2];
+    float sample1 = buffer[static_cast<size_t>(readPos1)];
+    float sample2 = buffer[static_cast<size_t>(readPos2)];
     
     return sample1 + frac * (sample2 - sample1);
 }

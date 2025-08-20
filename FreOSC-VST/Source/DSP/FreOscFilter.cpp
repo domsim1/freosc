@@ -64,7 +64,7 @@ void FreOscFilter::setFilterType(FilterType newType)
 void FreOscFilter::setCutoffFrequency(float normalizedFreq)
 {
     normalizedFreq = juce::jlimit(0.0f, 1.0f, normalizedFreq);
-    if (currentCutoffNormalized != normalizedFreq)
+    if (std::abs(currentCutoffNormalized - normalizedFreq) > 1e-6f)
     {
         currentCutoffNormalized = normalizedFreq;
         updateFilterCoefficients();
@@ -74,7 +74,7 @@ void FreOscFilter::setCutoffFrequency(float normalizedFreq)
 void FreOscFilter::setResonance(float normalizedQ)
 {
     normalizedQ = juce::jlimit(0.0f, 1.0f, normalizedQ);
-    if (currentResonanceNormalized != normalizedQ)
+    if (std::abs(currentResonanceNormalized - normalizedQ) > 1e-6f)
     {
         currentResonanceNormalized = normalizedQ;
         updateFilterCoefficients();
@@ -84,7 +84,7 @@ void FreOscFilter::setResonance(float normalizedQ)
 void FreOscFilter::setGain(float normalizedGain)
 {
     normalizedGain = juce::jlimit(0.0f, 1.0f, normalizedGain);
-    if (currentGainNormalized != normalizedGain)
+    if (std::abs(currentGainNormalized - normalizedGain) > 1e-6f)
     {
         currentGainNormalized = normalizedGain;
         updateFilterCoefficients();

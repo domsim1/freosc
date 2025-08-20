@@ -261,7 +261,7 @@ void FreOscPlateReverb::DelayLine::setSize(int newSize)
     if (newSize != size)
     {
         size = newSize;
-        buffer.resize(size);
+        buffer.resize(static_cast<size_t>(size));
         clear();
     }
 }
@@ -277,14 +277,14 @@ float FreOscPlateReverb::DelayLine::read(int delaySamples) const
     if (size == 0) return 0.0f;
     
     int readPos = (writePos - delaySamples + size) % size;
-    return buffer[readPos];
+    return buffer[static_cast<size_t>(readPos)];
 }
 
 void FreOscPlateReverb::DelayLine::write(float sample)
 {
     if (size > 0)
     {
-        buffer[writePos] = sample;
+        buffer[static_cast<size_t>(writePos)] = sample;
         writePos = (writePos + 1) % size;
     }
 }

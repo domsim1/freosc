@@ -2085,7 +2085,7 @@ void FreOscEditor::updateCurrentPresetDisplay()
         // Find the patch in the filtered list
         for (int i = 0; i < static_cast<int>(filteredPatches.size()); ++i)
         {
-            if (filteredPatches[i].originalIndex == currentIndex)
+            if (filteredPatches[static_cast<size_t>(i)].originalIndex == currentIndex)
             {
                 patchListBox.selectRow(i + 1); // +1 because "Default" is row 0
                 break;
@@ -2163,7 +2163,7 @@ void FreOscEditor::paintListBoxItem(int rowNumber, juce::Graphics& g, int width,
     }
     else if (rowNumber - 1 < static_cast<int>(filteredPatches.size()))
     {
-        const auto& patch = filteredPatches[rowNumber - 1];
+        const auto& patch = filteredPatches[static_cast<size_t>(rowNumber - 1)];
         itemText = patch.isFactory ? "[Factory] " + patch.name : patch.name;
     }
     
@@ -2188,6 +2188,7 @@ void FreOscEditor::selectedRowsChanged(int lastRowSelected)
         {
             if (auto* rangedParam = dynamic_cast<juce::AudioProcessorParameterWithID*>(param))
             {
+                juce::ignoreUnused(rangedParam);
                 param->setValueNotifyingHost(param->getDefaultValue());
             }
         }
@@ -2200,7 +2201,7 @@ void FreOscEditor::selectedRowsChanged(int lastRowSelected)
     else if (lastRowSelected > 0 && lastRowSelected - 1 < static_cast<int>(filteredPatches.size()))
     {
         // Patch selected
-        const auto& patch = filteredPatches[lastRowSelected - 1];
+        const auto& patch = filteredPatches[static_cast<size_t>(lastRowSelected - 1)];
         audioProcessor.loadPreset(patch.originalIndex);
         audioProcessor.getPresets().setCurrentPreset(patch.originalIndex);
         
@@ -2276,8 +2277,8 @@ void FreOscEditor::showThemedSuccessMessage(const juce::String& title, const juc
     alertWindow->centreAroundComponent(this, alertWindow->getWidth(), alertWindow->getHeight());
     
     // Show the dialog
-    alertWindow->enterModalState(true, juce::ModalCallbackFunction::create([alertWindow = std::move(alertWindow)](int) mutable {
-        alertWindow.reset(); // Clean up when dismissed
+    alertWindow->enterModalState(true, juce::ModalCallbackFunction::create([window = std::move(alertWindow)](int) mutable {
+        window.reset(); // Clean up when dismissed
     }));
 }
 
@@ -2300,8 +2301,8 @@ void FreOscEditor::showThemedErrorMessage(const juce::String& title, const juce:
     alertWindow->centreAroundComponent(this, alertWindow->getWidth(), alertWindow->getHeight());
     
     // Show the dialog
-    alertWindow->enterModalState(true, juce::ModalCallbackFunction::create([alertWindow = std::move(alertWindow)](int) mutable {
-        alertWindow.reset(); // Clean up when dismissed
+    alertWindow->enterModalState(true, juce::ModalCallbackFunction::create([window = std::move(alertWindow)](int) mutable {
+        window.reset(); // Clean up when dismissed
     }));
 }
 
@@ -2324,8 +2325,8 @@ void FreOscEditor::showThemedInfoMessage(const juce::String& title, const juce::
     alertWindow->centreAroundComponent(this, alertWindow->getWidth(), alertWindow->getHeight());
     
     // Show the dialog
-    alertWindow->enterModalState(true, juce::ModalCallbackFunction::create([alertWindow = std::move(alertWindow)](int) mutable {
-        alertWindow.reset(); // Clean up when dismissed
+    alertWindow->enterModalState(true, juce::ModalCallbackFunction::create([window = std::move(alertWindow)](int) mutable {
+        window.reset(); // Clean up when dismissed
     }));
 }
 
@@ -2351,9 +2352,9 @@ void FreOscEditor::showThemedConfirmDialog(const juce::String& title, const juce
     alertWindow->centreAroundComponent(this, alertWindow->getWidth(), alertWindow->getHeight());
     
     // Show the dialog with callback
-    alertWindow->enterModalState(true, juce::ModalCallbackFunction::create([alertWindow = std::move(alertWindow), callback](int result) mutable {
+    alertWindow->enterModalState(true, juce::ModalCallbackFunction::create([window = std::move(alertWindow), callback](int result) mutable {
         callback(result == 1); // true if confirmed (button 1), false if cancelled (button 0)
-        alertWindow.reset(); // Clean up when dismissed
+        window.reset(); // Clean up when dismissed
     }));
 }
 
@@ -2944,9 +2945,9 @@ juce::String FreOscEditor::formatPanValue(float value)
     if (std::abs(value) < 0.01f)
         return "Center";
     else if (value < 0.0f)
-        return "L" + juce::String(static_cast<int>(std::abs(value) * 100.0f)) + "%";
+        return "L" + juce::String(static_cast<int>(std::round(std::abs(value) * 100.0f))) + "%";
     else
-        return "R" + juce::String(static_cast<int>(value * 100.0f)) + "%";
+        return "R" + juce::String(static_cast<int>(std::round(value * 100.0f))) + "%";
 }
 
 juce::String FreOscEditor::formatTimeValue(float value)
@@ -3631,7 +3632,7 @@ std::unique_ptr<juce::Component> FreOscEditor::createOscillatorsTab()
             // BorderArea assignments removed - no longer needed
 
             // Create a title area (like GroupComponent border) - leave space at top for title
-            auto titleArea = area.removeFromTop(20);
+            // auto titleArea = area.removeFromTop(20);
 
             // Top row: Waveform and Octave dropdowns side by side
             auto topRow = area.removeFromTop(50).reduced(5);
@@ -4285,15 +4286,15 @@ std::unique_ptr<juce::Component> FreOscEditor::createFilterEnvelopeTab()
         }
         
         void layoutSingleFilter(juce::Rectangle<int> area,
-                               juce::ComboBox& typeCombo,
-                               juce::Slider& cutoffSlider, juce::Slider& resonanceSlider, juce::Slider& gainSlider,
-                               juce::Label& cutoffLabel, juce::Label& resonanceLabel, juce::Label& gainLabel,
-                               juce::Label& cutoffValue, juce::Label& resonanceValue, juce::Label& gainValue)
+                               juce::ComboBox& _typeCombo,
+                               juce::Slider& _cutoffSlider, juce::Slider& _resonanceSlider, juce::Slider& _gainSlider,
+                               juce::Label& _cutoffLabel, juce::Label& _resonanceLabel, juce::Label& _gainLabel,
+                               juce::Label& _cutoffValue, juce::Label& _resonanceValue, juce::Label& _gainValue)
         {
             // Type dropdown on top (no label)
             auto topRowHeight = 25;  // Reduced since no label
             auto topRow = area.removeFromTop(topRowHeight);
-            typeCombo.setBounds(topRow.reduced(2));
+            _typeCombo.setBounds(topRow.reduced(2));
             
             // Three vertical sliders underneath
             auto sliderRow = area;
@@ -4304,24 +4305,24 @@ std::unique_ptr<juce::Component> FreOscEditor::createFilterEnvelopeTab()
             
             // Cutoff slider (left)
             auto cutoffArea = sliderRow.removeFromLeft(sliderWidth).reduced(2);
-            cutoffLabel.setBounds(cutoffArea.removeFromTop(minLabelHeight));
+            _cutoffLabel.setBounds(cutoffArea.removeFromTop(minLabelHeight));
             auto cutoffValueArea = cutoffArea.removeFromBottom(minValueHeight);
-            cutoffSlider.setBounds(cutoffArea);
-            cutoffValue.setBounds(cutoffValueArea);
+            _cutoffSlider.setBounds(cutoffArea);
+            _cutoffValue.setBounds(cutoffValueArea);
             
             // Resonance slider (center)
             auto resonanceArea = sliderRow.removeFromLeft(sliderWidth).reduced(2);
-            resonanceLabel.setBounds(resonanceArea.removeFromTop(minLabelHeight));
+            _resonanceLabel.setBounds(resonanceArea.removeFromTop(minLabelHeight));
             auto resonanceValueArea = resonanceArea.removeFromBottom(minValueHeight);
-            resonanceSlider.setBounds(resonanceArea);
-            resonanceValue.setBounds(resonanceValueArea);
+            _resonanceSlider.setBounds(resonanceArea);
+            _resonanceValue.setBounds(resonanceValueArea);
             
             // Gain slider (right)
             auto gainArea = sliderRow.reduced(2);
-            gainLabel.setBounds(gainArea.removeFromTop(minLabelHeight));
+            _gainLabel.setBounds(gainArea.removeFromTop(minLabelHeight));
             auto gainValueArea = gainArea.removeFromBottom(minValueHeight);
-            gainSlider.setBounds(gainArea);
-            gainValue.setBounds(gainValueArea);
+            _gainSlider.setBounds(gainArea);
+            _gainValue.setBounds(gainValueArea);
         }
 
         void resized() override

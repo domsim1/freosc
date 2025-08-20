@@ -78,3 +78,6 @@ Makefile
 
 # Preset files (keep the factory ones, ignore user presets)
 FreOSC-VST/Presets/User/
+
+# JUCE framework directory
+JUCE/

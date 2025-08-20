@@ -98,7 +98,7 @@ bool JsonPresetManager::loadPreset(int presetIndex, juce::AudioProcessorValueTre
     if (presetIndex < 0 || presetIndex >= static_cast<int>(presets.size()))
         return false;
 
-    const auto& preset = presets[presetIndex];
+    const auto& preset = presets[static_cast<size_t>(presetIndex)];
 
     if (loadPresetFromFile(preset.file, parameters))
     {
@@ -140,7 +140,7 @@ bool JsonPresetManager::updatePreset(int presetIndex, juce::AudioProcessorValueT
     if (presetIndex < 0 || presetIndex >= static_cast<int>(presets.size()))
         return false;
     
-    const auto& preset = presets[presetIndex];
+    const auto& preset = presets[static_cast<size_t>(presetIndex)];
     
     // Don't allow updating factory presets
     if (preset.isFactory)
@@ -174,7 +174,7 @@ bool JsonPresetManager::deletePreset(int presetIndex)
     if (presetIndex < 0 || presetIndex >= static_cast<int>(presets.size()))
         return false;
     
-    const auto& preset = presets[presetIndex];
+    const auto& preset = presets[static_cast<size_t>(presetIndex)];
     
     // Don't allow deleting factory presets
     if (preset.isFactory)
@@ -265,7 +265,7 @@ bool JsonPresetManager::presetExists(const juce::String& presetName) const
 juce::String JsonPresetManager::getCurrentPresetName() const
 {
     if (currentPresetIndex >= 0 && currentPresetIndex < static_cast<int>(presets.size()))
-        return presets[currentPresetIndex].name;
+        return presets[static_cast<size_t>(currentPresetIndex)].name;
     return "Default";
 }
 
@@ -307,21 +307,21 @@ juce::StringArray JsonPresetManager::getPresetNames() const
 juce::String JsonPresetManager::getPresetName(int index) const
 {
     if (index >= 0 && index < static_cast<int>(presets.size()))
-        return presets[index].name;
+        return presets[static_cast<size_t>(index)].name;
     return {};
 }
 
 juce::String JsonPresetManager::getPresetDescription(int index) const
 {
     if (index >= 0 && index < static_cast<int>(presets.size()))
-        return presets[index].description;
+        return presets[static_cast<size_t>(index)].description;
     return {};
 }
 
 bool JsonPresetManager::isFactoryPreset(int index) const
 {
     if (index >= 0 && index < static_cast<int>(presets.size()))
-        return presets[index].isFactory;
+        return presets[static_cast<size_t>(index)].isFactory;
     return false;
 }
 
@@ -436,14 +436,14 @@ juce::var JsonPresetManager::createSimplePresetJson(const juce::String& name, co
     };
     
     // Save each parameter using normalized values (0-1) for consistency with loading
-    int paramCount = 0;
+    // int paramCount = 0;
     for (const auto& paramID : parameterIDs)
     {
         if (auto* param = parameters.getParameter(paramID))
         {
             float normalizedValue = param->getValue(); // Gets normalized 0-1 value
             parametersObj->setProperty(paramID, normalizedValue);
-            paramCount++;
+            // paramCount++;
         }
         else
         {
@@ -451,7 +451,7 @@ juce::var JsonPresetManager::createSimplePresetJson(const juce::String& name, co
         }
     }
     
-    DBG("Saved " + juce::String(paramCount) + " parameters to preset: " + name);
+    // DBG("Saved " + juce::String(paramCount) + " parameters to preset: " + name);
     
     json->setProperty("parameters", parametersObj.get());
     

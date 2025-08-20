@@ -100,7 +100,7 @@ void FreOscLFO::setAmount(float newAmount)
 float FreOscLFO::getNextSample(Waveform waveform, float rateHz, Target target)
 {
     // Update parameters if changed
-    if (rateHz != rate)
+    if (std::abs(rateHz - rate) > 1e-6f)
         setRate(rateHz);
     if (waveform != currentWaveform)
         setWaveform(waveform);

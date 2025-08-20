@@ -61,12 +61,7 @@ private:
     class LFOWaveformSelectorAttachment;
     class OctaveSelectorAttachment;
 
-    // Parameter attachments for automatic GUI updates
-    std::vector<std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment>> sliderAttachments;
-    std::vector<std::unique_ptr<juce::AudioProcessorValueTreeState::ComboBoxAttachment>> comboAttachments;
-    std::vector<std::unique_ptr<WaveformSelectorAttachment>> waveformAttachments;
-    std::vector<std::unique_ptr<LFOWaveformSelectorAttachment>> lfoWaveformAttachments;
-    std::vector<std::unique_ptr<OctaveSelectorAttachment>> octaveAttachments;
+    
 
     //==============================================================================
     // GUI Components
@@ -78,11 +73,11 @@ private:
     juce::Viewport viewport;
     juce::Component contentComponent;
 
-    // Tabbed interface
-    juce::TabbedComponent tabbedComponent;
-    
     // Custom look and feel for solid tabs
     std::unique_ptr<juce::LookAndFeel> customLookAndFeel;
+
+    // Tabbed interface
+    juce::TabbedComponent tabbedComponent;
 
     // Tab content components
     std::unique_ptr<juce::Component> oscillatorsTab;
@@ -184,7 +179,7 @@ private:
     {
     public:
         WaveformSelectorAttachment(juce::AudioProcessorValueTreeState& state, const juce::String& parameterID, WaveformSelector& selector);
-        ~WaveformSelectorAttachment();
+        ~WaveformSelectorAttachment() override;
         
         void parameterChanged(const juce::String& parameterID, float newValue) override;
         
@@ -201,7 +196,7 @@ private:
     {
     public:
         LFOWaveformSelectorAttachment(juce::AudioProcessorValueTreeState& state, const juce::String& parameterID, LFOWaveformSelector& selector);
-        ~LFOWaveformSelectorAttachment();
+        ~LFOWaveformSelectorAttachment() override;
         
         void parameterChanged(const juce::String& parameterID, float newValue) override;
         
@@ -218,7 +213,7 @@ private:
     {
     public:
         OctaveSelectorAttachment(juce::AudioProcessorValueTreeState& state, const juce::String& parameterID, OctaveSelector& selector);
-        ~OctaveSelectorAttachment();
+        ~OctaveSelectorAttachment() override;
         
         void parameterChanged(const juce::String& parameterID, float newValue) override;
         
@@ -468,5 +463,12 @@ private:
     std::unique_ptr<juce::Component> createMasterTab();
 
     //==============================================================================
+    // Parameter attachments for automatic GUI updates
+    std::vector<std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment>> sliderAttachments;
+    std::vector<std::unique_ptr<juce::AudioProcessorValueTreeState::ComboBoxAttachment>> comboAttachments;
+    std::vector<std::unique_ptr<WaveformSelectorAttachment>> waveformAttachments;
+    std::vector<std::unique_ptr<LFOWaveformSelectorAttachment>> lfoWaveformAttachments;
+    std::vector<std::unique_ptr<OctaveSelectorAttachment>> octaveAttachments;
+
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (FreOscEditor)
 };

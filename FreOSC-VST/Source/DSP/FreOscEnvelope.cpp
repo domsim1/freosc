@@ -81,7 +81,7 @@ float FreOscEnvelope::getNextSample()
                 setPhase(Idle);
             }
             break;
-            
+        case Idle:
         default:
             break;
     }

@@ -50,16 +50,16 @@ public:
         for (int sample = 0; sample < numSamples; ++sample)
         {
             // Get input samples
-            float inputL = inputBlock.getSample(0, static_cast<size_t>(sample));
-            float inputR = numChannels > 1 ? inputBlock.getSample(1, static_cast<size_t>(sample)) : inputL;
+            float inputL = inputBlock.getSample(0, sample);
+            float inputR = numChannels > 1 ? inputBlock.getSample(1, sample) : inputL;
             
             // Apply limiting
             auto result = processStereoSample(inputL, inputR);
             
             // Set output samples
-            outputBlock.setSample(0, static_cast<size_t>(sample), result.first);
+            outputBlock.setSample(0, sample, result.first);
             if (numChannels > 1)
-                outputBlock.setSample(1, static_cast<size_t>(sample), result.second);
+                outputBlock.setSample(1, sample, result.second);
         }
     }
     

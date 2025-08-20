@@ -67,7 +67,7 @@ void FreOscVoice::startNote(int midiNoteNumber, float velocity, juce::Synthesise
     currentNoteFrequency = static_cast<float>(juce::MidiMessage::getMidiNoteInHertz(static_cast<int>(effectiveNoteNumber)));
 
     // If fractional note number, interpolate frequency
-    if (effectiveNoteNumber != static_cast<int>(effectiveNoteNumber))
+    if (std::abs(effectiveNoteNumber - static_cast<int>(effectiveNoteNumber)) > 1e-6f)
     {
         float fractionalPart = effectiveNoteNumber - static_cast<int>(effectiveNoteNumber);
         float lowerFreq = static_cast<float>(juce::MidiMessage::getMidiNoteInHertz(static_cast<int>(effectiveNoteNumber)));
@@ -696,11 +696,11 @@ void FreOscVoice::renderNextBlock(juce::AudioBuffer<float>& outputBuffer, int st
         float ccVolumeModulation = ccVolume * ccExpression;
 
         // Add modulation wheel effect on LFO amount
-        float effectiveLfoAmount = params.lfoAmount;
-        if (ccModWheel > 0.0f)
-        {
-            effectiveLfoAmount += ccModWheel * 0.5f; // Mod wheel can add up to 50% more LFO
-        }
+        // float effectiveLfoAmount = params.lfoAmount;
+        // if (ccModWheel > 0.0f)
+        // {
+        //     effectiveLfoAmount += ccModWheel * 0.5f; // Mod wheel can add up to 50% more LFO
+        // }
 
         // Apply minimum envelope level to prevent pops when envelope reaches 0
         float safeEnvelopeLevel = juce::jmax(envelopeLevel, 0.001f);
@@ -758,13 +758,13 @@ void FreOscVoice::renderNextBlock(juce::AudioBuffer<float>& outputBuffer, int st
         finalModulatedCutoff2 = juce::jlimit(0.0f, 1.0f, finalModulatedCutoff2);
 
         // Update filter if modulation changed or mod envelope is active
-        if (std::abs(filterModulation) > 0.001f || finalModulatedCutoff != params.filterCutoff.load())
+        if (std::abs(filterModulation) > 0.001f || std::abs(finalModulatedCutoff - params.filterCutoff.load()) > 1e-6f)
         {
             voiceFilter.setCutoffFrequency(finalModulatedCutoff);
         }
         
         // Update filter2 if modulation changed or mod envelope is active
-        if (std::abs(filter2Modulation) > 0.001f || finalModulatedCutoff2 != params.filter2Cutoff.load())
+        if (std::abs(filter2Modulation) > 0.001f || std::abs(finalModulatedCutoff2 - params.filter2Cutoff.load()) > 1e-6f)
         {
             voiceFilter2.setCutoffFrequency(finalModulatedCutoff2);
         }
