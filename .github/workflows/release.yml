@@ -160,13 +160,18 @@ jobs:
           echo "Checking JUCE directory..."
           ls -la ../../JUCE/ | head -5
           
+          # Set JUCE path relative to workflow working directory
+          JUCE_PATH="$(pwd)/../../JUCE"
+          echo "JUCE path will be: $JUCE_PATH"
+          ls -la "$JUCE_PATH" | head -3
+          
           if [[ "${{ matrix.os }}" == "windows-latest" ]]; then
             echo "Configuring CMake for Windows..."
-            cmake .. -DJUCE_DIR="../../JUCE" -G "Visual Studio 17 2022" -A x64 -DCMAKE_BUILD_TYPE=Release
+            cmake .. -DJUCE_DIR="$JUCE_PATH" -G "Visual Studio 17 2022" -A x64 -DCMAKE_BUILD_TYPE=Release
           else
             echo "Configuring CMake for macOS..."
             # Speed up cmake configuration by skipping some checks
-            cmake .. -DJUCE_DIR="../../JUCE" \
+            cmake .. -DJUCE_DIR="$JUCE_PATH" \
               -DCMAKE_BUILD_TYPE=Release \
               -DCMAKE_OSX_DEPLOYMENT_TARGET=10.13 \
               -DCMAKE_OSX_ARCHITECTURES="x86_64;arm64"
