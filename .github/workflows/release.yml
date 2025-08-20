@@ -150,6 +150,7 @@ jobs:
       # Configure and build
       - name: Configure CMake
         shell: bash
+        timeout-minutes: 15
         run: |
           cd FreOSC-VST
           mkdir -p build
@@ -157,25 +158,38 @@ jobs:
           
           # Debug: Check JUCE directory exists
           echo "Checking JUCE directory..."
-          ls -la ../../JUCE/ | head -10
+          ls -la ../../JUCE/ | head -5
           
           if [[ "${{ matrix.os }}" == "windows-latest" ]]; then
             echo "Configuring CMake for Windows..."
-            cmake .. -DJUCE_DIR="../../JUCE" -G "Visual Studio 17 2022" -A x64
+            cmake .. -DJUCE_DIR="../../JUCE" -G "Visual Studio 17 2022" -A x64 -DCMAKE_BUILD_TYPE=Release
           else
             echo "Configuring CMake for macOS..."
-            cmake .. -DJUCE_DIR="../../JUCE"
+            # Speed up cmake configuration by skipping some checks
+            cmake .. -DJUCE_DIR="../../JUCE" \
+              -DCMAKE_BUILD_TYPE=Release \
+              -DCMAKE_OSX_DEPLOYMENT_TARGET=10.13 \
+              -DCMAKE_OSX_ARCHITECTURES="x86_64;arm64"
           fi
+          
+          echo "CMake configuration completed successfully"
 
       - name: Build VST
         shell: bash
+        timeout-minutes: 30
         run: |
           cd FreOSC-VST/build
+          echo "Starting build process..."
+          
           if [[ "${{ matrix.os }}" == "windows-latest" ]]; then
-            cmake --build . --config Release --parallel 4
+            echo "Building for Windows..."
+            cmake --build . --config Release --parallel 2 --verbose
           else
-            cmake --build . --config Release --parallel 4
+            echo "Building for macOS..."
+            cmake --build . --config Release --parallel 2 --verbose
           fi
+          
+          echo "Build completed successfully"
 
       # Package artifacts
       - name: Package Windows artifacts
