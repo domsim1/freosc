@@ -257,6 +257,7 @@ private:
     juce::GroupComponent presetManagementGroup;
     juce::TextButton savePresetButton;
     juce::TextButton deletePresetButton;
+    juce::TextButton randomizeButton; // New randomize button
     juce::TextEditor presetNameEditor;
     juce::Label presetNameLabel;
     juce::Label currentPresetLabel;

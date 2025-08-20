@@ -1796,6 +1796,11 @@ FreOscEditor::FreOscEditor (FreOscProcessor& p)
     setupComponent(patchFilterEditor);
     setupComponent(patchListBox);
 
+    // Initialize randomize button
+    randomizeButton.setButtonText("Randomize");
+    randomizeButton.addListener(this);
+    applyComponentStyling(randomizeButton);
+
     // DO NOT setup components in main constructor - let tabs handle this
     // This avoids the component parent conflict issue
     // NOTE: Combo box options will be set up by individual tabs
@@ -1922,6 +1927,41 @@ void FreOscEditor::buttonClicked(juce::Button* button)
     {
         handleDeletePreset();
     }
+    else if (button == &randomizeButton)
+    {
+        // Randomize all parameters
+        auto& apvts = audioProcessor.getValueTreeState();
+
+        // Randomize float parameters
+        for (const auto& paramInfo : FreOscParameters::floatParameters)
+        {
+            // Skip master volume from randomization
+            if (paramInfo.id == ParameterIDs::masterVolume)
+                continue;
+
+            if (auto* param = apvts.getParameter(paramInfo.id))
+            {
+                float randomValue = juce::Random().nextFloat();
+                param->setValueNotifyingHost(randomValue);
+            }
+        }
+
+        // Randomize choice parameters
+        for (const auto& paramInfo : FreOscParameters::choiceParameters)
+        {
+            // paramInfo is a std::tuple<juce::String, juce::String, juce::StringArray, int>
+            // The first element is the ID
+            if (auto* param = apvts.getParameter(std::get<0>(paramInfo)))
+            {
+                // For choice parameters, randomize the index
+                int numChoices = std::get<2>(paramInfo).size();
+                int randomIndex = juce::Random().nextInt(numChoices);
+                param->setValueNotifyingHost(param->getNormalisableRange().convertTo0to1(static_cast<float>(randomIndex)));
+            }
+        }
+        // Update the GUI to reflect the new random values
+        updateValueLabels();
+    }
 }
 
 //==============================================================================
@@ -1931,6 +1971,14 @@ void FreOscEditor::handleSavePreset()
 {
     juce::String patchName = presetNameEditor.getText().trim();
     
+    // Prevent saving with the reserved name "Default"
+    if (patchName.equalsIgnoreCase("Default"))
+    {
+        showThemedErrorMessage("Invalid Name",
+                               "The name 'Default' is reserved and cannot be used for saving patches. Please choose a different name.");
+        return;
+    }
+
     // Validate patch name
     if (patchName.isEmpty())
     {
@@ -2174,10 +2222,6 @@ void FreOscEditor::paintListBoxItem(int rowNumber, juce::Graphics& g, int width,
 
 void FreOscEditor::selectedRowsChanged(int lastRowSelected)
 {
-    // Skip preset loading if we're just updating the GUI
-    if (isUpdatingGUI)
-        return;
-        
     if (lastRowSelected == 0)
     {
         // "Default" selected - reset all parameters to their default values
@@ -2200,6 +2244,10 @@ void FreOscEditor::selectedRowsChanged(int lastRowSelected)
     }
     else if (lastRowSelected > 0 && lastRowSelected - 1 < static_cast<int>(filteredPatches.size()))
     {
+        // Skip preset loading if we're just updating the GUI
+        if (isUpdatingGUI)
+            return;
+
         // Patch selected
         const auto& patch = filteredPatches[static_cast<size_t>(lastRowSelected - 1)];
         audioProcessor.loadPreset(patch.originalIndex);
@@ -5924,6 +5972,7 @@ std::unique_ptr<juce::Component> FreOscEditor::createMasterTab()
             // Add components to the group
             owner.presetManagementGroup.addAndMakeVisible(owner.savePresetButton);
             owner.presetManagementGroup.addAndMakeVisible(owner.deletePresetButton);
+            owner.presetManagementGroup.addAndMakeVisible(owner.randomizeButton); // Add randomize button
             owner.presetManagementGroup.addAndMakeVisible(owner.presetNameEditor);
             owner.presetManagementGroup.addAndMakeVisible(owner.presetNameLabel);
             owner.presetManagementGroup.addAndMakeVisible(owner.currentPresetLabel);
@@ -5966,6 +6015,8 @@ std::unique_ptr<juce::Component> FreOscEditor::createMasterTab()
             owner.savePresetButton.setBounds(buttonRow.removeFromLeft(buttonWidth));
             buttonRow.removeFromLeft(buttonGap);
             owner.deletePresetButton.setBounds(buttonRow.removeFromLeft(buttonWidth));
+            buttonRow.removeFromLeft(buttonGap);
+            owner.randomizeButton.setBounds(buttonRow.removeFromLeft(buttonWidth)); // Position randomize button
             
             contentBounds.removeFromTop(15); // Larger gap before patch selection
             

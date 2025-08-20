@@ -47,7 +47,7 @@ void FreOscOscillator::setFrequency(float frequency)
 
 void FreOscOscillator::setLevel(float newLevel)
 {
-    level = juce::jlimit(0.0f, 1.0f, newLevel);
+    level = juce::jlimit(0.0f, 0.5f, newLevel); // Decreased max level by 50%
 }
 
 void FreOscOscillator::setOctave(int octave)

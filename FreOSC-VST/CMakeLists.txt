@@ -130,7 +130,8 @@ target_include_directories(FreOSC-VST
 if(APPLE)
     set_target_properties(FreOSC-VST PROPERTIES
         XCODE_ATTRIBUTE_CLANG_ENABLE_OBJC_ARC YES
-        MACOSX_BUNDLE_INFO_PLIST_CONTENT "<key>NSQuitAlwaysKeepsWindows</key><false/>")
+        MACOSX_BUNDLE_INFO_PLIST_CONTENT "<key>NSQuitAlwaysKeepsWindows</key><false/>"
+        MACOSX_BUNDLE_RESOURCES Source/Presets)
 elseif(WIN32)
     set_target_properties(FreOSC-VST PROPERTIES
         WIN32_EXECUTABLE TRUE)

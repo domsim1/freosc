@@ -421,9 +421,7 @@ juce::var JsonPresetManager::createSimplePresetJson(const juce::String& name, co
         // PM Synthesis
         "pm_index", "pm_ratio", "pm_carrier",
         
-        // Clean Dynamics
-        "comp_threshold", "comp_ratio", "comp_attack", "comp_release", "comp_makeup", "comp_mix",
-        "limiter_threshold", "limiter_release", "limiter_ceiling", "limiter_saturation",
+        
         
         // Effects
         "effects_routing",
@@ -496,6 +494,13 @@ bool JsonPresetManager::applySimplePresetFormat(const juce::var& parametersData,
         float paramValue = static_cast<float>(it->value);
         
         // Set the normalized parameter value directly
+        // Skip compressor and limiter parameters to ensure they always use default values
+        if (paramName.startsWith("comp_") || paramName.startsWith("limiter_"))
+        {
+            DBG("Skipping compressor/limiter parameter: " + paramName + " to enforce default values.");
+            continue;
+        }
+
         if (auto* param = parameters.getParameter(paramName))
         {
             param->setValueNotifyingHost(paramValue);
