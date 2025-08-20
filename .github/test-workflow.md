@@ -106,9 +106,11 @@ git push origin v1.0.1
 ## Troubleshooting Common Issues
 
 ### Build Failures
-- **JUCE not found**: Check JUCE download links in workflow
+- **JUCE not found**: Check JUCE download links in workflow  
 - **CMake errors**: Verify CMakeLists.txt compatibility
 - **Missing dependencies**: Check runner OS compatibility
+- **Unzip interactive prompts**: Fixed with `-o -q` flags for non-interactive extraction
+- **JUCE directory not found**: Added verification step to confirm successful extraction
 
 ### Release Creation Failures
 - **Permission denied**: Ensure GITHUB_TOKEN has proper permissions

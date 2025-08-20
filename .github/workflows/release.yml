@@ -65,15 +65,31 @@ jobs:
         if: steps.cache-juce.outputs.cache-hit != 'true'
         shell: bash
         run: |
+          # Clean up any existing JUCE directory
+          rm -rf JUCE JUCE-7.0.12 juce.zip
+          
           if [[ "${{ matrix.os }}" == "windows-latest" ]]; then
+            echo "Downloading JUCE for Windows..."
             curl -L -o juce.zip "https://github.com/juce-framework/JUCE/releases/download/7.0.12/juce-7.0.12-windows.zip"
-            unzip juce.zip
+            unzip -o -q juce.zip
             mv JUCE-7.0.12 JUCE
           else
+            echo "Downloading JUCE for macOS..."
             curl -L -o juce.zip "https://github.com/juce-framework/JUCE/releases/download/7.0.12/juce-7.0.12-osx.zip"
-            unzip juce.zip
+            unzip -o -q juce.zip
             mv JUCE-7.0.12 JUCE
           fi
+          
+          # Cleanup zip file
+          rm -f juce.zip
+          
+          # Verify JUCE installation
+          if [ ! -f "JUCE/CMakeLists.txt" ]; then
+            echo "Error: JUCE installation failed - CMakeLists.txt not found"
+            exit 1
+          fi
+          
+          echo "JUCE successfully installed at: $(pwd)/JUCE"
 
       # Configure and build
       - name: Configure CMake
@@ -82,9 +98,16 @@ jobs:
           cd FreOSC-VST
           mkdir -p build
           cd build
+          
+          # Debug: Check JUCE directory exists
+          echo "Checking JUCE directory..."
+          ls -la ../../JUCE/ | head -10
+          
           if [[ "${{ matrix.os }}" == "windows-latest" ]]; then
+            echo "Configuring CMake for Windows..."
             cmake .. -DJUCE_DIR="../../JUCE" -A x64
           else
+            echo "Configuring CMake for macOS..."
             cmake .. -DJUCE_DIR="../../JUCE"
           fi
 
