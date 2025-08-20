@@ -9,6 +9,7 @@ jobs:
   build:
     name: Build VST (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
     strategy:
       matrix:
         os: [windows-latest, macos-latest]
@@ -40,11 +41,18 @@ jobs:
       # Windows-specific setup
       - name: Setup MSVC (Windows)
         if: matrix.os == 'windows-latest'
-        uses: microsoft/setup-msbuild@v1.1
-
-      - name: Setup Visual Studio environment (Windows)
+        uses: microsoft/setup-msbuild@v2
+        
+      - name: Verify Windows build environment
         if: matrix.os == 'windows-latest'
-        uses: seanmiddleditch/gha-setup-vsdevenv@master
+        shell: cmd
+        run: |
+          echo "Checking Visual Studio installation..."
+          where msbuild
+          msbuild -version
+          echo "Checking CMake..."
+          where cmake
+          cmake --version
 
       # macOS-specific setup
       - name: Setup Xcode (macOS)
@@ -61,11 +69,27 @@ jobs:
           path: JUCE
           key: juce-7.0.12-${{ runner.os }}
 
-      - name: Download and setup JUCE
-        if: steps.cache-juce.outputs.cache-hit != 'true'
+      - name: Setup JUCE
         shell: bash
         run: |
-          # Clean up any existing JUCE directory
+          if [ "${{ steps.cache-juce.outputs.cache-hit }}" == "true" ]; then
+            echo "Using cached JUCE installation"
+            if [ ! -f "JUCE/CMakeLists.txt" ]; then
+              echo "Error: Cached JUCE is corrupted - CMakeLists.txt not found"
+              rm -rf JUCE
+              echo "Removed corrupted cache, will download fresh JUCE"
+            else
+              echo "Cached JUCE is valid"
+              echo "JUCE directory contents:"
+              ls -la JUCE/ | head -5
+              exit 0
+            fi
+          fi
+          
+          # Download and setup JUCE (only if not cached or cache was corrupted)
+          echo "Setting up fresh JUCE installation..."
+          
+          # Clean up any existing directories
           rm -rf JUCE JUCE-7.0.12 juce.zip
           
           if [[ "${{ matrix.os }}" == "windows-latest" ]]; then
@@ -120,7 +144,7 @@ jobs:
           
           if [[ "${{ matrix.os }}" == "windows-latest" ]]; then
             echo "Configuring CMake for Windows..."
-            cmake .. -DJUCE_DIR="../../JUCE" -A x64
+            cmake .. -DJUCE_DIR="../../JUCE" -G "Visual Studio 17 2022" -A x64
           else
             echo "Configuring CMake for macOS..."
             cmake .. -DJUCE_DIR="../../JUCE"

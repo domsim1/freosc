@@ -111,6 +111,8 @@ git push origin v1.0.1
 - **Missing dependencies**: Check runner OS compatibility
 - **Unzip interactive prompts**: Fixed with `-o -q` flags for non-interactive extraction
 - **JUCE directory not found**: Added verification step to confirm successful extraction
+- **Windows VS environment timeout**: Removed problematic `gha-setup-vsdevenv` action, using simpler MSBuild setup
+- **Build timeout**: Added 60-minute timeout to prevent infinite hanging
 
 ### Release Creation Failures
 - **Permission denied**: Ensure GITHUB_TOKEN has proper permissions
