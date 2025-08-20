@@ -72,12 +72,25 @@ jobs:
             echo "Downloading JUCE for Windows..."
             curl -L -o juce.zip "https://github.com/juce-framework/JUCE/releases/download/7.0.12/juce-7.0.12-windows.zip"
             unzip -o -q juce.zip
-            mv JUCE-7.0.12 JUCE
           else
             echo "Downloading JUCE for macOS..."
             curl -L -o juce.zip "https://github.com/juce-framework/JUCE/releases/download/7.0.12/juce-7.0.12-osx.zip"
             unzip -o -q juce.zip
+          fi
+          
+          # Debug: Check what was extracted
+          echo "Contents after unzip:"
+          ls -la
+          
+          # Rename the extracted directory to JUCE
+          if [ -d "JUCE-7.0.12" ]; then
             mv JUCE-7.0.12 JUCE
+            echo "Successfully renamed JUCE-7.0.12 to JUCE"
+          else
+            echo "Error: JUCE-7.0.12 directory not found after extraction"
+            echo "Available directories:"
+            ls -la
+            exit 1
           fi
           
           # Cleanup zip file
@@ -86,6 +99,8 @@ jobs:
           # Verify JUCE installation
           if [ ! -f "JUCE/CMakeLists.txt" ]; then
             echo "Error: JUCE installation failed - CMakeLists.txt not found"
+            echo "JUCE directory contents:"
+            ls -la JUCE/ | head -10
             exit 1
           fi
           
