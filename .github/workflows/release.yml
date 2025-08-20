@@ -67,7 +67,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: JUCE
-          key: juce-7.0.12-${{ runner.os }}
+          key: juce-8.0.4-${{ runner.os }}
 
       - name: Setup JUCE
         shell: bash
@@ -90,14 +90,14 @@ jobs:
           echo "Setting up fresh JUCE installation..."
           
           # Clean up any existing directories
-          rm -rf JUCE JUCE-7.0.12 juce.zip
+          rm -rf JUCE JUCE-8.0.4 juce.zip
           
           if [[ "${{ matrix.os }}" == "windows-latest" ]]; then
             echo "Downloading JUCE for Windows..."
-            curl -L -o juce.zip "https://github.com/juce-framework/JUCE/releases/download/7.0.12/juce-7.0.12-windows.zip"
+            curl -L -o juce.zip "https://github.com/juce-framework/JUCE/releases/download/8.0.4/juce-8.0.4-windows.zip"
           else
             echo "Downloading JUCE for macOS..."
-            curl -L -o juce.zip "https://github.com/juce-framework/JUCE/releases/download/7.0.12/juce-7.0.12-osx.zip"
+            curl -L -o juce.zip "https://github.com/juce-framework/JUCE/releases/download/8.0.4/juce-8.0.4-osx.zip"
           fi
           
           # Check zip file exists and is valid
@@ -123,14 +123,14 @@ jobs:
             mv temp_juce/JUCE ./JUCE
             rm -rf temp_juce
             echo "Successfully extracted JUCE directory"
-          elif [ -d "JUCE-7.0.12" ]; then
-            # macOS zip extracts as JUCE-7.0.12 folder
+          elif [ -d "JUCE-8.0.4" ]; then
+            # macOS zip extracts as JUCE-8.0.4 folder
             cd ..
-            mv temp_juce/JUCE-7.0.12 JUCE
+            mv temp_juce/JUCE-8.0.4 JUCE
             rm -rf temp_juce
             echo "Successfully extracted and renamed JUCE"
           else
-            echo "Error: Neither JUCE nor JUCE-7.0.12 directory found after extraction"
+            echo "Error: Neither JUCE nor JUCE-8.0.4 directory found after extraction"
             echo "Available directories in temp_juce:"
             ls -la
             cd ..
@@ -175,9 +175,10 @@ jobs:
           else
             echo "Configuring CMake for macOS..."
             # Speed up cmake configuration by skipping some checks
+            # Use older deployment target to avoid deprecated API issues
             cmake .. -DJUCE_DIR="$JUCE_PATH" \
               -DCMAKE_BUILD_TYPE=Release \
-              -DCMAKE_OSX_DEPLOYMENT_TARGET=10.13 \
+              -DCMAKE_OSX_DEPLOYMENT_TARGET=11.0 \
               -DCMAKE_OSX_ARCHITECTURES="x86_64;arm64"
           fi
           
